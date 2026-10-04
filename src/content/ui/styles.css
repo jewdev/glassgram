@@ -1,0 +1,360 @@
+/* Instagram Enhanced — all selectors are prefixed with .ige- to avoid clashing with Instagram. */
+
+.ige-layer {
+  --ige-bg: #ffffff;
+  --ige-fg: #0f1419;
+  --ige-muted: #65676b;
+  --ige-line: #e4e6eb;
+  --ige-soft: #f2f3f5;
+  --ige-accent: #0070c9;
+  --ige-accent-fg: #ffffff;
+  --ige-danger: #e0245e;
+  --ige-warn-bg: #fff6e0;
+  --ige-warn-fg: #7a5200;
+  --ige-shadow: 0 12px 40px rgb(0 0 0 / 0.18);
+  --ige-glass: rgb(18 18 20 / 0.72);
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ige-fg);
+}
+html.__fb-dark-mode .ige-layer {
+  --ige-bg: #1c1c1e;
+  --ige-fg: #f5f5f5;
+  --ige-muted: #a8a8a8;
+  --ige-line: #363638;
+  --ige-soft: #2a2a2d;
+  --ige-warn-bg: #3a2e12;
+  --ige-warn-fg: #ffd98a;
+  --ige-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
+}
+.ige-layer > * { pointer-events: auto; }
+.ige-layer *, .ige-layer *::before, .ige-layer *::after { box-sizing: border-box; }
+
+/* ---------- buttons ---------- */
+.ige-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s, transform 0.08s;
+}
+.ige-btn:active { transform: scale(0.94); }
+.ige-btn:focus-visible { outline: 2px solid var(--ige-accent); outline-offset: 1px; }
+.ige-btn:disabled { opacity: 0.45; cursor: default; }
+.ige-btn--sm { min-width: 28px; height: 28px; padding: 0 4px; border-radius: 8px; }
+.ige-btn--primary { background: var(--ige-accent); color: var(--ige-accent-fg); padding: 0 16px; }
+.ige-btn--primary:hover:not(:disabled) { filter: brightness(1.08); }
+.ige-btn--ghost { padding: 0 14px; }
+.ige-btn--ghost:hover:not(:disabled) { background: var(--ige-soft); }
+.ige-btn.is-hidden { display: none; }
+.ige-btn.is-active { color: var(--ige-accent); }
+
+/* ---------- hover toolbar (over media) ---------- */
+.ige-toolbar {
+  position: fixed;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 13px;
+  background: var(--ige-glass);
+  color: #fff;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.14s, transform 0.14s, visibility 0s linear 0.14s;
+}
+.ige-toolbar.is-visible { opacity: 1; visibility: visible; transform: none; transition: opacity 0.14s, transform 0.14s; }
+.ige-toolbar .ige-btn:hover { background: rgb(255 255 255 / 0.16); }
+
+/* ---------- video bar ---------- */
+.ige-vbar {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 6px;
+  border-radius: 12px;
+  background: var(--ige-glass);
+  color: #fff;
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.14s, visibility 0s linear 0.14s;
+}
+.ige-vbar.is-visible { opacity: 1; visibility: visible; transition: opacity 0.14s; }
+.ige-vbar .ige-btn:hover { background: rgb(255 255 255 / 0.16); }
+.ige-vbar .ige-btn.is-active { color: #6cc4ff; }
+.ige-vbar__time { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; opacity: 0.9; }
+.ige-vbar__seek { flex: 1; min-width: 40px; }
+.ige-vbar__vol { width: 64px; }
+.ige-vbar__speed {
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 4px;
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+  font: 600 12px/1 inherit;
+  cursor: pointer;
+}
+.ige-vbar__speed option { color: #000; }
+.ige-range { accent-color: #fff; height: 4px; cursor: pointer; }
+
+/* ---------- toasts ---------- */
+.ige-toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.ige-toast {
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #262626;
+  color: #fff;
+  font-weight: 500;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.18s, transform 0.18s;
+}
+.ige-toast.is-in { opacity: 1; transform: none; }
+.ige-toast--success { background: #1f7a3d; }
+.ige-toast--error { background: #b3261e; }
+
+/* ---------- modal ---------- */
+.ige-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.55);
+  opacity: 0;
+  transition: opacity 0.16s;
+}
+.ige-backdrop.is-in { opacity: 1; }
+.ige-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(480px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 32px));
+  border-radius: 16px;
+  background: var(--ige-bg);
+  color: var(--ige-fg);
+  box-shadow: var(--ige-shadow);
+  transform: scale(0.97);
+  transition: transform 0.16s;
+}
+.ige-backdrop.is-in .ige-modal { transform: none; }
+.ige-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 12px 20px;
+  border-bottom: 1px solid var(--ige-line);
+}
+.ige-modal__head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.ige-modal__body { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; overflow: auto; }
+.ige-modal__body p { margin: 0; }
+.ige-modal__footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--ige-line); }
+.ige-modal__footer:empty { display: none; }
+
+.ige-muted { color: var(--ige-muted); }
+.ige-error { color: var(--ige-danger); font-weight: 500; }
+.ige-warn { padding: 10px 12px; border-radius: 10px; background: var(--ige-warn-bg); color: var(--ige-warn-fg); font-size: 13px; }
+.ige-form { display: flex; flex-direction: column; gap: 10px; }
+.ige-check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.ige-check input { width: 16px; height: 16px; accent-color: var(--ige-accent); }
+.ige-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ige-input {
+  height: 34px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--ige-line);
+  border-radius: 9px;
+  background: var(--ige-soft);
+  color: var(--ige-fg);
+  font: inherit;
+}
+.ige-input:focus { outline: 2px solid var(--ige-accent); outline-offset: -1px; }
+.ige-field .ige-input { width: 170px; }
+.ige-progress { height: 6px; border-radius: 3px; background: var(--ige-soft); overflow: hidden; }
+.ige-progress__fill { width: 100%; height: 100%; background: var(--ige-accent); transform: scaleX(0); transform-origin: left; transition: transform 0.25s; }
+
+/* story details panel */
+.ige-btn--count { position: relative; }
+.ige-btn--count[data-count]:not([data-count=''])::after {
+  content: attr(data-count);
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #c2185b;
+  color: #fff;
+  font: 700 10px/15px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-align: center;
+}
+.ige-sd__section { display: flex; flex-direction: column; gap: 2px; }
+.ige-sd__section + .ige-sd__section { padding-top: 12px; border-top: 1px solid var(--ige-line); }
+.ige-sd__title { margin: 0 0 6px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ige-muted); }
+.ige-modal__body .ige-sd__note { margin: 0 0 4px; font-size: 13px; }
+.ige-sd__row { display: flex; flex-direction: column; gap: 1px; padding: 7px 8px; margin: 0 -8px; border-radius: 9px; color: inherit; text-decoration: none; }
+a.ige-sd__row:hover { background: var(--ige-soft); }
+.ige-sd__link { color: var(--ige-accent); font-weight: 600; word-break: break-all; }
+html.__fb-dark-mode .ige-sd__link { color: #6cb6ff; }
+.ige-pill { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: var(--ige-warn-bg); color: var(--ige-warn-fg); font-size: 12px; font-weight: 600; }
+
+/* tabs + user list */
+.ige-tabs { display: flex; gap: 4px; overflow-x: auto; }
+.ige-tab {
+  flex: none;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ige-soft);
+  color: var(--ige-fg);
+  font: 600 13px/1 inherit;
+  cursor: pointer;
+}
+.ige-tab.is-active { background: var(--ige-fg); color: var(--ige-bg); }
+.ige-badge { font-variant-numeric: tabular-nums; opacity: 0.7; }
+.ige-userlist { display: flex; flex-direction: column; min-height: 200px; max-height: 420px; overflow: auto; margin: 0 -8px; }
+.ige-user { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 10px; color: inherit; text-decoration: none; }
+.ige-user:hover { background: var(--ige-soft); }
+.ige-user img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--ige-soft); }
+.ige-user__names { display: flex; flex-direction: column; min-width: 0; }
+.ige-user__names span { color: var(--ige-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ige-empty { padding: 24px 8px; text-align: center; }
+
+/* ---------- zoom viewer ---------- */
+.ige-zoom {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgb(0 0 0 / 0.92);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+.ige-zoom.is-in { opacity: 1; }
+.ige-zoom__stage { flex: 1; display: grid; place-items: center; overflow: hidden; cursor: grab; }
+.ige-zoom__stage.is-dragging { cursor: grabbing; }
+.ige-zoom__img { max-width: 92vw; max-height: calc(100vh - 90px); user-select: none; transition: transform 0.06s linear; border-radius: 4px; }
+.ige-zoom__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; }
+.ige-zoom__caption { font-weight: 600; opacity: 0.85; }
+.ige-zoom__actions { display: flex; gap: 4px; }
+.ige-zoom .ige-btn:hover { background: rgb(255 255 255 / 0.14); }
+
+/* ---------- floating profile tools ---------- */
+.ige-fab { position: fixed; right: 24px; bottom: 24px; display: none; flex-direction: column; align-items: flex-end; gap: 10px; }
+.ige-fab.is-visible { display: flex; }
+.ige-fab__btn {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f58529, #dd2a7b 50%, #8134af);
+  color: #fff;
+  box-shadow: 0 6px 20px rgb(221 42 123 / 0.4);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.ige-fab__btn:hover { transform: scale(1.06); }
+.ige-fab.is-open .ige-fab__btn { transform: rotate(45deg); }
+.ige-fab__menu {
+  display: none;
+  flex-direction: column;
+  min-width: 210px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--ige-bg);
+  box-shadow: var(--ige-shadow);
+}
+.ige-fab.is-open .ige-fab__menu { display: flex; }
+.ige-menuitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ige-fg);
+  font: 600 14px/1 inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ige-menuitem:hover { background: var(--ige-soft); }
+
+/* ---------- follow status badge (lives inside Instagram's profile header) ---------- */
+.ige-follow-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  flex: none;
+  height: 22px;
+  margin: 0 8px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font: 600 12px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  white-space: nowrap;
+  vertical-align: middle;
+  background: #eef0f3;
+  color: #4a4f57;
+}
+.ige-follow-badge--mutual { background: #dcf5e5; color: #11663a; }
+.ige-follow-badge--follower { background: #ddeeff; color: #0b5394; }
+.ige-follow-badge--notback { background: #fde9dc; color: #93400c; }
+.ige-follow-badge--loading { opacity: 0.6; }
+html.__fb-dark-mode .ige-follow-badge { background: #2a2d32; color: #c9ced6; }
+html.__fb-dark-mode .ige-follow-badge--mutual { background: #123d25; color: #8de0ad; }
+html.__fb-dark-mode .ige-follow-badge--follower { background: #10304f; color: #9cc9ff; }
+html.__fb-dark-mode .ige-follow-badge--notback { background: #45250f; color: #ffbf8f; }
+
+/* ---------- timestamps ---------- */
+time.ige-time { white-space: nowrap; }
+
+/* ---------- declutter (classes toggled on <html>) ---------- */
+html.ige-hide-ads article[data-ige-flag='ad'],
+html.ige-hide-suggested article[data-ige-flag='suggested'],
+html.ige-hide-sidebar [data-ige-sidebar],
+html.ige-hide-stories [data-ige-stories],
+html.ige-hide-reels [data-ige-nav='reels'],
+html.ige-hide-explore [data-ige-nav='explore'],
+html.ige-hide-threads a[href*='threads.net'],
+html.ige-hide-threads a[href*='threads.com'] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ige-layer * { transition: none !important; }
+}

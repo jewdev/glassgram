@@ -1,0 +1,36 @@
+body { width: 320px; background: var(--surface); }
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--soft); color: var(--fg); }
+
+.toggles { margin: 0; padding: 6px 8px; list-style: none; }
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 8px;
+  border-radius: 10px;
+}
+.toggle:hover { background: var(--soft); }
+.toggle label { font-weight: 550; cursor: pointer; }
+
+.actions { display: flex; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--line); }
+.actions .btn { flex: 1; }
