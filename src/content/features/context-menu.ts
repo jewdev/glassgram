@@ -1,6 +1,7 @@
 import { downloadAvatar, downloadCurrent } from '../core/actions';
 import { getHovered, type MediaEl } from '../core/hover';
 import { contextFor } from '../core/resolve';
+import { isOnTopLayer } from '../core/selectors';
 import { toast } from '../ui/toast';
 import type { Feature } from './types';
 
@@ -26,7 +27,7 @@ export const contextMenu: Feature = {
     const onCtx = (e: MouseEvent) => {
       const media = document
         .elementsFromPoint(e.clientX, e.clientY)
-        .find((x): x is MediaEl => x instanceof HTMLImageElement || x instanceof HTMLVideoElement);
+        .find((x): x is MediaEl => (x instanceof HTMLImageElement || x instanceof HTMLVideoElement) && isOnTopLayer(x));
       lastTarget = media ?? null;
     };
     document.addEventListener('contextmenu', onCtx, true);

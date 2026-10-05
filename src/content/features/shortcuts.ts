@@ -2,6 +2,7 @@ import { copyMediaUrl, downloadAll, downloadCurrent, zoomAvatar } from '../core/
 import { getHovered, type MediaEl } from '../core/hover';
 import { contextFor, type MediaContext } from '../core/resolve';
 import { currentRoute } from '../core/router';
+import { isOnTopLayer } from '../core/selectors';
 import { getSettings } from '../core/state';
 import { toast } from '../ui/toast';
 import { comboFromEvent } from '../../shared/keys';
@@ -19,7 +20,7 @@ function currentContext(): MediaContext | null {
   let best: MediaEl | null = null;
   let bestArea = 0;
   for (const el of document.querySelectorAll<MediaEl>('article img, article video, main img, main video, section img, section video, div[role="dialog"] img, div[role="dialog"] video')) {
-    if (el.closest('.ige-root')) continue;
+    if (el.closest('.ige-root') || !isOnTopLayer(el)) continue;
     const r = el.getBoundingClientRect();
     const w = Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0));
     const h = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));

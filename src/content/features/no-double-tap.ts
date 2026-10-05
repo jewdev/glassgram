@@ -1,4 +1,4 @@
-import { isOwnUi } from '../core/selectors';
+import { isOnTopLayer, isOwnUi } from '../core/selectors';
 import type { Feature } from './types';
 
 /** True when a photo or video sits under the pointer (Instagram covers media with transparent layers). */
@@ -6,7 +6,7 @@ function mediaUnderPointer(x: number, y: number): boolean {
   return document.elementsFromPoint(x, y).some((el) => {
     if (!(el instanceof HTMLImageElement || el instanceof HTMLVideoElement) || isOwnUi(el)) return false;
     const r = el.getBoundingClientRect();
-    return r.width >= 100 && r.height >= 100;
+    return r.width >= 100 && r.height >= 100 && isOnTopLayer(el);
   });
 }
 

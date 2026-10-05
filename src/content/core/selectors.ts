@@ -38,6 +38,18 @@ export function shortcodeInRoot(root: Element): string | undefined {
   return undefined;
 }
 
+/**
+ * False for elements hidden behind an open popup (post modal, menus). elementsFromPoint lists
+ * everything under the cursor, including the page behind a modal, so callers must filter with this.
+ */
+export function isOnTopLayer(el: Element): boolean {
+  const dialogs = [...document.querySelectorAll(SEL.dialog)].filter((d) => {
+    const r = d.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  });
+  return !dialogs.length || dialogs.some((d) => d.contains(el));
+}
+
 export function isOwnUi(el: Element | null): boolean {
   return !!el?.closest('.ige-root');
 }

@@ -1,4 +1,4 @@
-import { isOwnUi } from './selectors';
+import { isOnTopLayer, isOwnUi } from './selectors';
 
 export type MediaEl = HTMLImageElement | HTMLVideoElement;
 
@@ -21,7 +21,7 @@ function isMedia(e: Element): e is MediaEl {
   if (!(e instanceof HTMLImageElement || e instanceof HTMLVideoElement)) return false;
   if (isOwnUi(e)) return false;
   const r = e.getBoundingClientRect();
-  return r.width >= MIN_SIZE && r.height >= MIN_SIZE;
+  return r.width >= MIN_SIZE && r.height >= MIN_SIZE && isOnTopLayer(e);
 }
 
 function emit(next: Hovered | null) {
