@@ -6,6 +6,9 @@ import { getSettings } from '../core/state';
 import { h, iconButton, uiLayer } from '../ui/dom';
 import type { Feature } from './types';
 
+/** Space taken by a story's progress bars and header row, so the toolbar clears them. */
+const STORY_HEADER_OFFSET = 64;
+
 interface Buttons {
   btns: HTMLElement[];
   /** "Download all" button, revealed once we know the target has several items. */
@@ -35,7 +38,8 @@ function buttonsFor(ctx: MediaContext): Buttons | null {
   let all: HTMLElement | undefined;
   if (isStory || s['download.showAll']) {
     all = iconButton('downloadAll', isStory ? 'Download all stories in this tray' : 'Download all items', () => downloadAll(ctx), 'is-hidden');
-    btns.push(all);
+    // Leftmost: the bar is right-anchored, so revealing it later grows leftward and the other buttons stay put.
+    btns.unshift(all);
   }
   if (isStory || s['download.copyUrl']) btns.push(iconButton('link', 'Copy media URL', () => copyMediaUrl(ctx)));
   if (!isStory && s['download.copyCaption']) btns.push(iconButton('caption', 'Copy caption', () => copyCaption(ctx)));
@@ -52,8 +56,11 @@ export const mediaToolbar: Feature = {
     let boundEl: Element | null = null;
     let dwell: number | undefined;
 
+    let isStory = false;
+
     const place = (rect: DOMRect) => {
-      const top = Math.max(8, rect.top + 8);
+      // Stories: the top-right header row holds Instagram's pause/mute/menu, so sit just below it, still right-aligned.
+      const top = Math.max(8, rect.top + (isStory ? STORY_HEADER_OFFSET : 8));
       const right = Math.max(8, innerWidth - rect.right + 8);
       bar.style.top = `${top}px`;
       bar.style.right = `${right}px`;
@@ -71,6 +78,7 @@ export const mediaToolbar: Feature = {
         boundEl = hv.el;
         clearTimeout(dwell);
         const ctx = contextFor(hv.el);
+        isStory = ctx?.kind === 'story';
         const b = ctx && buttonsFor(ctx);
         bar.replaceChildren(...(b?.btns ?? []));
         if (!ctx || !b?.btns.length) {

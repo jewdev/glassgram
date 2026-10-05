@@ -103,6 +103,9 @@ html[data-ige-theme='dark'] .ige-layer {
 .ige-btn--ghost { padding: 0 14px; border-radius: 999px; }
 .ige-btn--ghost:hover:not(:disabled) { background: var(--ige-hover); }
 .ige-btn.is-hidden { display: none; }
+/* Late-revealed toolbar buttons grow in instead of popping. */
+.ige-toolbar .ige-btn:not(.is-hidden) { animation: ige-btn-in 0.18s ease-out; }
+@keyframes ige-btn-in { from { opacity: 0; max-width: 0; min-width: 0; padding: 0; overflow: hidden; } to { max-width: 80px; } }
 .ige-btn.is-active { color: var(--ige-accent); }
 
 /* ---------- hover toolbar (over media) ---------- */
