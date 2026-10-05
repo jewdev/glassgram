@@ -14,7 +14,7 @@ export const profileTools: Feature = {
   isEnabled: (s) => s['bulk.enabled'] || s['account.unfollowers'],
   start() {
     const menu = h('div', { class: 'ige-fab__menu', role: 'menu' });
-    const fab = h('button', { class: 'ige-fab__btn', type: 'button', title: 'Instagram Enhanced tools', 'aria-haspopup': 'menu', html: icon(ICONS.spark, 20) });
+    const fab = h('button', { class: 'ige-fab__btn', type: 'button', title: 'Glassgram tools', 'aria-haspopup': 'menu', html: icon(ICONS.spark, 20) });
     const root = h('div', { class: 'ige-fab' }, menu, fab);
     uiLayer().append(root);
 

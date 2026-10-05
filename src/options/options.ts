@@ -267,7 +267,7 @@ function observeNav() {
 function wireActions() {
   $('export').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'instagram-enhanced-settings.json' });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'glassgram-settings.json' });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   });

@@ -1,5 +1,5 @@
 ---
-name: Instagram Enhanced
+name: Glassgram
 description: Liquid Glass settings for a local-first Instagram browser extension; translucent panels floating over a soft three-pool light field.
 colors:
   accent: "#4b48e0"
@@ -208,7 +208,7 @@ components:
     padding: "9px 12px"
 ---
 
-# Design System: Instagram Enhanced
+# Design System: Glassgram
 
 Scope: the extension's own UI: the settings page (`src/options/`, the reference implementation) and the popup (`src/popup/`). Both load `src/shared/glass.css`, which owns the tokens, light field, glass material, switch, pill buttons and brand mark; each page's own stylesheet holds only its layout. The brand mark is the only place `brand-from`/`brand-to` appear.
 

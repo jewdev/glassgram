@@ -45,7 +45,8 @@ plainly which features are experimental or untested.
 
 ## Brand Commitments
 
-- Name: "Instagram Enhanced".
+- Name: "Glassgram" (renamed from "Instagram Enhanced" to keep Meta's trademark out of the name).
+- Always presented as unofficial: README and settings page state it is not affiliated with Instagram or Meta.
 - The extension has its own identity: it must not look like or imply it is an official Instagram or
   Meta product, and must not use Instagram's logo.
 

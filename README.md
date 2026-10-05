@@ -1,12 +1,13 @@
 <p align="center">
-  <img src="docs/icon.svg" width="128" alt="Instagram Enhanced">
+  <img src="docs/icon.svg" width="128" alt="Glassgram">
 </p>
 
-<h1 align="center">Instagram Enhanced</h1>
+<h1 align="center">Glassgram</h1>
 
 <p align="center">
   Downloads, HD profile pictures, story mentions, follow badges and a cleaner feed for instagram.com.<br>
-  A browser extension for Brave, Chrome, Edge and other Chromium browsers. Every feature has its own switch.
+  An unofficial browser extension for Brave, Chrome, Edge and other Chromium browsers. Every feature has its own switch.<br>
+  <sub>Not affiliated with, endorsed by, or sponsored by Instagram or Meta.</sub>
 </p>
 
 <p align="center">
@@ -14,6 +15,7 @@
   <a href="#features">Features</a> ·
   <a href="#settings">Settings</a> ·
   <a href="#keyboard-shortcuts">Shortcuts</a> ·
+  <a href="#disclaimer">Disclaimer</a> ·
   <a href="LICENSE">License</a>
 </p>
 
@@ -22,8 +24,8 @@
 Build it, then load the `dist` folder as an unpacked extension:
 
 ```sh
-git clone https://github.com/jewdev/instagram-enhanced
-cd instagram-enhanced
+git clone https://github.com/jewdev/glassgram
+cd glassgram
 npm install
 npm run build
 ```
@@ -197,6 +199,21 @@ requests, and tags voice-message bubbles with their audio URL. The content scrip
 `features/`, and every assumption about Instagram's markup in `core/selectors.ts`. The background
 worker (`src/background/`) queues downloads and builds ZIPs in an offscreen document. Every setting
 is defined once in `src/shared/settings-schema.ts`; the settings page and popup are generated from it.
+
+## Disclaimer
+
+Glassgram is an independent, unofficial project. It is not affiliated with, endorsed by, or
+sponsored by Instagram or Meta Platforms, Inc. "Instagram" is a trademark of Meta Platforms, Inc.,
+used here only to describe what the extension works with.
+
+The extension runs in your browser with your own Instagram session and uses Instagram's private web
+interface, which can change at any time. Using it may go against Instagram's Terms of Use, and heavy
+use of features such as bulk download or the unfollowers checker can get your account temporarily
+rate-limited. You use it at your own risk.
+
+Downloaded photos, videos and voice messages belong to the people who posted or sent them. Only
+download what you have the right to keep, and don't republish other people's content without their
+permission.
 
 ## License
 

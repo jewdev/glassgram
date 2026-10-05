@@ -1,4 +1,4 @@
-/* Instagram Enhanced — settings page. Tokens, glass, switch and pill buttons live in ../shared/glass.css. */
+/* Glassgram — settings page. Tokens, glass, switch and pill buttons live in ../shared/glass.css. */
 
 html { scroll-behavior: smooth; scroll-padding-top: 24px; }
 body { min-height: 100vh; }
@@ -72,6 +72,8 @@ body { min-height: 100vh; }
 .nav__count { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
 
 .sidebar__foot { display: flex; gap: 6px; padding-top: 10px; border-top: 1px solid var(--hairline); margin-top: auto; }
+
+.sidebar__note { margin: 0; padding: 0 8px 2px; color: var(--ink-3); font-size: 12.5px; line-height: 1.4; }
 
 /* ---------------- content ---------------- */
 .content { display: flex; flex-direction: column; gap: 20px; min-width: 0; }

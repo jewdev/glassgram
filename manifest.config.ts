@@ -5,9 +5,9 @@ const IG = ['https://www.instagram.com/*'];
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'Instagram Enhanced',
+  name: 'Glassgram',
   version: pkg.version,
-  description: 'Download posts, reels, stories & HD profile pictures, plus video controls, declutter and more for Instagram.',
+  description: 'Unofficial tweaks for Instagram: download posts, reels and stories, HD profile pictures, video controls and more. Not affiliated with Meta.',
   icons: { 16: 'icons/16.png', 32: 'icons/32.png', 48: 'icons/48.png', 128: 'icons/128.png' },
   action: { default_popup: 'src/popup/index.html', default_icon: { 16: 'icons/16.png', 32: 'icons/32.png' } },
   options_ui: { page: 'src/options/index.html', open_in_tab: true },

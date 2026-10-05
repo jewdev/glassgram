@@ -47,7 +47,7 @@ export const mediaToolbar: Feature = {
   id: 'media-toolbar',
   isEnabled: (s) => s['download.enabled'] || s['stories.download'] || s['profile.hdPic'],
   start() {
-    const bar = h('div', { class: 'ige-toolbar', role: 'toolbar', 'aria-label': 'Instagram Enhanced' });
+    const bar = h('div', { class: 'ige-toolbar', role: 'toolbar', 'aria-label': 'Glassgram' });
     uiLayer().append(bar);
     let boundEl: Element | null = null;
     let dwell: number | undefined;
