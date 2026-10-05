@@ -103,16 +103,16 @@ except anonymous story viewing, which needs Instagram refreshed.
 | | "Copy media URL" button | on | |
 | | "Copy caption" button | on | |
 | | Filename template | `Instagram/{user}/{user}_{date}_{shortcode}_{index}` | Tokens: `{user}` `{shortcode}` `{index}` `{id}` `{date}` `{time}` `{type}`. `/` makes folders inside Downloads |
-| | Multiple files | separate files | Separate files in a folder, or a single ZIP |
+| | Multiple files | single ZIP | A single ZIP, or separate files in a folder |
 | | Ask where to save each file | off | The "Save as" dialog for single downloads |
 | Stories | Download stories & highlights | on | Current story or the whole tray |
 | | Story mentions & stickers | on | The **@** button and its panel |
 | Profile | HD profile picture | on | Zoom, download, copy URL |
 | | Follow status badge | on | The badge next to the username |
-| | Bulk download profile posts | on | The floating button on profiles |
+| | Bulk download profile posts | off | The floating button on profiles |
 | | Min / max delay between requests | 1.5 s / 3.5 s | Spacing for bulk download |
 | Feed | Following-only feed | off | Home opens the Following feed |
-| | Disable double-click like | off | |
+| | Disable double-click like | on | |
 | Video | Video control bar | on | Seek, speed, volume, loop |
 | | Disable video autoplay | off | Stories still play |
 | | Default playback speed | 1× | 0.5× to 3× |
@@ -132,11 +132,11 @@ except anonymous story viewing, which needs Instagram refreshed.
 | | Share domain | empty | Replace `instagram.com` in copied links, e.g. `kkinstagram.com` |
 | | Open links directly | on | Skip `l.instagram.com` |
 | Privacy | Anonymous story viewing | off | Blocks the story "seen" request |
-| | Block analytics | off | Blocks `/ajax/bz`, `/ajax/qm`, `/logging` |
+| | Block analytics | on | Blocks `/ajax/bz`, `/ajax/qm`, `/logging` |
 | Direct messages | Download voice messages | on | A download button on each voice message |
 | | Hide typing indicator | off | Experimental |
 | | Hide "Seen" | off | Not tested yet |
-| Account tools | Unfollowers checker | on | Opened from the popup or your own profile |
+| Account tools | Unfollowers checker | off | Opened from the popup or your own profile |
 | | Min / max delay between requests | 2 s / 4 s | Spacing for the scan |
 
 **Reset to defaults**, **Export settings** and **Import settings** are at the bottom of the page.

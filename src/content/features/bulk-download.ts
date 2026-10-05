@@ -36,8 +36,8 @@ export async function openBulkDownload(username: string) {
   const mode = h(
     'select',
     { class: 'ige-input', 'aria-label': 'Save as' },
-    h('option', { value: 'folder', selected: s['download.mode'] === 'folder' }, 'Separate files'),
     h('option', { value: 'zip', selected: s['download.mode'] === 'zip' }, 'One ZIP file'),
+    h('option', { value: 'folder', selected: s['download.mode'] === 'folder' }, 'Separate files'),
   );
   const progress = h('div', { class: 'ige-progress', hidden: true }, h('div', { class: 'ige-progress__fill' }));
   const status = h('p', { class: 'ige-muted', 'aria-live': 'polite' });

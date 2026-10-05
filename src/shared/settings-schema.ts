@@ -12,7 +12,7 @@ export const DEFAULTS = {
   'download.copyUrl': true,
   'download.copyCaption': true,
   'download.filename': 'Instagram/{user}/{user}_{date}_{shortcode}_{index}',
-  'download.mode': 'folder' as 'folder' | 'zip',
+  'download.mode': 'zip' as 'folder' | 'zip',
   'download.saveAs': false,
 
   // Stories
@@ -22,13 +22,13 @@ export const DEFAULTS = {
   // Profile
   'profile.hdPic': true,
   'profile.followBadge': true,
-  'bulk.enabled': true,
+  'bulk.enabled': false,
   'bulk.delayMin': 1.5,
   'bulk.delayMax': 3.5,
 
   // Feed
   'feed.followingOnly': false,
-  'feed.noDoubleTapLike': false,
+  'feed.noDoubleTapLike': true,
 
   // Video
   'video.enabled': true,
@@ -66,7 +66,7 @@ export const DEFAULTS = {
 
   // Privacy
   'privacy.anonStories': false,
-  'privacy.blockAnalytics': false,
+  'privacy.blockAnalytics': true,
 
   // Direct messages
   'dm.voiceDownload': true,
@@ -74,7 +74,7 @@ export const DEFAULTS = {
   'privacy.dmHideSeen': false,
 
   // Account tools
-  'account.unfollowers': true,
+  'account.unfollowers': false,
   'account.delayMin': 2,
   'account.delayMax': 4,
 };
@@ -142,8 +142,8 @@ export const SECTIONS: Section[] = [
         label: 'Saving several files',
         desc: 'For carousels, story trays and bulk downloads.',
         options: [
-          { value: 'folder', label: 'Separate files' },
           { value: 'zip', label: 'One ZIP file' },
+          { value: 'folder', label: 'Separate files' },
         ],
       },
       { type: 'toggle', key: 'download.saveAs', label: 'Ask where to save each file', desc: 'Opens the "Save as" dialog for single downloads.' },
