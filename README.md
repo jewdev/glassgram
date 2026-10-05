@@ -12,7 +12,6 @@
 <p align="center">
   <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4c8bf5?style=flat-square">
   <img alt="Chromium browsers" src="https://img.shields.io/badge/Brave%20%C2%B7%20Chrome%20%C2%B7%20Edge-supported-2ea44f?style=flat-square">
-  <img alt="No tracking" src="https://img.shields.io/badge/tracking-none-8957e5?style=flat-square">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square"></a>
 </p>
 
