@@ -44,6 +44,8 @@ const running = new Map<string, () => void>();
 
 function sync(s: Settings) {
   setSettings(s);
+  // Our floating UI follows the extension's Appearance setting, not Instagram's own theme.
+  document.documentElement.setAttribute('data-ige-theme', s['ui.theme']);
   for (const f of FEATURES) {
     const on = f.isEnabled(s);
     const stop = running.get(f.id);
