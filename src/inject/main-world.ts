@@ -9,6 +9,7 @@
 
 import { filterLightspeedRequest, filterMqttFrame } from '../shared/lightspeed';
 import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shared/links';
+import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/slide';
 
 (() => {
   // ---------------- shared helpers ----------------
@@ -50,6 +51,26 @@ import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shar
   const DM_SEEN_URL_RE = /\/direct_v2\/threads\/[^/]+\/items\/[^/]+\/seen/;
   const dmSeenEnabled = () => document.documentElement.getAttribute('data-ige-dmseen') === '1';
   const isDmSeenRequest = (url: string, body: string) => DM_SEEN_URL_RE.test(url) || (/graphql/.test(url) && DM_SEEN_OP_RE.test(friendlyName(body)));
+
+  // ---------------- anonymous live ----------------
+  // Watching a live broadcast POSTs heartbeat_and_get_viewer_count every few seconds; that heartbeat
+  // is what lists you as a viewer. We answer it from the read-only /info/ endpoint instead, so the
+  // player still gets a real viewer count and notices when the broadcast ends.
+  const LIVE_HEARTBEAT_RE = /\/api\/v1\/live\/(\d+)\/heartbeat_and_get_viewer_count\//;
+  const anonLiveEnabled = () => document.documentElement.getAttribute('data-ige-anonlive') === '1';
+  const liveHeartbeatId = (url: string) => (anonLiveEnabled() ? LIVE_HEARTBEAT_RE.exec(url)?.[1] : undefined);
+
+  async function fakeLiveHeartbeat(broadcastId: string, headers: Record<string, string>): Promise<string> {
+    let info: { viewer_count?: number; broadcast_status?: string } = {};
+    try {
+      const res = await origFetch(`/api/v1/live/${broadcastId}/info/`, { credentials: 'include', headers });
+      if (res.ok) info = await res.json();
+    } catch {
+      /* answer with defaults */
+    }
+    console.debug('[IGE] live heartbeat replaced with info lookup');
+    return JSON.stringify({ viewer_count: info.viewer_count ?? 0, broadcast_status: info.broadcast_status ?? 'active', status: 'ok' });
+  }
 
   /** Requests we swallow (answering with a fake success so Instagram doesn't retry). */
   const shouldBlock = (url: string, body: string) =>
@@ -108,7 +129,9 @@ import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shar
     // GraphQL may stream several JSON documents separated by newlines.
     for (const part of clean.includes('\n{') ? clean.split(/\n(?=\{)/) : [clean]) {
       try {
-        walk(JSON.parse(part));
+        const doc = JSON.parse(part);
+        walk(doc);
+        if (dmKeepEnabled() && part.includes('"message_id"')) postDmEvents(collectDmEvents(doc));
       } catch {
         /* not JSON */
       }
@@ -116,6 +139,43 @@ import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shar
   }
 
   const DATA_URL_RE = /\/(api\/graphql|graphql\/query|api\/v1\/)/;
+
+  // ---------------- DMs: keep unsent messages ----------------
+  // Incoming messages and unsends arrive on the gateway socket (see shared/slide.ts); thread history
+  // loaded over HTTP carries the same message objects. We only forward them — the content script
+  // decides what to keep and stores it in extension storage.
+  const dmKeepEnabled = () => document.documentElement.getAttribute('data-ige-dmkeep') === '1';
+  const DM_GATEWAY_RE = /gateway\.instagram\.com\/ws\/lightspeed/;
+
+  function postDmEvents(events: DmEvent[]) {
+    if (events.length) window.postMessage({ __ige: 'dm-events', events }, location.origin);
+  }
+
+  function onGatewayMessage(e: MessageEvent) {
+    if (!dmKeepEnabled()) return;
+    const handle = (buf: ArrayBuffer) => {
+      try {
+        postDmEvents(decodeGatewayFrame(new Uint8Array(buf)).flatMap(collectDmEvents));
+      } catch {
+        /* unknown frame */
+      }
+    };
+    if (e.data instanceof ArrayBuffer) handle(e.data);
+    else if (e.data instanceof Blob) e.data.arrayBuffer().then(handle, () => {});
+  }
+
+  // Listen on the socket from the moment Instagram creates it.
+  window.WebSocket = new Proxy(WebSocket, {
+    construct(target, args: ConstructorParameters<typeof WebSocket>, newTarget) {
+      const ws = Reflect.construct(target, args, newTarget) as WebSocket;
+      try {
+        if (DM_GATEWAY_RE.test(String(args[0]))) ws.addEventListener('message', onGatewayMessage);
+      } catch {
+        /* never break the socket */
+      }
+      return ws;
+    },
+  });
 
   // ---------------- XHR ----------------
   type X = XMLHttpRequest & { __igeUrl?: string; __igeHeaders?: Record<string, string> };
@@ -138,18 +198,20 @@ import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shar
   XHR.send = function (this: X, body?: Document | XMLHttpRequestBodyInit | null) {
     const url = this.__igeUrl ?? '';
     const text = bodyText(body);
-    if (shouldBlock(url, text)) {
-      console.debug('[IGE] blocked seen request', url);
+    const liveId = liveHeartbeatId(url);
+    if (shouldBlock(url, text) || liveId) {
+      console.debug('[IGE] answered locally', url);
       // Pretend success so Instagram doesn't retry.
-      Object.defineProperty(this, 'readyState', { value: 4 });
-      Object.defineProperty(this, 'status', { value: 200 });
-      Object.defineProperty(this, 'responseText', { value: FAKE_OK });
-      Object.defineProperty(this, 'response', { value: FAKE_OK });
-      setTimeout(() => {
+      const answer = liveId ? fakeLiveHeartbeat(liveId, this.__igeHeaders ?? {}) : Promise.resolve(FAKE_OK);
+      answer.then((body) => {
+        Object.defineProperty(this, 'readyState', { value: 4 });
+        Object.defineProperty(this, 'status', { value: 200 });
+        Object.defineProperty(this, 'responseText', { value: body });
+        Object.defineProperty(this, 'response', { value: this.responseType === 'json' ? JSON.parse(body) : body });
         this.dispatchEvent(new Event('readystatechange'));
         this.dispatchEvent(new ProgressEvent('load'));
         this.dispatchEvent(new ProgressEvent('loadend'));
-      }, 0);
+      });
       return;
     }
     const name = friendlyName(text);
@@ -171,9 +233,13 @@ import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shar
   window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
     const url = input instanceof Request ? input.url : String(input);
     const text = bodyText(init?.body);
-    if (shouldBlock(url, text)) {
-      console.debug('[IGE] blocked seen request', url);
-      return Promise.resolve(new Response(FAKE_OK, { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const liveId = liveHeartbeatId(url);
+    if (shouldBlock(url, text) || liveId) {
+      console.debug('[IGE] answered locally', url);
+      const headers = Object.fromEntries(new Headers(input instanceof Request ? input.headers : init?.headers));
+      return (liveId ? fakeLiveHeartbeat(liveId, headers) : Promise.resolve(FAKE_OK)).then(
+        (body) => new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      );
     }
     const p = origFetch.call(this, input, init);
     if (DATA_URL_RE.test(url)) {
@@ -312,17 +378,73 @@ import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shar
     }
   }
 
-  let voiceTimer: number | undefined;
+  // ---------------- DMs: tag chat rows for the unsent-message overlay ----------------
+  // Each child of a chat's message list is one message; its React props reference the Relay record
+  // (currentMessageRef → SlideMessage with message_id, timestamp_ms, thread_fbid). We copy those onto
+  // the row so the content script can put unsent messages back in the right place. Works for the
+  // full inbox and the floating chat window.
+  const ROW_SEED = '[data-igd-message-actions-hidden]';
+  const LIST_MARK = 'data-ige-dmlist';
+
+  function messageRefOf(el: Element): string | undefined {
+    let f = fiberOf(el);
+    for (let i = 0; i < 2 && f; i++, f = f.return) {
+      const id = f.memoizedProps?.currentMessageRef?.__id;
+      if (typeof id === 'string') return id;
+    }
+    return undefined;
+  }
+
+  function findLists(): Set<Element> {
+    const lists = new Set<Element>(document.querySelectorAll(`[${LIST_MARK}]`));
+    const seeds: Element[] = [...document.querySelectorAll(ROW_SEED)];
+    if (!seeds.length && location.pathname.startsWith('/direct/')) seeds.push(...document.querySelectorAll('div'));
+    for (const seed of seeds) {
+      if (seed.closest(`[${LIST_MARK}]`)) continue;
+      for (let x: Element | null = seed, i = 0; x && i < 10; x = x.parentElement, i++) {
+        if (messageRefOf(x) && x.parentElement) {
+          lists.add(x.parentElement);
+          x.parentElement.setAttribute(LIST_MARK, '');
+          break;
+        }
+      }
+    }
+    return lists;
+  }
+
+  function tagDmRows() {
+    if (!dmKeepEnabled()) return;
+    const lists = findLists();
+    if (!lists.size) return; // no chat open — skip the (expensive) Relay lookup
+    relaySource ??= findRelaySource();
+    if (!relaySource) return;
+    for (const list of lists) {
+      for (const row of list.children) {
+        const ref = messageRefOf(row);
+        const rec = ref ? relaySource.get(ref) : undefined;
+        if (!rec?.message_id) continue;
+        if (row.getAttribute('data-ige-mid') === rec.message_id) continue;
+        row.setAttribute('data-ige-mid', rec.message_id);
+        row.setAttribute('data-ige-ts', String(rec.timestamp_ms ?? ''));
+        row.setAttribute('data-ige-thread', String(rec.thread_fbid ?? ''));
+      }
+    }
+  }
+
+  let domTimer: number | undefined;
   new MutationObserver(() => {
-    if (voiceTimer !== undefined || attr('data-ige-voice') !== '1' || !location.pathname.startsWith('/direct/')) return;
-    voiceTimer = window.setTimeout(() => {
-      voiceTimer = undefined;
+    if (domTimer !== undefined) return;
+    const voice = attr('data-ige-voice') === '1' && location.pathname.startsWith('/direct/');
+    if (!voice && !dmKeepEnabled()) return;
+    domTimer = window.setTimeout(() => {
+      domTimer = undefined;
       try {
-        tagVoiceBubbles();
+        if (voice) tagVoiceBubbles();
+        tagDmRows();
       } catch {
         relaySource = undefined; // environment may have been replaced; find it again next time
       }
-    }, 700);
+    }, 500);
   }).observe(document, { childList: true, subtree: true });
 
   // ---------------- RPC for the content script ----------------

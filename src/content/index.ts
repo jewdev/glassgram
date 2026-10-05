@@ -3,10 +3,12 @@ import type { Message } from '../shared/messages';
 import type { Settings } from '../shared/settings-schema';
 import { loadSettings, onSettingsChanged } from '../shared/settings';
 import { setSettings } from './core/state';
-import { anonStories } from './features/anon-stories';
+import { anonLive, anonStories } from './features/anon-stories';
 import { contextDownload, contextMenu } from './features/context-menu';
 import { declutter } from './features/declutter';
+import { dmArchive, openUnsentMessages } from './features/dm-archive';
 import { dmPrivacy, voiceDownload } from './features/dm-tools';
+import { commentMedia } from './features/comment-media';
 import { copyComment } from './features/copy-comment';
 import { followBadge } from './features/follow-badge';
 import { followingFeed } from './features/following-feed';
@@ -16,6 +18,7 @@ import { noDoubleTap } from './features/no-double-tap';
 import { mediaToolbar } from './features/media-toolbar';
 import { profileTools } from './features/profile-tools';
 import { shortcuts } from './features/shortcuts';
+import { storyNoAdvance } from './features/story-no-advance';
 import { timestamps } from './features/timestamps';
 import type { Feature } from './features/types';
 import { openUnfollowers } from './features/unfollowers';
@@ -23,6 +26,7 @@ import { videoControls } from './features/video-controls';
 
 const FEATURES: Feature[] = [
   anonStories,
+  anonLive,
   declutter,
   mediaToolbar,
   videoControls,
@@ -35,10 +39,13 @@ const FEATURES: Feature[] = [
   noDoubleTap,
   noAutoplay,
   copyComment,
+  commentMedia,
+  storyNoAdvance,
   cleanLinks,
   directLinks,
   dmPrivacy,
   voiceDownload,
+  dmArchive,
 ];
 const running = new Map<string, () => void>();
 
@@ -70,12 +77,15 @@ async function boot() {
   const settings = await loadSettings();
   // Anonymous stories must be armed before Instagram sends its first request.
   if (settings['privacy.anonStories']) document.documentElement.setAttribute('data-ige-anon', '1');
+  // Same for the DM archive: the chat socket delivers its first messages right after page load.
+  if (settings['dm.keepUnsent']) document.documentElement.setAttribute('data-ige-dmkeep', '1');
   await whenBody();
   sync(settings);
   onSettingsChanged(sync);
 
   chrome.runtime.onMessage.addListener((msg: Message) => {
     if (msg.type === 'openUnfollowers') openUnfollowers();
+    else if (msg.type === 'openUnsent') openUnsentMessages();
     else if (msg.type === 'contextDownload') contextDownload();
   });
 }

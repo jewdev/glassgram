@@ -6,6 +6,8 @@ import type { Feature } from './types';
 const COMMENT_TIME = 'a[href*="/c/"] time[datetime]';
 const MARK = 'data-ige-cc';
 const BTN_CLASS = 'ige-copy-comment';
+/** Every item we add to a comment's action line, so we never clone or count our own. */
+export const COMMENT_ACTION_CLASS = 'ige-comment-action';
 
 /** Smallest ancestor that holds this comment (avatar + one timestamp). */
 function commentRow(time: Element): Element | null {
@@ -35,9 +37,9 @@ function commentText(row: Element, time: Element): string {
  * The "12 likes · Reply · See translation" line: the parent holding the most text-only buttons
  * (no icon) in the row. Returns its last button, which we clone so "Copy" matches Instagram's style.
  */
-function actionLineItem(row: Element): HTMLElement | null {
+export function actionLineItem(row: Element): HTMLElement | null {
   const buttons = [...row.querySelectorAll<HTMLElement>('[role="button"], button')].filter(
-    (b) => !b.classList.contains(BTN_CLASS) && !b.querySelector('svg, img') && b.textContent?.trim(),
+    (b) => !b.classList.contains(COMMENT_ACTION_CLASS) && !b.querySelector('svg, img') && b.textContent?.trim(),
   );
   const byParent = new Map<Element, HTMLElement[]>();
   for (const b of buttons) {
@@ -49,22 +51,23 @@ function actionLineItem(row: Element): HTMLElement | null {
   return best.at(-1) ?? null;
 }
 
-function makeCopyButton(template: HTMLElement, onCopy: () => void): HTMLElement {
+/** Clone of an Instagram action-line item ("Reply") relabelled, so it matches the native style. */
+export function makeCommentAction(template: HTMLElement, opts: { text: string; label: string; className: string; onActivate: () => void }): HTMLElement {
   const btn = template.cloneNode(true) as HTMLElement;
-  btn.classList.add(BTN_CLASS);
+  btn.classList.add(COMMENT_ACTION_CLASS, opts.className);
   btn.removeAttribute('aria-describedby');
   btn.setAttribute('role', 'button');
   btn.setAttribute('tabindex', '0');
-  btn.setAttribute('aria-label', 'Copy comment');
-  // Replace the deepest text with "Copy", drop any other text nodes.
+  btn.setAttribute('aria-label', opts.label);
+  // Replace the deepest text with ours, drop any other text nodes.
   const walker = document.createTreeWalker(btn, NodeFilter.SHOW_TEXT);
   const texts: Text[] = [];
   while (walker.nextNode()) texts.push(walker.currentNode as Text);
-  texts.forEach((t, i) => (t.data = i === 0 ? 'Copy' : ''));
+  texts.forEach((t, i) => (t.data = i === 0 ? opts.text : ''));
   const activate = (e: Event) => {
     e.preventDefault();
     e.stopPropagation();
-    onCopy();
+    opts.onActivate();
   };
   btn.addEventListener('click', activate);
   btn.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && activate(e));
@@ -81,9 +84,14 @@ function scan() {
     link.setAttribute(MARK, '');
     template.insertAdjacentElement(
       'afterend',
-      makeCopyButton(template, () => {
-        const text = commentText(row, time);
-        if (text) copyText(text, 'Comment copied');
+      makeCommentAction(template, {
+        text: 'Copy',
+        label: 'Copy comment',
+        className: BTN_CLASS,
+        onActivate: () => {
+          const text = commentText(row, time);
+          if (text) copyText(text, 'Comment copied');
+        },
       }),
     );
   }

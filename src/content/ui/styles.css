@@ -274,6 +274,35 @@ html[data-ige-theme='dark'] .ige-sd__link { color: #6cb6ff; }
 @media (prefers-color-scheme: dark) {
   html:not([data-ige-theme='light']):not([data-ige-theme='dark']) .ige-sd__link { color: #6cb6ff; }
 }
+/* unsent message put back into a chat */
+.ige-ghost { display: flex; align-items: center; gap: 6px; padding: 2px 12px 2px 52px; }
+.ige-ghost__bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 70%;
+  padding: 8px 12px;
+  border: 1px dashed rgb(128 128 128 / 0.55);
+  border-radius: 18px;
+  background: rgb(128 128 128 / 0.12);
+  color: inherit;
+  font: 14px/1.35 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.85;
+}
+.ige-ghost__link { color: inherit; font-size: 12px; text-decoration: underline; opacity: 0.8; }
+.ige-ghost__icon { display: inline-flex; flex: none; color: #e0245e; opacity: 0.9; }
+.ige-dmu { gap: 2px; }
+.ige-dmu__item { display: flex; flex-direction: column; gap: 4px; padding: 10px 8px; border-radius: 10px; }
+.ige-dmu__item + .ige-dmu__item { border-top: 1px solid var(--ige-line); }
+.ige-dmu__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ige-dmu__head a { color: inherit; text-decoration: none; }
+.ige-dmu__head a:hover { text-decoration: underline; }
+.ige-dmu__text { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.ige-dmu__time { font-size: 12px; }
+.ige-fs__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 14px; }
+.ige-fs__on { color: var(--ige-accent); font-weight: 600; }
 .ige-pill { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: var(--ige-warn-bg); color: var(--ige-warn-fg); font-size: 12px; font-weight: 600; }
 
 /* tabs + user list */
@@ -414,6 +443,10 @@ html[data-ige-theme='dark'] .ige-sd__link { color: #6cb6ff; }
 .ige-follow-badge--follower { background: #ddeeff; color: #0b5394; }
 .ige-follow-badge--notback { background: #fde9dc; color: #93400c; }
 .ige-follow-badge--loading { opacity: 0.6; }
+.ige-follow-badge[role='button'] { cursor: pointer; }
+.ige-follow-badge[role='button']:hover { filter: brightness(0.95); }
+.ige-follow-badge[role='button']:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+html.__fb-dark-mode .ige-follow-badge[role='button']:hover { filter: brightness(1.2); }
 html.__fb-dark-mode .ige-follow-badge { background: #2a2d32; color: #c9ced6; }
 html.__fb-dark-mode .ige-follow-badge--mutual { background: #123d25; color: #8de0ad; }
 html.__fb-dark-mode .ige-follow-badge--follower { background: #10304f; color: #9cc9ff; }

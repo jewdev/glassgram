@@ -17,6 +17,7 @@ export const DEFAULTS = {
   // Stories
   'stories.download': true,
   'stories.mentions': true,
+  'stories.noAutoAdvance': false,
 
   // Profile
   'profile.hdPic': true,
@@ -57,6 +58,7 @@ export const DEFAULTS = {
   'info.timestampFormat': 'datetime' as 'datetime' | 'datetime24' | 'date',
   'info.contextMenu': true,
   'info.copyComment': true,
+  'info.commentMedia': true,
 
   // Links
   'links.clean': true,
@@ -65,12 +67,15 @@ export const DEFAULTS = {
 
   // Privacy
   'privacy.anonStories': false,
+  'privacy.anonLive': false,
   'privacy.blockAnalytics': true,
 
   // Direct messages
   'dm.voiceDownload': true,
   'privacy.dmHideTyping': false,
   'privacy.dmHideSeen': false,
+  'dm.keepUnsent': false,
+  'dm.keepFor': '30',
 
   // Account tools
   'account.unfollowers': false,
@@ -158,7 +163,7 @@ export const SECTIONS: Section[] = [
         type: 'toggle',
         key: 'profile.followBadge',
         label: 'Follow status badge',
-        desc: `Shows "Follows you", "Doesn't follow you" or "Follow each other" next to the username.`,
+        desc: `Shows "Follows you", "Doesn't follow you" or "Follow each other" next to the username. Click it to see close friends, mutes, restrict and more.`,
         quick: true,
       },
       {
@@ -166,6 +171,12 @@ export const SECTIONS: Section[] = [
         key: 'stories.mentions',
         label: 'Story mentions & stickers',
         desc: 'Lists who is mentioned in a story, including hidden mentions, plus hashtags, location, links and music.',
+      },
+      {
+        type: 'toggle',
+        key: 'stories.noAutoAdvance',
+        label: "Don't auto-advance stories",
+        desc: 'Each story stops at its end instead of jumping to the next one. Click the right side or press → to go on.',
       },
       { type: 'toggle', key: 'info.timestamps', label: 'Exact timestamps', desc: 'Replaces "3d" with the real date. Hover for the original.' },
       {
@@ -180,6 +191,7 @@ export const SECTIONS: Section[] = [
         ],
       },
       { type: 'toggle', key: 'info.copyComment', label: 'Copy comment button', desc: 'A "Copy" item next to "Reply" under every comment.' },
+      { type: 'toggle', key: 'info.commentMedia', label: 'Save GIFs from comments', desc: 'A "Save GIF" item under comments that are a GIF.' },
     ],
   },
   {
@@ -229,7 +241,31 @@ export const SECTIONS: Section[] = [
     title: 'Messages',
     icon: 'message',
     half: 'everyday',
-    items: [{ type: 'toggle', key: 'dm.voiceDownload', label: 'Download voice messages', desc: 'A download button on every voice message in your chats.' }],
+    items: [
+      { type: 'toggle', key: 'dm.voiceDownload', label: 'Download voice messages', desc: 'A download button on every voice message in your chats.' },
+      {
+        type: 'toggle',
+        key: 'dm.keepUnsent',
+        label: 'Keep unsent messages',
+        desc: 'Remembers messages people send you. When someone unsends one, it stays in the chat with an unsent mark, and in a list in the popup. Stored only in this browser.',
+        warning:
+          'Only catches messages that arrive while Instagram is open in this browser. Instagram can change its chat format at any time. Turning this off deletes the saved copies of received messages; unsent messages stay until you clear them from the list.',
+      },
+      {
+        type: 'select',
+        key: 'dm.keepFor',
+        label: 'Remember received messages for',
+        desc: 'How far back an unsend can still be caught. Unsent messages themselves are kept until you clear them.',
+        dependsOn: 'dm.keepUnsent',
+        options: [
+          { value: '1', label: '1 day' },
+          { value: '7', label: '7 days' },
+          { value: '30', label: '30 days' },
+          { value: '365', label: '1 year' },
+          { value: '0', label: 'Forever' },
+        ],
+      },
+    ],
   },
   {
     id: 'links',
@@ -280,11 +316,17 @@ export const SECTIONS: Section[] = [
       },
       {
         type: 'toggle',
+        key: 'privacy.anonLive',
+        label: 'Anonymous live viewing',
+        desc: "Watch live videos without joining the viewer list. The viewer count still updates.",
+        badge: 'untested',
+        warning: "Not tested yet: this hasn't been confirmed to work. Check with a friend before relying on it.",
+      },
+      {
+        type: 'toggle',
         key: 'privacy.dmHideTyping',
         label: 'Hide typing indicator',
         desc: 'The other person won\'t see "typing…" while you write.',
-        badge: 'experimental',
-        warning: 'Experimental. Check with a friend before relying on it.',
       },
       {
         type: 'toggle',

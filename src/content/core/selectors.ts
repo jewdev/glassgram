@@ -21,6 +21,22 @@ export const SEL = {
 export const SPONSORED_WORDS = ['Sponsored', 'Paid partnership', 'Gesponsert', 'Sponsorisé', 'Patrocinado', 'Sponsorizzato', 'Реклама', 'ממומן', 'Gesponsord', 'Sponsorlu'];
 export const SUGGESTED_WORDS = ['Suggested for you', 'Suggested posts', 'Suggested reels', 'Vorgeschlagen für dich', 'Suggestions pour vous', 'Sugerencias para ti', 'Suggeriti per te', 'הצעות בשבילך'];
 
+/** aria-labels of the story viewer's play/pause toggle icon (a few common locales). */
+export const STORY_PAUSE_LABELS = ['Pause', 'Pausieren', 'Pausar', 'Metti in pausa', 'Pauzeren', 'Пауза', 'השהיה', 'Duraklat'];
+export const STORY_PLAY_LABELS = ['Play', 'Abspielen', 'Lire', 'Reproducir', 'Riproduci', 'Afspelen', 'Воспроизвести', 'הפעלה', 'Oynat'];
+
+/** Comment GIFs are served through Instagram's Giphy proxy; post media never is. */
+export const COMMENT_GIF_HOST = 'fbsbx.com';
+
+export function isCommentGif(el: Element): el is HTMLImageElement {
+  if (!(el instanceof HTMLImageElement) || el.closest('a')) return false;
+  try {
+    return new URL(el.currentSrc || el.src).hostname.endsWith(COMMENT_GIF_HOST);
+  } catch {
+    return false;
+  }
+}
+
 export function shortcodeFromHref(href: string | null | undefined): string | undefined {
   return href?.match(SHORTCODE_RE)?.[1];
 }

@@ -68,17 +68,21 @@ async function init() {
   $('status').classList.toggle('is-active', !!tab);
   $('status-text').textContent = tab ? 'Active on this tab' : 'Open Instagram to use';
 
-  const unf = $('unfollowers') as HTMLButtonElement;
-  unf.hidden = !settings['account.unfollowers'];
-  unf.addEventListener('click', async () => {
-    const t = await activeIgTab();
-    if (t?.id !== undefined) {
-      await chrome.tabs.sendMessage(t.id, { type: 'openUnfollowers' } satisfies Message).catch(() => {});
-    } else {
-      await chrome.tabs.create({ url: IG_URL });
-    }
-    window.close();
-  });
+  const tool = (id: string, enabled: boolean, msg: Message) => {
+    const btn = $(id) as HTMLButtonElement;
+    btn.hidden = !enabled;
+    btn.addEventListener('click', async () => {
+      const t = await activeIgTab();
+      if (t?.id !== undefined) {
+        await chrome.tabs.sendMessage(t.id, msg).catch(() => {});
+      } else {
+        await chrome.tabs.create({ url: IG_URL });
+      }
+      window.close();
+    });
+  };
+  tool('unfollowers', settings['account.unfollowers'], { type: 'openUnfollowers' });
+  tool('unsent', settings['dm.keepUnsent'], { type: 'openUnsent' });
 }
 
 init();

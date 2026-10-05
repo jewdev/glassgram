@@ -91,6 +91,10 @@ Where it can, Glassgram reuses data the page already loaded instead of sending i
   videos. Off by default.
 - **Right-click download** with *Download Instagram media* in the context menu.
 - **Voice messages** get a download button in your chats, so you can save one without playing it.
+- **Keep unsent messages** remembers the messages people send you. When someone unsends one, it
+  stays in the chat with an unsent mark, you get a notice, and it's listed under *Unsent messages*
+  in the popup. Received messages are kept from 1 day up to forever; unsent ones stay until you
+  clear them. Everything stays in your browser. Off by default.
 
 ### 👤 Profiles and stories
 
@@ -99,7 +103,10 @@ Where it can, Glassgram reuses data the page already loaded instead of sending i
 - **Story mentions & stickers** shows hidden mentions (shrunk to nothing, flagged hidden, or pushed
   outside the frame), plus hashtags, location, link stickers, music and shared posts.
 - The **follow status badge** says *Follow each other*, *Follows you*, *Doesn't follow you back* or
-  *Doesn't follow you*. It checks again after you follow or unfollow.
+  *Doesn't follow you*. It checks again after you follow or unfollow. Click it for the full picture:
+  pending requests, close friends, favorites, mutes, restrict, block and hidden story.
+- **No story auto-advance** stops each story at its end, so you move on only when you click. Off
+  by default.
 - The **unfollowers checker** lists who doesn't follow you back and who you don't follow back, with
   search and CSV export. Long scans save progress and resume later. Off by default.
 
@@ -120,12 +127,15 @@ Where it can, Glassgram reuses data the page already loaded instead of sending i
 - **Block analytics** blocks Instagram's event-logging requests.
 - **Anonymous story viewing** blocks the "seen" request so you don't appear in the viewer list.
   Off by default.
-- **DM privacy** can hide the typing indicator (experimental) and the "Seen" receipt (not tested yet).
+- **Anonymous live viewing** watches live videos without joining the viewer list. Off by default,
+  not tested yet.
+- **DM privacy** can hide the typing indicator and the "Seen" receipt (not tested yet).
 
 ### ✨ Small extras
 
 - **Exact timestamps** replace "3d" with the real date and time. Hover for the original.
 - **Copy comment** puts a *Copy* button next to every comment.
+- **Save GIFs from comments** adds *Save GIF* under comments that are a GIF.
 - **Keyboard shortcuts** for download, download all, zoom and copy URL. You can rebind them.
 - **One settings page**, grouped and searchable, with export and import. A popup holds quick toggles
   for the settings you change most.
@@ -158,7 +168,8 @@ defaults**, **Export settings** and **Import settings** are at the bottom of the
 | Download stories & highlights | On | Current story or the whole tray |
 | Story mentions & stickers | On | The **@** button and its panel |
 | HD profile picture | On | Zoom, download, copy URL |
-| Follow status badge | On | Next to the username |
+| Follow status badge | On | Next to the username. Click it for details |
+| Don't auto-advance stories | Off | Each story stops at its end |
 | Bulk download profile posts | Off | The floating button on profiles |
 | Bulk delay between requests | 1.5 to 3.5 s | Spacing for bulk download |
 
@@ -202,6 +213,7 @@ defaults**, **Export settings** and **Import settings** are at the bottom of the
 | Exact timestamps | On | Date + time (12h or 24h), or date only |
 | Right-click "Download Instagram media" | On | |
 | Copy comment button | On | |
+| Save GIFs from comments | On | |
 | Clean share links | On | Strips tracking from copied links |
 | Share domain | Empty | Replaces `instagram.com` in copied links, e.g. `kkinstagram.com` |
 | Open links directly | On | Skips `l.instagram.com` |
@@ -215,10 +227,13 @@ defaults**, **Export settings** and **Import settings** are at the bottom of the
 | Setting | Default | Notes |
 | :--- | :---: | :--- |
 | Anonymous story viewing | Off | Blocks the story "seen" request |
+| Anonymous live viewing | Off | Not tested yet |
 | Block analytics | On | Blocks `/ajax/bz`, `/ajax/qm`, `/logging` |
 | Download voice messages | On | A download button on each voice message |
-| Hide typing indicator | Off | Experimental |
+| Hide typing indicator | Off | |
 | Hide "Seen" | Off | Not tested yet |
+| Keep unsent messages | Off | Shown in the chat with an unsent mark, and listed in the popup |
+| Remember received messages for | 30 days | 1 day to forever. Unsent messages stay until you clear them |
 | Unfollowers checker | Off | Opened from the popup or your own profile |
 | Unfollowers scan delay | 2 to 4 s | Spacing for the scan |
 
@@ -274,8 +289,11 @@ remembered volume stay on this device (`chrome.storage.local`).
 - Bulk download pages through posts using the same request Instagram's profile grid sends. If you
   open a profile before the extension has seen that request, reload the profile once.
 - Ads and suggestions are recognised by their label text, in English and a few other languages.
-- Hide typing indicator is experimental and Hide "Seen" isn't tested yet, because checking them
-  takes someone else watching on the other end. Try them with a friend before you rely on them.
+- Hide "Seen" isn't tested yet, because checking it takes someone else watching on the other end.
+  Try it with a friend before you rely on it.
+- Keep unsent messages only catches messages that arrive while Instagram is open in this browser.
+  Turning it off forgets the recent messages it was holding; the unsent ones stay until you press
+  *Clear all*.
 - Block analytics stops Instagram's logging requests. Some analytics also travel over Instagram's
   live connection, mixed in with other traffic, and the extension leaves those alone.
 - Downloading someone else's content doesn't give you the right to reuse it. Respect the creators

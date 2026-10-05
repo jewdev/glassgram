@@ -156,6 +156,27 @@ export async function getFriendship(username: string, fresh = false): Promise<Fr
   return { following: !!r.following, followed_by: !!r.followed_by };
 }
 
+/** Everything Instagram knows about the relationship: requests, close friends, mutes, restrict, block… */
+export interface FriendshipDetails extends Friendship {
+  incoming_request?: boolean;
+  outgoing_request?: boolean;
+  is_bestie?: boolean;
+  is_feed_favorite?: boolean;
+  muting?: boolean;
+  is_muting_reel?: boolean;
+  is_muting_notes?: boolean;
+  is_restricted?: boolean;
+  blocking?: boolean;
+  is_blocking_reel?: boolean;
+  subscribed?: boolean;
+  is_private?: boolean;
+}
+
+export async function getFriendshipDetails(username: string): Promise<FriendshipDetails> {
+  const id = await getUserId(username);
+  return igGet<FriendshipDetails>(`/api/v1/friendships/show/${id}/`);
+}
+
 /** Profile info via Instagram's own profile query (falls back to REST). */
 export async function getProfileSummary(username: string): Promise<ProfileSummary> {
   const id = await getUserId(username);

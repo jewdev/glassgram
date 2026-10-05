@@ -4,6 +4,7 @@ export type Message =
   | { type: 'download'; jobs: DownloadJob[] }
   | { type: 'zip'; jobs: DownloadJob[]; zipName: string }
   | { type: 'openUnfollowers' }
+  | { type: 'openUnsent' }
   | { type: 'contextDownload' }
   | { type: 'zipProgress'; done: number; total: number }
   // background <-> offscreen

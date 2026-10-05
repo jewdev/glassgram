@@ -1,4 +1,4 @@
-import { isOnTopLayer, isOwnUi } from './selectors';
+import { isCommentGif, isOnTopLayer, isOwnUi } from './selectors';
 
 export type MediaEl = HTMLImageElement | HTMLVideoElement;
 
@@ -19,7 +19,8 @@ let started = false;
 
 function isMedia(e: Element): e is MediaEl {
   if (!(e instanceof HTMLImageElement || e instanceof HTMLVideoElement)) return false;
-  if (isOwnUi(e)) return false;
+  // Comment GIFs have their own "Save" item; the post toolbar would download the post instead.
+  if (isOwnUi(e) || isCommentGif(e)) return false;
   const r = e.getBoundingClientRect();
   return r.width >= MIN_SIZE && r.height >= MIN_SIZE && isOnTopLayer(e);
 }
