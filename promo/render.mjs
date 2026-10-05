@@ -2,6 +2,7 @@
 //
 //   node render.mjs                 full render → ../docs/glassgram-promo.mp4 (+ .webm, poster)
 //   node render.mjs --no-webm       skip the WebM
+//   node render.mjs --reencode      re-encode from the frames already in out/segments (no re-render)
 //   node render.mjs --stills 3,12.5 just PNG stills into out/stills (for review)
 //   node render.mjs --from 10 --to 20 --out out/part.mp4   render a slice
 //   node render.mjs --workers 6     parallel browser pages (default: half the CPU threads, max 6)
@@ -70,6 +71,9 @@ try {
     const total = Math.round(to * FPS) - first;
     const workers = Math.max(1, Math.min(Number(opt('workers', Math.min(6, Math.floor(cpus().length / 2)))), total));
     const segDir = join(OUT, 'segments');
+    const list = join(segDir, 'list.txt');
+    const reuse = flag('reencode') && existsSync(list);
+    if (!reuse) {
     rmSync(segDir, { recursive: true, force: true });
     mkdirSync(segDir, { recursive: true });
 
@@ -103,9 +107,8 @@ try {
       }),
     );
     console.log(`\nFrames done in ${((Date.now() - started) / 1000).toFixed(0)}s.`);
-
-    const list = join(segDir, 'list.txt');
     writeFileSync(list, segs.filter(Boolean).map((s) => `file '${s.replace(/\\/g, '/')}'`).join('\n'));
+    } else console.log('Reusing rendered frames from out/segments.');
     let wav = opt('audio') && resolve(process.cwd(), opt('audio'));
     if (!wav) {
       wav = join(OUT, 'audio.wav');
@@ -115,15 +118,23 @@ try {
 
     const mp4 = resolve(HERE, opt('out', join(REPO, 'docs', 'glassgram-promo.mp4')));
     const audioArgs = ['-ss', String(from), '-t', String(to - from), '-i', wav];
-    console.log(`Encoding ${mp4}…`);
-    run('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, ...audioArgs, '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-maxrate', '10M', '-bufsize', '20M', '-af', 'loudnorm=I=-15:TP=-1.5:LRA=11', '-ar', '48000', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', '-shortest', mp4]);
+    // GitHub only plays videos under ~10 MB in its file viewer, so the MP4 is encoded to a size budget
+    // (two-pass, ~9.3 MB by default; --mp4-mb to change it).
+    const seconds = to - from;
+    const audioKbps = 128;
+    const videoKbps = Math.floor((Number(opt('mp4-mb', 9.3)) * 8e6) / seconds / 1000 - audioKbps - 8);
+    const passlog = join(OUT, 'x264pass');
+    const vArgs = ['-c:v', 'libx264', '-preset', 'slower', '-tune', 'animation', '-b:v', `${videoKbps}k`, '-maxrate', `${videoKbps * 2}k`, '-bufsize', `${videoKbps * 4}k`, '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-passlogfile', passlog];
+    console.log(`Encoding ${mp4} (${videoKbps} kbps video, two-pass)…`);
+    run('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, ...vArgs, '-pass', '1', '-an', '-f', 'mp4', process.platform === 'win32' ? 'NUL' : '/dev/null']);
+    run('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, ...audioArgs, '-map', '0:v', '-map', '1:a', ...vArgs, '-pass', '2', '-af', 'loudnorm=I=-15:TP=-1.5:LRA=11', '-ar', '48000', '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-movflags', '+faststart', '-shortest', mp4]);
 
     if (!opt('out')) {
       run('ffmpeg', ['-y', '-loglevel', 'error', '-ss', '71.5', '-i', mp4, '-frames:v', '1', '-q:v', '3', join(REPO, 'docs', 'glassgram-promo-poster.jpg')]);
       if (!flag('no-webm')) {
         const webm = join(REPO, 'docs', 'glassgram-promo.webm');
         console.log(`Encoding ${webm}…`);
-        run('ffmpeg', ['-y', '-loglevel', 'error', '-i', mp4, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '33', '-row-mt', '1', '-cpu-used', '2', '-c:a', 'libopus', '-b:a', '160k', webm]);
+        run('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, ...audioArgs, '-map', '0:v', '-map', '1:a', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '36', '-row-mt', '1', '-cpu-used', '2', '-af', 'loudnorm=I=-15:TP=-1.5:LRA=11', '-c:a', 'libopus', '-b:a', '128k', '-shortest', webm]);
       }
     }
     console.log('Done.');

@@ -24,6 +24,8 @@ A full render takes a few minutes. Useful flags:
 | `node render.mjs --stills 6.5,14,40` | PNG stills into `out/stills/` for quick review |
 | `node render.mjs --from 35 --to 44 --out out/feed.mp4` | Render one slice |
 | `node render.mjs --no-webm` | Skip the VP9 encode |
+| `node render.mjs --reencode` | Re-encode from the frames already in `out/segments` (no re-render) |
+| `node render.mjs --mp4-mb 9.3` | Size budget for the MP4. GitHub only plays files under ~10 MB in its file viewer |
 | `node render.mjs --workers 8` | More parallel browser pages |
 | `node render.mjs --audio track.wav` | Use your own soundtrack instead of the synthesized one |
 | `node render.mjs --build` | Rebuild the extension before rendering |
