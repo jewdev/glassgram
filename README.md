@@ -104,7 +104,6 @@ except anonymous story viewing, which needs Instagram refreshed.
 | | "Copy caption" button | on | |
 | | Filename template | `Instagram/{user}/{user}_{date}_{shortcode}_{index}` | Tokens: `{user}` `{shortcode}` `{index}` `{id}` `{date}` `{time}` `{type}`. `/` makes folders inside Downloads |
 | | Multiple files | single ZIP | A single ZIP, or separate files in a folder |
-| | Ask where to save each file | off | The "Save as" dialog for single downloads |
 | Stories | Download stories & highlights | on | Current story or the whole tray |
 | | Story mentions & stickers | on | The **@** button and its panel |
 | Profile | HD profile picture | on | Zoom, download, copy URL |

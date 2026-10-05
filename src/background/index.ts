@@ -5,7 +5,7 @@ import type { DownloadJob } from '../shared/types';
 
 // ---------------- download queue ----------------
 const MAX_CONCURRENT = 3;
-const queue: { job: DownloadJob; saveAs: boolean }[] = [];
+const queue: DownloadJob[] = [];
 const active = new Set<number>();
 /** Blob-URL downloads (ZIPs) → cleanup once finished. */
 const blobDownloads = new Map<number, () => void>();
@@ -16,9 +16,9 @@ async function pump() {
   pumping = true;
   try {
     while (queue.length && active.size < MAX_CONCURRENT) {
-      const { job, saveAs } = queue.shift()!;
+      const job = queue.shift()!;
       try {
-        const id = await chrome.downloads.download({ url: job.url, filename: job.filename, saveAs, conflictAction: 'uniquify' });
+        const id = await chrome.downloads.download({ url: job.url, filename: job.filename, conflictAction: 'uniquify' });
         if (id !== undefined) active.add(id);
       } catch (e) {
         console.warn('[IGE] download failed', job.filename, e);
@@ -77,7 +77,7 @@ async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: numb
 chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
   if ('target' in msg) return false; // meant for the offscreen document
   if (msg.type === 'download') {
-    for (const job of msg.jobs) queue.push({ job, saveAs: !!msg.saveAs });
+    queue.push(...msg.jobs);
     pump();
     reply({ ok: true, count: msg.jobs.length } satisfies DownloadResult);
     return false;

@@ -13,7 +13,6 @@ export const DEFAULTS = {
   'download.copyCaption': true,
   'download.filename': 'Instagram/{user}/{user}_{date}_{shortcode}_{index}',
   'download.mode': 'zip' as 'folder' | 'zip',
-  'download.saveAs': false,
 
   // Stories
   'stories.download': true,
@@ -146,7 +145,6 @@ export const SECTIONS: Section[] = [
           { value: 'folder', label: 'Separate files' },
         ],
       },
-      { type: 'toggle', key: 'download.saveAs', label: 'Ask where to save each file', desc: 'Opens the "Save as" dialog for single downloads.' },
     ],
   },
   {

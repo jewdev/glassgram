@@ -1,7 +1,7 @@
 import type { DownloadJob } from './types';
 
 export type Message =
-  | { type: 'download'; jobs: DownloadJob[]; saveAs?: boolean }
+  | { type: 'download'; jobs: DownloadJob[] }
   | { type: 'zip'; jobs: DownloadJob[]; zipName: string }
   | { type: 'openUnfollowers' }
   | { type: 'contextDownload' }

@@ -28,7 +28,7 @@ export async function dispatch(jobs: DownloadJob[], zipBaseName: string): Promis
   const t = toast(zip ? `Zipping ${jobs.length} files…` : `Downloading ${jobs.length} file${jobs.length > 1 ? 's' : ''}…`, 'info', zip ? 0 : 2500);
   try {
     const res = await send<DownloadResult>(
-      zip ? { type: 'zip', jobs, zipName: zipNameFor(jobs, zipBaseName) } : { type: 'download', jobs, saveAs: jobs.length === 1 && s['download.saveAs'] },
+      zip ? { type: 'zip', jobs, zipName: zipNameFor(jobs, zipBaseName) } : { type: 'download', jobs },
     );
     if (!res?.ok) throw new Error(res?.error ?? 'Download failed');
     if (zip) {
