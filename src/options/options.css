@@ -83,6 +83,20 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 
 .head__tools { display: flex; align-items: center; gap: 10px; }
 
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  color: var(--ink-2);
+  transition: color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.icon-link:hover { color: var(--ink); transform: translateY(-1px); }
+.icon-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* appearance: segmented capsule; the selected option is a lifted glass chip */
 .segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; }
 .segmented__opt {
