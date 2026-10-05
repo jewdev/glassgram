@@ -1,36 +1,78 @@
-body { width: 320px; background: var(--surface); }
+/* Instagram Enhanced — popup. Tokens, glass, switch and pill buttons live in ../shared/glass.css. */
 
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 14px 12px 16px;
-  border-bottom: 1px solid var(--line);
-}
+body { width: 360px; padding: 12px; font-size: 14px; }
+
+/* the popup is small: tighter pools so all three colors sit behind the glass */
+.field__pool--a { width: 300px; height: 300px; left: -120px; top: -140px; }
+.field__pool--b { width: 260px; height: 260px; right: -110px; top: 120px; }
+.field__pool--c { width: 240px; height: 240px; left: 40px; bottom: -150px; }
+
+/* ---------------- header ---------------- */
+.head { display: flex; align-items: center; gap: 10px; padding: 2px 2px 10px; }
+.head .brand__mark { width: 36px; height: 36px; }
+.head__text { flex: 1; min-width: 0; }
+.head__name { font-weight: 650; font-size: 15px; letter-spacing: -0.01em; }
+
+.status { display: flex; align-items: center; gap: 6px; margin-top: 1px; color: var(--ink-2); font-size: 12.5px; }
+.status__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); }
+.status.is-active .status__dot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+
 .icon-btn {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  flex: none;
+  width: 36px;
+  height: 36px;
   border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--muted);
+  border-radius: 999px;
+  color: var(--ink-2);
   cursor: pointer;
+  transition: color 0.18s var(--ease), transform 0.12s var(--ease);
 }
-.icon-btn:hover { background: var(--soft); color: var(--fg); }
+.icon-btn:hover { color: var(--ink); }
+.icon-btn:active { transform: scale(0.94); }
 
-.toggles { margin: 0; padding: 6px 8px; list-style: none; }
+/* ---------------- quick toggles ---------------- */
+.panel { border-radius: 28px; padding: 6px; }
+.panel__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+  padding: 10px 12px 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.count { font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+
+.toggles { margin: 0; padding: 0; list-style: none; }
 .toggle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 9px 8px;
-  border-radius: 10px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 18px;
+  transition: background 0.18s var(--ease);
 }
-.toggle:hover { background: var(--soft); }
-.toggle label { font-weight: 550; cursor: pointer; }
+.toggle:hover { background: var(--fill); }
+.toggle + .toggle { box-shadow: 0 -1px 0 var(--hairline); }
+.toggle:hover, .toggle:hover + .toggle { box-shadow: none; }
+.toggle__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.toggle--power .toggle__icon { background: var(--risk-soft); color: var(--risk); }
+.toggle__label { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 540; line-height: 1.25; cursor: pointer; }
 
-.actions { display: flex; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--line); }
-.actions .btn { flex: 1; }
+/* ---------------- actions ---------------- */
+.actions { display: flex; gap: 8px; padding-top: 10px; }
+.actions .pill-btn { height: 36px; font-size: 13.5px; }
+.pill-btn--accent { background: var(--accent); color: var(--accent-ink); }
+.pill-btn--accent:hover { background: var(--accent); filter: brightness(1.08); }

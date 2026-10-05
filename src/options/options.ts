@@ -1,29 +1,36 @@
 import { renderFilename } from '../content/core/filename';
 import { controlFor } from '../shared/controls';
+import { sectionIcon } from '../shared/icons';
 import { loadSettings, onSettingsChanged, resetSettings, saveSettings } from '../shared/settings';
-import { DEFAULTS, SECTIONS, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
+import { DEFAULTS, SECTIONS, type Section, type SectionIcon, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
+const BADGE_TEXT = { experimental: 'Experimental', untested: 'Not tested yet', risky: 'Rate-limit risk' } as const;
+const HALVES = [
+  { id: 'everyday', title: 'Everyday' },
+  { id: 'power', title: 'Power tools' },
+] as const;
+
 let settings: Settings;
+
+// ---------------- saving ----------------
+let pending: Partial<Settings> = {};
+let saveTimer: number | undefined;
 let savedTimer: number | undefined;
 
 function flashSaved() {
   const el = $('saved');
-  el.textContent = 'Saved';
   el.classList.add('is-on');
   clearTimeout(savedTimer);
-  savedTimer = window.setTimeout(() => el.classList.remove('is-on'), 1400);
+  savedTimer = window.setTimeout(() => el.classList.remove('is-on'), 1600);
 }
 
-let pending: Partial<Settings> = {};
-let saveTimer: number | undefined;
-
-/** Debounced save — text inputs fire on every keystroke, and storage.sync has write quotas. */
+/** Debounced save: text inputs fire on every keystroke and storage.sync has write quotas. */
 function change(key: SettingKey, value: Settings[SettingKey]) {
   (settings as Record<SettingKey, unknown>)[key] = value;
   (pending as Record<SettingKey, unknown>)[key] = value;
-  refreshDependencies();
+  refreshState();
   if (key === 'download.filename') renderPreview();
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(async () => {
@@ -31,140 +38,239 @@ function change(key: SettingKey, value: Settings[SettingKey]) {
     pending = {};
     await saveSettings(patch);
     flashSaved();
-  }, 300);
+  }, 250);
 }
 
+// ---------------- rendering ----------------
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text?: string): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+const icon = (name: SectionIcon) => sectionIcon(name);
+
 function previewText(): string {
-  const now = Date.now() / 1000;
-  return renderFilename(settings['download.filename'], { user: 'natgeo', shortcode: 'C9xYz12AbcD', index: 1, id: '3412345678901234567', takenAt: now, type: 'image' }, 'jpg');
+  return renderFilename(
+    settings['download.filename'],
+    { user: 'natgeo', shortcode: 'C9xYz12AbcD', index: 1, id: '3412345678901234567', takenAt: Date.now() / 1000, type: 'image' },
+    'jpg',
+  );
 }
 
 function renderPreview() {
-  const el = document.getElementById('filename-preview');
-  if (el) el.textContent = `Downloads/${previewText()}`;
+  const p = document.getElementById('filename-preview');
+  if (p) p.textContent = `Downloads/${previewText()}`;
 }
 
-function row(def: SettingDef): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = `row row--${def.type}`;
-  wrap.dataset.key = def.key;
-  if (def.dependsOn) wrap.dataset.dependsOn = def.dependsOn;
-  wrap.dataset.search = `${def.label} ${def.desc ?? ''}`.toLowerCase();
+function searchText(def: SettingDef): string {
+  return `${def.label} ${def.desc ?? ''} ${def.type === 'text' ? def.help ?? '' : ''}`.toLowerCase();
+}
 
-  const text = document.createElement('div');
-  text.className = 'row__text';
-  const label = document.createElement('label');
-  label.className = 'row__label';
+/** One setting: label, description, badge, control. Text fields stack their input below. */
+function settingRow(def: SettingDef, sub: boolean): HTMLElement {
+  const row = el('div', `row row--${def.type}${sub ? ' row--sub' : ''}`);
+  row.dataset.key = def.key;
+  row.dataset.search = searchText(def);
+
+  const text = el('div', 'row__text');
+  const label = el('label', 'row__label', def.label);
   label.htmlFor = `set-${def.key}`;
-  label.textContent = def.label;
-  text.append(label);
-  if (def.desc) {
-    const d = document.createElement('p');
-    d.className = 'row__desc';
-    d.textContent = def.desc;
-    text.append(d);
+  const title = el('div', 'row__title');
+  title.append(label);
+  if (def.badge) {
+    const b = el('span', `badge badge--${def.badge}`, BADGE_TEXT[def.badge]);
+    title.append(b);
   }
+  text.append(title);
+  if (def.desc) text.append(el('p', 'row__desc', def.desc));
 
   const control = controlFor(def, settings, change);
   control.classList.add('row__control');
-  wrap.append(text, control);
+  row.append(text, control);
 
   if (def.type === 'text') {
-    const help = document.createElement('div');
-    help.className = 'row__extra';
-    if (def.help) help.append(Object.assign(document.createElement('p'), { className: 'row__desc', textContent: def.help }));
+    if (def.help) row.append(el('p', 'row__help', def.help));
     if (def.key === 'download.filename') {
-      const prev = document.createElement('code');
+      const prev = el('code', 'preview');
       prev.id = 'filename-preview';
-      prev.className = 'preview';
-      help.append(prev);
+      row.append(prev);
     }
-    wrap.append(help);
   }
-  if (def.type === 'toggle' && def.warning) {
-    const w = document.createElement('p');
-    w.className = 'row__warning';
-    w.textContent = def.warning;
-    wrap.append(w);
-  }
-  return wrap;
+  return row;
 }
 
-function renderSections() {
+/** A feature: its main row, plus a warning and sub-options that open while it's on. */
+function featureBlock(def: SettingDef, children: SettingDef[]): HTMLElement {
+  const block = el('div', 'feature');
+  block.dataset.key = def.key;
+  block.append(settingRow(def, false));
+
+  const warning = def.type === 'toggle' ? def.warning : undefined;
+  if (children.length || warning) {
+    block.classList.add('feature--expandable');
+    const drawer = el('div', 'feature__drawer');
+    const inner = el('div', 'feature__inner');
+    if (warning) {
+      const w = el('p', 'feature__warning');
+      w.innerHTML =
+        '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4Z"/><path d="M12 10v4M12 17h.01"/></svg>';
+      w.append(el('span', '', warning));
+      inner.append(w);
+    }
+    for (const c of children) inner.append(settingRow(c, true));
+    drawer.append(inner);
+    block.append(drawer);
+  }
+  return block;
+}
+
+/** Top-level toggles in a section, used for the "3 of 7 on" count. */
+function mainToggles(sec: Section): SettingDef[] {
+  return sec.items.filter((d) => d.type === 'toggle' && !d.dependsOn);
+}
+
+function sectionPanel(sec: Section): HTMLElement {
+  const panel = el('section', 'panel glass');
+  panel.id = sec.id;
+  panel.setAttribute('aria-labelledby', `${sec.id}-title`);
+
+  const head = el('header', 'panel__head');
+  const ic = el('span', 'panel__icon');
+  ic.innerHTML = icon(sec.icon);
+  const h2 = el('h2', '', sec.title);
+  h2.id = `${sec.id}-title`;
+  const count = el('span', 'count');
+  count.dataset.count = sec.id;
+  head.append(ic, h2, count);
+  panel.append(head);
+  if (sec.intro) panel.append(el('p', 'panel__intro', sec.intro));
+
+  const list = el('div', 'panel__list');
+  for (const def of sec.items) {
+    if (def.dependsOn && sec.items.some((p) => p.key === def.dependsOn)) continue; // rendered inside its parent
+    const children = sec.items.filter((c) => c.dependsOn === def.key);
+    list.append(featureBlock(def, children));
+  }
+  panel.append(list);
+  return panel;
+}
+
+function navItem(sec: Section): HTMLElement {
+  const a = el('a', 'nav__item');
+  a.href = `#${sec.id}`;
+  a.dataset.target = sec.id;
+  a.innerHTML = icon(sec.icon);
+  a.append(el('span', 'nav__label', sec.title));
+  const c = el('span', 'nav__count');
+  c.dataset.count = sec.id;
+  a.append(c);
+  return a;
+}
+
+function render() {
   const nav = $('nav');
   const main = $('sections');
+  const scrollY = window.scrollY;
   nav.replaceChildren();
   main.replaceChildren();
 
-  for (const sec of SECTIONS) {
-    const a = document.createElement('a');
-    a.href = `#${sec.id}`;
-    a.className = 'nav__item';
-    a.innerHTML = `<span class="nav__icon" aria-hidden="true">${sec.icon}</span><span></span>`;
-    a.lastElementChild!.textContent = sec.title;
-    nav.append(a);
+  for (const half of HALVES) {
+    const secs = SECTIONS.filter((s) => s.half === half.id);
+    const group = el('div', 'nav__group');
+    group.append(el('p', 'nav__heading', half.title));
+    secs.forEach((s) => group.append(navItem(s)));
+    nav.append(group);
 
-    const card = document.createElement('section');
-    card.className = 'card';
-    card.id = sec.id;
-    const h2 = document.createElement('h2');
-    h2.textContent = sec.title;
-    card.append(h2);
-    if (sec.intro) card.append(Object.assign(document.createElement('p'), { className: 'card__intro', textContent: sec.intro }));
-    for (const def of sec.items) card.append(row(def));
-    main.append(card);
+    const zone = el('div', `half half--${half.id}`);
+    const h = el('h2', 'half__title', half.title);
+    if (half.id === 'power') zone.append(h, el('p', 'half__sub', 'Risky, experimental or account-level features. Off by default.'));
+    else zone.append(h);
+    secs.forEach((s) => zone.append(sectionPanel(s)));
+    main.append(zone);
   }
+
   renderPreview();
-  refreshDependencies();
+  refreshState();
+  applySearch(($('search') as HTMLInputElement).value);
   observeNav();
+  window.scrollTo(0, scrollY);
 }
 
-function refreshDependencies() {
-  document.querySelectorAll<HTMLElement>('.row').forEach((r) => {
-    const dep = r.dataset.dependsOn as SettingKey | undefined;
-    const off = !!dep && !settings[dep];
-    r.classList.toggle('is-disabled', off);
-    r.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>('input, select, button').forEach((c) => (c.disabled = off));
-    const key = r.dataset.key as SettingKey;
-    r.classList.toggle('is-on', settings[key] === true);
+/** Sync open/closed drawers, disabled sub-options and on-counts with current settings. */
+function refreshState() {
+  document.querySelectorAll<HTMLElement>('.feature').forEach((f) => {
+    const on = settings[f.dataset.key as SettingKey] === true;
+    f.classList.toggle('is-on', on);
+    f.querySelectorAll<HTMLElement>('.row--sub').forEach((r) => {
+      r.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>('input, select, button').forEach((c) => (c.disabled = !on));
+    });
+    const drawer = f.querySelector('.feature__drawer');
+    if (drawer) drawer.toggleAttribute('inert', !on && !f.classList.contains('is-match'));
   });
+  for (const sec of SECTIONS) {
+    const toggles = mainToggles(sec);
+    const n = toggles.filter((d) => settings[d.key] === true).length;
+    document.querySelectorAll<HTMLElement>(`[data-count="${sec.id}"]`).forEach((c) => {
+      c.textContent = c.classList.contains('nav__count') ? `${n}/${toggles.length}` : `${n} of ${toggles.length} on`;
+    });
+  }
 }
 
+// ---------------- search ----------------
+function applySearch(q: string) {
+  const query = q.trim().toLowerCase();
+  let any = false;
+  document.querySelectorAll<HTMLElement>('.panel').forEach((panel) => {
+    let panelHit = false;
+    panel.querySelectorAll<HTMLElement>('.feature').forEach((f) => {
+      const main = f.querySelector<HTMLElement>(':scope > .row')!;
+      const subs = [...f.querySelectorAll<HTMLElement>('.row--sub')];
+      const mainHit = !query || main.dataset.search!.includes(query);
+      const subHit = !!query && subs.some((s) => s.dataset.search!.includes(query));
+      const hit = mainHit || subHit;
+      f.hidden = !hit;
+      f.classList.toggle('is-match', subHit); // open the drawer to show the matching sub-option
+      panelHit ||= hit;
+    });
+    panel.hidden = !panelHit;
+    any ||= panelHit;
+  });
+  document.querySelectorAll<HTMLElement>('.half').forEach((h) => (h.hidden = ![...h.querySelectorAll('.panel')].some((p) => !(p as HTMLElement).hidden)));
+  document.querySelectorAll<HTMLElement>('.nav__item').forEach((a) => (a.hidden = !!document.getElementById(a.dataset.target!)?.hidden));
+  document.querySelectorAll<HTMLElement>('.nav__group').forEach((g) => (g.hidden = ![...g.querySelectorAll<HTMLElement>('.nav__item')].some((a) => !a.hidden)));
+  $('empty').hidden = any;
+  refreshState();
+}
+
+// ---------------- nav highlight ----------------
+let io: IntersectionObserver | undefined;
 function observeNav() {
-  const items = new Map([...document.querySelectorAll<HTMLAnchorElement>('.nav__item')].map((a) => [a.hash.slice(1), a]));
-  const io = new IntersectionObserver(
+  io?.disconnect();
+  const items = new Map([...document.querySelectorAll<HTMLAnchorElement>('.nav__item')].map((a) => [a.dataset.target!, a]));
+  io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
         if (!e.isIntersecting) continue;
-        items.forEach((a) => a.classList.remove('is-active'));
-        items.get(e.target.id)?.classList.add('is-active');
+        items.forEach((a) => a.removeAttribute('aria-current'));
+        items.get(e.target.id)?.setAttribute('aria-current', 'true');
       }
     },
-    { rootMargin: '-30% 0px -60% 0px' },
+    { rootMargin: '-25% 0px -65% 0px' },
   );
-  document.querySelectorAll('.card').forEach((c) => io.observe(c));
+  document.querySelectorAll('.panel').forEach((p) => io!.observe(p));
 }
 
-function applySearch(q: string) {
-  const query = q.trim().toLowerCase();
-  document.querySelectorAll<HTMLElement>('.card').forEach((card) => {
-    let any = false;
-    card.querySelectorAll<HTMLElement>('.row').forEach((r) => {
-      const hit = !query || r.dataset.search!.includes(query);
-      r.hidden = !hit;
-      any ||= hit;
-    });
-    card.hidden = !any;
-  });
-}
-
-function wireFooter() {
+// ---------------- footer actions ----------------
+function wireActions() {
   $('export').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'instagram-enhanced-settings.json' });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   });
+
   const file = $<HTMLInputElement>('import-file');
   $('import').addEventListener('click', () => file.click());
   file.addEventListener('change', async () => {
@@ -179,31 +285,58 @@ function wireFooter() {
         if (k in raw && typeof raw[k] === typeof DEFAULTS[k]) (patch as Record<string, unknown>)[k] = raw[k];
       }
       settings = await saveSettings(patch);
-      renderSections();
+      render();
       flashSaved();
     } catch {
-      alert('That file is not a valid settings export.');
+      showNotice("That file isn't a valid settings export.");
     }
   });
-  $('reset').addEventListener('click', async () => {
-    if (!confirm('Reset all Instagram Enhanced settings to their defaults?')) return;
+
+  const dialog = $<HTMLDialogElement>('confirm');
+  $('reset').addEventListener('click', () => dialog.showModal());
+  dialog.addEventListener('close', async () => {
+    if (dialog.returnValue !== 'reset') return;
     settings = await resetSettings();
-    renderSections();
+    render();
     flashSaved();
   });
 }
 
+function showNotice(text: string) {
+  const s = $('saved');
+  s.querySelector('span')!.textContent = text;
+  s.classList.add('is-on', 'is-error');
+  setTimeout(() => {
+    s.classList.remove('is-on', 'is-error');
+    s.querySelector('span')!.textContent = 'Saved';
+  }, 3000);
+}
+
+// ---------------- init ----------------
 async function init() {
   settings = await loadSettings();
-  renderSections();
-  wireFooter();
-  $<HTMLInputElement>('search').addEventListener('input', (e) => applySearch((e.target as HTMLInputElement).value));
+  render();
+  wireActions();
+
+  const search = $<HTMLInputElement>('search');
+  search.addEventListener('input', () => applySearch(search.value));
+  document.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement;
+    if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && !t.closest('.kbd-btn')) {
+      e.preventDefault();
+      search.focus();
+    } else if (e.key === 'Escape' && t === search && search.value) {
+      search.value = '';
+      applySearch('');
+    }
+  });
+
   // Keep in sync with changes made from the popup.
   onSettingsChanged((s) => {
     const changedElsewhere = (Object.keys(s) as SettingKey[]).some((k) => s[k] !== settings[k] && !(k in pending));
     if (!changedElsewhere) return;
     settings = s;
-    renderSections();
+    render();
   });
 }
 

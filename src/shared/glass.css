@@ -1,0 +1,209 @@
+/* Instagram Enhanced — shared Liquid Glass system: tokens, light field, glass material, switch, pill buttons.
+   Used by the settings page and the popup. See DESIGN.md. */
+
+:root {
+  color-scheme: light;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* field */
+  --base: #e9edf6;
+  --pool-a: rgb(99 102 241 / 0.42);
+  --pool-b: rgb(34 211 238 / 0.34);
+  --pool-c: rgb(251 113 133 / 0.30);
+  --lattice: rgb(15 20 36 / 0.14);
+
+  /* text */
+  --ink: #0f1424;
+  --ink-2: #454c63;
+  --ink-3: #5f667d;
+
+  /* glass */
+  --glass: rgb(255 255 255 / 0.52);
+  --glass-sat: 175%;
+  --glass-strong: rgb(255 255 255 / 0.72);
+  --glass-rim: rgb(255 255 255 / 0.9);
+  --glass-rim-low: rgb(255 255 255 / 0.25);
+  --glass-shadow: 0 24px 48px -28px rgb(40 48 100 / 0.38), 0 2px 6px -2px rgb(40 48 100 / 0.12);
+  --hairline: rgb(15 20 36 / 0.09);
+  --fill: rgb(118 118 128 / 0.14);
+  --fill-hover: rgb(118 118 128 / 0.22);
+
+  /* accents */
+  --accent: #4b48e0;
+  --accent-ink: #ffffff;
+  --accent-soft: rgb(75 72 224 / 0.12);
+  --risk: #c4362a;
+  --risk-soft: rgb(229 72 58 / 0.13);
+  --ok: #138a4b;
+
+  --switch-off: rgb(120 120 128 / 0.30);
+  --brand-from: #5856e8;
+  --brand-to: #2fb3d6;
+  --r-panel: 28px;
+  --r-row: 18px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --base: #080a12;
+    --pool-a: rgb(79 70 229 / 0.36);
+    --pool-b: rgb(6 182 212 / 0.36);
+    --pool-c: rgb(244 98 116 / 0.18);
+    --lattice: rgb(255 255 255 / 0.10);
+
+    --ink: #f2f4fa;
+    --ink-2: #c3c8d6;
+    --ink-3: #a3a9ba;
+
+    --glass: rgb(255 255 255 / 0.085);
+    --glass-sat: 120%;
+    --glass-strong: rgb(30 33 46 / 0.78);
+    --glass-rim: rgb(255 255 255 / 0.32);
+    --glass-rim-low: rgb(255 255 255 / 0.06);
+    --glass-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.75), 0 2px 8px -2px rgb(0 0 0 / 0.35);
+    --hairline: rgb(255 255 255 / 0.08);
+    --fill: rgb(255 255 255 / 0.1);
+    --fill-hover: rgb(255 255 255 / 0.14);
+
+    --accent: #7b7bff;
+    --accent-ink: #0b0d18;
+    --accent-soft: rgb(123 123 255 / 0.16);
+    --risk: #ff8a7a;
+    --risk-soft: rgb(255 120 100 / 0.14);
+    --ok: #5ee39a;
+
+    --switch-off: rgb(120 120 128 / 0.36);
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--base);
+  color: var(--ink);
+  font: 15px/1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--accent);
+}
+::selection { background: var(--accent-soft); color: var(--ink); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--fill-hover) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--fill-hover); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+
+/* ---------------- light field ---------------- */
+.field { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.field__pool { position: absolute; border-radius: 50%; filter: blur(56px); }
+/* fine lattice: structure for the glass to visibly blur and bend */
+.field::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at center, var(--lattice) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+.field__pool--a { width: 62vmax; height: 62vmax; left: -18vmax; top: -22vmax; background: var(--pool-a); }
+.field__pool--b { width: 48vmax; height: 48vmax; right: -14vmax; top: 18vh; background: var(--pool-b); }
+.field__pool--c { width: 44vmax; height: 44vmax; left: 28vw; bottom: -26vmax; background: var(--pool-c); }
+
+/* ---------------- glass material ---------------- */
+.glass {
+  position: relative;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(var(--glass-sat));
+  backdrop-filter: blur(24px) saturate(var(--glass-sat));
+  box-shadow: inset 0 1px 0 var(--glass-rim-low), var(--glass-shadow);
+}
+/* specular rim: bright along the top-left edge, fading around — light caught by the glass edge */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(155deg, var(--glass-rim) 0%, var(--glass-rim-low) 28%, transparent 55%, var(--glass-rim-low) 85%, var(--glass-rim) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+/* ---------------- switch ---------------- */
+/* switch: capsule track, glass knob that stretches while pressed */
+.switch { position: relative; display: inline-block; flex: none; width: 52px; height: 32px; }
+.switch input { position: absolute; inset: 0; z-index: 1; margin: 0; opacity: 0; cursor: pointer; }
+.switch input:disabled { cursor: default; }
+.switch__track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--switch-off);
+  transition: background 0.24s var(--ease);
+}
+.switch__track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.18), 0 1px 1px rgb(0 0 0 / 0.08);
+  transform-origin: left center;
+  transition: transform 0.28s var(--ease), background 0.2s var(--ease);
+}
+.switch input:checked + .switch__track { background: var(--accent); }
+.switch input:checked + .switch__track::after { transform: translateX(20px); transform-origin: right center; }
+/* pressed: the knob stretches like a drop of glass toward where it will go */
+.switch input:active:not(:disabled) + .switch__track::after { transform: scaleX(1.24); background: rgb(255 255 255 / 0.82); }
+.switch input:checked:active:not(:disabled) + .switch__track::after { transform: translateX(20px) scaleX(1.24); }
+.switch input:focus-visible + .switch__track { outline: 2px solid var(--accent); outline-offset: 3px; }
+.switch input:disabled + .switch__track { opacity: 0.5; }
+
+/* ---------------- pill buttons ---------------- */
+.pill-btn {
+  flex: 1;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s var(--ease), transform 0.12s var(--ease);
+}
+.pill-btn:hover { background: var(--fill-hover); }
+.pill-btn:active { transform: scale(0.96); }
+.pill-btn--quiet { background: transparent; color: var(--ink-2); }
+.pill-btn--quiet:hover { background: var(--fill); }
+.pill-btn--danger { background: #c4362a; color: #fff; }
+.pill-btn--danger:hover { background: #ad2e23; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass { background: var(--glass-strong); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* ---------------- brand mark ---------------- */
+.brand__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(140deg, var(--brand-from), var(--brand-to));
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45), var(--glass-shadow);
+}

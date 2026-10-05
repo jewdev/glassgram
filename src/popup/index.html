@@ -2,30 +2,42 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="darkreader-lock" />
     <title>Instagram Enhanced</title>
-    <link rel="stylesheet" href="../shared/theme.css" />
+    <link rel="stylesheet" href="../shared/glass.css" />
     <link rel="stylesheet" href="./popup.css" />
   </head>
   <body>
+    <div class="field" aria-hidden="true">
+      <span class="field__pool field__pool--a"></span>
+      <span class="field__pool field__pool--b"></span>
+      <span class="field__pool field__pool--c"></span>
+    </div>
+
     <header class="head">
-      <div class="brand">
-        <div class="brand__logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 15v4h14v-4"/></svg>
-        </div>
-        <div>
-          <div class="brand__name">Instagram Enhanced</div>
-          <div id="status" class="brand__sub">Quick toggles</div>
-        </div>
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11" /><path d="m7 10 5 5 5-5" /><path d="M5 15v4h14v-4" /></svg>
+      </span>
+      <div class="head__text">
+        <div class="head__name">Instagram Enhanced</div>
+        <div id="status" class="status"><span class="status__dot" aria-hidden="true"></span><span id="status-text">Checking tab…</span></div>
       </div>
-      <button id="settings" class="icon-btn" type="button" title="All settings" aria-label="All settings">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <button id="settings" class="icon-btn glass" type="button" title="All settings" aria-label="All settings">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>
       </button>
     </header>
-    <ul id="toggles" class="toggles"></ul>
+
+    <section class="panel glass" aria-labelledby="quick-title">
+      <h1 id="quick-title" class="panel__title">Quick toggles <span id="count" class="count"></span></h1>
+      <ul id="toggles" class="toggles"></ul>
+    </section>
+
     <div class="actions">
-      <button id="unfollowers" class="btn" type="button">Unfollowers checker</button>
-      <button id="open-settings" class="btn btn--primary" type="button">All settings</button>
+      <button id="unfollowers" class="pill-btn" type="button">Unfollowers checker</button>
+      <button id="open-settings" class="pill-btn pill-btn--accent" type="button">All settings</button>
     </div>
+
     <script type="module" src="./popup.ts"></script>
   </body>
 </html>

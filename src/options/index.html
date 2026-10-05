@@ -3,43 +3,73 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="darkreader-lock" />
     <title>Instagram Enhanced · Settings</title>
-    <link rel="stylesheet" href="../shared/theme.css" />
+    <link rel="stylesheet" href="../shared/glass.css" />
     <link rel="stylesheet" href="./options.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="topbar__inner">
-        <div class="brand">
-          <div class="brand__logo" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 15v4h14v-4"/></svg>
-          </div>
-          <div>
-            <div class="brand__name">Instagram Enhanced</div>
-            <div class="brand__sub">Settings · changes apply instantly</div>
-          </div>
-        </div>
-        <div class="topbar__actions">
-          <input id="search" class="control search" type="search" placeholder="Search settings" aria-label="Search settings" />
-          <span id="saved" class="saved" role="status" aria-live="polite"></span>
-        </div>
-      </div>
-    </header>
-
-    <div class="layout">
-      <nav id="nav" class="nav" aria-label="Sections"></nav>
-      <main id="sections" class="sections"></main>
+    <div class="field" aria-hidden="true">
+      <span class="field__pool field__pool--a"></span>
+      <span class="field__pool field__pool--b"></span>
+      <span class="field__pool field__pool--c"></span>
     </div>
 
-    <footer class="footer">
-      <div class="footer__inner">
-        <button id="export" class="btn" type="button">Export settings</button>
-        <button id="import" class="btn" type="button">Import settings</button>
-        <input id="import-file" type="file" accept="application/json" hidden />
-        <span class="spacer"></span>
-        <button id="reset" class="btn btn--danger" type="button">Reset to defaults</button>
-      </div>
-    </footer>
+    <div class="shell">
+      <aside class="sidebar glass" aria-label="Settings navigation">
+        <div class="brand">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11" /><path d="m7 10 5 5 5-5" /><path d="M5 15v4h14v-4" /></svg>
+          </span>
+          <span class="brand__name">Instagram Enhanced</span>
+        </div>
+
+        <label class="search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input id="search" type="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" />
+          <kbd class="search__key" aria-hidden="true">/</kbd>
+        </label>
+
+        <nav id="nav" class="nav"></nav>
+
+        <div class="sidebar__foot">
+          <button id="export" class="pill-btn" type="button">Export</button>
+          <button id="import" class="pill-btn" type="button">Import</button>
+          <button id="reset" class="pill-btn pill-btn--quiet" type="button">Reset</button>
+          <input id="import-file" type="file" accept="application/json" hidden />
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="content__head">
+          <div>
+            <h1>Settings</h1>
+            <p class="content__sub">Changes apply instantly to open Instagram tabs.</p>
+          </div>
+          <span id="saved" class="saved glass" role="status" aria-live="polite">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+            <span>Saved</span>
+          </span>
+        </header>
+
+        <div id="sections" class="sections"></div>
+
+        <p id="empty" class="empty glass" hidden>No settings match your search.</p>
+      </main>
+    </div>
+
+    <dialog id="confirm" class="confirm glass">
+      <form method="dialog">
+        <h2>Reset all settings?</h2>
+        <p>Every option goes back to its default. Your downloads and scan results aren't affected.</p>
+        <div class="confirm__actions">
+          <button class="pill-btn pill-btn--quiet" value="cancel">Cancel</button>
+          <button class="pill-btn pill-btn--danger" value="reset">Reset</button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="./options.ts"></script>
   </body>
 </html>
