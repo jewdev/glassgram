@@ -1,5 +1,6 @@
 import { switchControl } from '../shared/controls';
 import { sectionIcon } from '../shared/icons';
+import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
 import type { Message } from '../shared/messages';
 import { loadSettings, saveSettings } from '../shared/settings';
 import { SECTIONS, type SettingKey, type Settings } from '../shared/settings-schema';
@@ -11,6 +12,20 @@ async function activeIgTab(): Promise<chrome.tabs.Tab | undefined> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab?.url?.startsWith(IG_URL) ? tab : undefined;
 }
+
+function renderThemeButton(current: ThemeChoice) {
+  const btn = $('theme') as HTMLButtonElement;
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(current) + 1) % THEME_ORDER.length];
+  btn.innerHTML = themeIcon(current, 17);
+  btn.title = `Appearance: ${THEME_LABEL[current]} (click for ${THEME_LABEL[next]})`;
+  btn.setAttribute('aria-label', btn.title);
+  btn.onclick = () => {
+    renderThemeButton(next);
+    setTheme(next);
+  };
+}
+
+initTheme(renderThemeButton);
 
 async function init() {
   const settings: Settings = await loadSettings();

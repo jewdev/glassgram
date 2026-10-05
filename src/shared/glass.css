@@ -2,41 +2,41 @@
    Used by the settings page and the popup. See DESIGN.md. */
 
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
   /* field */
-  --base: #e9edf6;
-  --pool-a: rgb(99 102 241 / 0.42);
-  --pool-b: rgb(34 211 238 / 0.34);
-  --pool-c: rgb(251 113 133 / 0.30);
-  --lattice: rgb(15 20 36 / 0.14);
+  --base: light-dark(#e9edf6, #080a12);
+  --pool-a: light-dark(rgb(99 102 241 / 0.42), rgb(79 70 229 / 0.36));
+  --pool-b: light-dark(rgb(34 211 238 / 0.34), rgb(6 182 212 / 0.36));
+  --pool-c: light-dark(rgb(251 113 133 / 0.30), rgb(244 98 116 / 0.18));
+  --lattice: light-dark(rgb(15 20 36 / 0.14), rgb(255 255 255 / 0.10));
 
   /* text */
-  --ink: #0f1424;
-  --ink-2: #454c63;
-  --ink-3: #5f667d;
+  --ink: light-dark(#0f1424, #f2f4fa);
+  --ink-2: light-dark(#454c63, #c3c8d6);
+  --ink-3: light-dark(#5f667d, #a3a9ba);
 
   /* glass */
-  --glass: rgb(255 255 255 / 0.52);
+  --glass: light-dark(rgb(255 255 255 / 0.52), rgb(255 255 255 / 0.085));
   --glass-sat: 175%;
-  --glass-strong: rgb(255 255 255 / 0.72);
-  --glass-rim: rgb(255 255 255 / 0.9);
-  --glass-rim-low: rgb(255 255 255 / 0.25);
+  --glass-strong: light-dark(rgb(255 255 255 / 0.72), rgb(30 33 46 / 0.78));
+  --glass-rim: light-dark(rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.32));
+  --glass-rim-low: light-dark(rgb(255 255 255 / 0.25), rgb(255 255 255 / 0.06));
   --glass-shadow: 0 24px 48px -28px rgb(40 48 100 / 0.38), 0 2px 6px -2px rgb(40 48 100 / 0.12);
-  --hairline: rgb(15 20 36 / 0.09);
-  --fill: rgb(118 118 128 / 0.14);
-  --fill-hover: rgb(118 118 128 / 0.22);
+  --hairline: light-dark(rgb(15 20 36 / 0.09), rgb(255 255 255 / 0.08));
+  --fill: light-dark(rgb(118 118 128 / 0.14), rgb(255 255 255 / 0.1));
+  --fill-hover: light-dark(rgb(118 118 128 / 0.22), rgb(255 255 255 / 0.14));
 
   /* accents */
-  --accent: #4b48e0;
-  --accent-ink: #ffffff;
-  --accent-soft: rgb(75 72 224 / 0.12);
-  --risk: #c4362a;
-  --risk-soft: rgb(229 72 58 / 0.13);
-  --ok: #138a4b;
+  --accent: light-dark(#4b48e0, #7b7bff);
+  --accent-ink: light-dark(#ffffff, #0b0d18);
+  --accent-soft: light-dark(rgb(75 72 224 / 0.12), rgb(123 123 255 / 0.16));
+  --risk: light-dark(#c4362a, #ff8a7a);
+  --risk-soft: light-dark(rgb(229 72 58 / 0.13), rgb(255 120 100 / 0.14));
+  --ok: light-dark(#138a4b, #5ee39a);
 
-  --switch-off: rgb(120 120 128 / 0.30);
+  --switch-off: light-dark(rgb(120 120 128 / 0.30), rgb(120 120 128 / 0.36));
   --brand-from: #5856e8;
   --brand-to: #2fb3d6;
   --r-panel: 28px;
@@ -44,38 +44,19 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Theme: "System" follows the OS (no attribute); Light/Dark pin it with data-theme on <html>.
+   Colors switch through light-dark(); only non-color tokens need an explicit dark block. */
+:root[data-theme='light'] { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --base: #080a12;
-    --pool-a: rgb(79 70 229 / 0.36);
-    --pool-b: rgb(6 182 212 / 0.36);
-    --pool-c: rgb(244 98 116 / 0.18);
-    --lattice: rgb(255 255 255 / 0.10);
-
-    --ink: #f2f4fa;
-    --ink-2: #c3c8d6;
-    --ink-3: #a3a9ba;
-
-    --glass: rgb(255 255 255 / 0.085);
+  :root:not([data-theme='light']) {
     --glass-sat: 120%;
-    --glass-strong: rgb(30 33 46 / 0.78);
-    --glass-rim: rgb(255 255 255 / 0.32);
-    --glass-rim-low: rgb(255 255 255 / 0.06);
     --glass-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.75), 0 2px 8px -2px rgb(0 0 0 / 0.35);
-    --hairline: rgb(255 255 255 / 0.08);
-    --fill: rgb(255 255 255 / 0.1);
-    --fill-hover: rgb(255 255 255 / 0.14);
-
-    --accent: #7b7bff;
-    --accent-ink: #0b0d18;
-    --accent-soft: rgb(123 123 255 / 0.16);
-    --risk: #ff8a7a;
-    --risk-soft: rgb(255 120 100 / 0.14);
-    --ok: #5ee39a;
-
-    --switch-off: rgb(120 120 128 / 0.36);
   }
+}
+:root[data-theme='dark'] {
+  --glass-sat: 120%;
+  --glass-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.75), 0 2px 8px -2px rgb(0 0 0 / 0.35);
 }
 
 * { box-sizing: border-box; }

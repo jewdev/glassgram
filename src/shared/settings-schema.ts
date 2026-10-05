@@ -3,6 +3,9 @@
 // means: add a default here, add a schema entry below, read it in the feature.
 
 export const DEFAULTS = {
+  // Appearance of the extension's own pages (settings, popup)
+  'ui.theme': 'system' as 'system' | 'light' | 'dark',
+
   // Media downloads
   'download.enabled': true,
   'download.showAll': true,

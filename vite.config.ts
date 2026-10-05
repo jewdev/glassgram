@@ -11,6 +11,7 @@ export default defineConfig({
   ],
   build: {
     target: 'chrome120',
+    cssTarget: 'chrome123', // keep native light-dark() (Chrome 123+)
     rollupOptions: {
       input: { offscreen: 'src/offscreen/offscreen.html' },
     },

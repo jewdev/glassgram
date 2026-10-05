@@ -212,7 +212,7 @@ components:
 
 Scope: the extension's own UI: the settings page (`src/options/`, the reference implementation) and the popup (`src/popup/`). Both load `src/shared/glass.css`, which owns the tokens, light field, glass material, switch, pill buttons and brand mark; each page's own stylesheet holds only its layout. The brand mark is the only place `brand-from`/`brand-to` appear.
 
-Token naming: an unsuffixed color key is the light-scheme value. Its `-dark` sibling replaces it under `prefers-color-scheme: dark`. In code both resolve through one custom property (`--accent`, `--glass`, ...), so components never branch on scheme.
+Token naming: an unsuffixed color key is the light-scheme value; its `-dark` sibling is the dark value. In code each pair is one `light-dark()` custom property, so the scheme follows `color-scheme`: the OS setting by default, or the user's choice (Settings header segmented control, popup theme button; setting `ui.theme`: system / light / dark) pinned with `data-theme` on `<html>`. Non-color tokens (`--glass-sat`, `--glass-shadow`) have an explicit dark override. In code both resolve through one custom property (`--accent`, `--glass`, ...), so components never branch on scheme.
 
 ## Overview
 

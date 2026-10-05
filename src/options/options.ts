@@ -1,6 +1,7 @@
 import { renderFilename } from '../content/core/filename';
 import { controlFor } from '../shared/controls';
 import { sectionIcon } from '../shared/icons';
+import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
 import { loadSettings, onSettingsChanged, resetSettings, saveSettings } from '../shared/settings';
 import { DEFAULTS, SECTIONS, type Section, type SectionIcon, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
 
@@ -312,9 +313,45 @@ function showNotice(text: string) {
   }, 3000);
 }
 
+// ---------------- appearance ----------------
+function renderThemeControl(current: ThemeChoice) {
+  const group = $('theme');
+  group.replaceChildren(
+    ...THEME_ORDER.map((choice) => {
+      const b = el('button', 'segmented__opt');
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(choice === current));
+      b.tabIndex = choice === current ? 0 : -1;
+      b.title = THEME_LABEL[choice];
+      b.innerHTML = themeIcon(choice);
+      b.append(el('span', 'segmented__label', THEME_LABEL[choice]));
+      b.addEventListener('click', async () => {
+        renderThemeControl(choice);
+        settings['ui.theme'] = choice;
+        await setTheme(choice);
+        flashSaved();
+      });
+      return b;
+    }),
+  );
+  // Arrow keys move between options, as in a native radio group.
+  group.onkeydown = (e) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
+    const i = THEME_ORDER.indexOf(current) + (e.key === 'ArrowRight' ? 1 : -1);
+    const next = THEME_ORDER[(i + THEME_ORDER.length) % THEME_ORDER.length];
+    (group.children[THEME_ORDER.indexOf(next)] as HTMLButtonElement).click();
+    requestAnimationFrame(() => (group.children[THEME_ORDER.indexOf(next)] as HTMLButtonElement).focus());
+  };
+}
+
 // ---------------- init ----------------
+initTheme((choice) => renderThemeControl(choice));
+
 async function init() {
   settings = await loadSettings();
+  renderThemeControl(settings['ui.theme']);
   render();
   wireActions();
 
