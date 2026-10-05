@@ -1,0 +1,16 @@
+{
+  "name": "glassgram-promo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Renders the Glassgram promo video (docs/glassgram-promo.mp4) from HTML scenes.",
+  "scripts": {
+    "preview": "node serve.mjs",
+    "audio": "node audio/make-audio.mjs",
+    "render": "node render.mjs",
+    "render:draft": "node render.mjs --draft"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

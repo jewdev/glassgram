@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" data-ige-theme="dark" class="__fb-dark-mode">
+  <head>
+    <meta charset="utf-8" />
+    <title>Glassgram promo</title>
+    <!-- Glassgram's real in-page UI styles (toolbar, video bar, viewer, panel, badges, toasts) -->
+    <link rel="stylesheet" href="/repo/src/content/ui/styles.css" />
+    <link rel="stylesheet" href="/promo/styles/promo.css" />
+    <style>
+      /* Glassgram's layer is position:fixed over the page; here it is scoped to each mock browser viewport.
+         Its CSS transitions are replaced by the timeline so every frame is deterministic. */
+      .promo-layer.ige-layer { position: absolute; z-index: 30; }
+      .promo-layer .ige-toolbar, .promo-layer .ige-vbar, .promo-layer .ige-toasts,
+      .promo-layer .ige-backdrop, .promo-layer .ige-zoom { position: absolute; }
+      .promo-layer *, .promo-layer *::before, .promo-layer *::after { transition: none !important; animation: none !important; }
+      .promo-layer .ige-toolbar, .promo-layer .ige-vbar { visibility: visible; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <script type="module" src="/promo/src/main.js"></script>
+  </body>
+</html>
