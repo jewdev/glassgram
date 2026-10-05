@@ -39,7 +39,7 @@ function evaluate() {
   if (media) {
     clearTimeout(hideTimer);
     hideTimer = undefined;
-    const rect = media.getBoundingClientRect();
+    const rect = visibleRect(media);
     if (media !== current?.el || !sameRect(rect, current.rect)) emit({ el: media, rect });
     return;
   }
@@ -54,6 +54,33 @@ function evaluate() {
       emit(null);
     }, 250);
   }
+}
+
+/**
+ * The media's on-screen box, cut down to what its clipping ancestors actually show. Profile-grid
+ * reels are taller than their tile and translated inside an `overflow: hidden` wrapper, so the raw
+ * rect pokes out above/below the tile and anything anchored to it lands in the wrong place.
+ */
+function visibleRect(el: Element): DOMRect {
+  let { left, top, right, bottom } = el.getBoundingClientRect();
+  for (let a = el.parentElement; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+    const cs = getComputedStyle(a);
+    const clipX = cs.overflowX !== 'visible';
+    const clipY = cs.overflowY !== 'visible';
+    if (clipX || clipY) {
+      const r = a.getBoundingClientRect();
+      if (clipX) {
+        left = Math.max(left, r.left);
+        right = Math.min(right, r.right);
+      }
+      if (clipY) {
+        top = Math.max(top, r.top);
+        bottom = Math.min(bottom, r.bottom);
+      }
+    }
+    if (cs.position === 'fixed') break;
+  }
+  return new DOMRect(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
 }
 
 function sameRect(a: DOMRect, b: DOMRect) {
