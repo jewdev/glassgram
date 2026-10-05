@@ -34,16 +34,16 @@
 
 [![Watch the Glassgram demo (74 s)](docs/glassgram-promo-poster.jpg)](https://files.catbox.moe/e52c32.mp4)
 
-<sub>Click to play the demo. Instagram pages in the video are a recreation with fictional accounts. The
-Glassgram settings page and popup are the real extension pages.</sub>
+<sub>Click to play the demo. The Instagram pages in the video are a recreation with fictional accounts.
+The Glassgram settings page and popup are the real extension pages.</sub>
 
 ## Highlights
 
 |  |  |
 | :--- | :--- |
 | **⬇️ Download anything** <br> Photos, videos, reels, stories and highlights at full resolution. Carousels and story trays go into one ZIP. | **🔍 HD profile pictures** <br> Hover a profile picture to open it full size, download it, or copy its URL. |
-| **🏷️ Story mentions** <br> An **@** button lists everyone mentioned in a story, even mentions the poster hid. | **🤝 Follow badge** <br> See at a glance if someone follows you back, right next to their username. |
-| **🧹 A cleaner feed** <br> Hide ads, suggested posts, the Reels and Explore tabs, and more. Each one separately. | **🎛️ Every feature has a switch** <br> Turn off what you don't want. Nothing is forced on you. |
+| **🏷️ Story mentions** <br> An **@** button lists everyone mentioned in a story, including mentions the poster hid. | **🤝 Follow badge** <br> Shows next to the username whether someone follows you back. |
+| **🧹 A cleaner feed** <br> Hide ads, suggested posts, the Reels and Explore tabs, and more, each one separately. | **🎛️ A switch for every feature** <br> Turn off anything you don't want. |
 
 ## Install
 
@@ -67,13 +67,14 @@ npm run build
 The settings page opens on first install. Log in to instagram.com and you're set.
 
 > [!TIP]
-> **Updating:** run `git pull` and `npm run build`, press reload on the extension's card, then
-> refresh Instagram.
+> To update, run `git pull` and `npm run build`, press reload on the extension's card, then refresh
+> Instagram.
 >
-> **Settings later:** extension icon → gear, or **Details → Extension options**.
+> To reach the settings later, click the extension icon and then the gear, or go to **Details →
+> Extension options**.
 
-Works on Windows, macOS and Linux, in any Chromium browser with Manifest V3 support: Brave, Chrome,
-Edge, Opera, Vivaldi.
+It works on Windows, macOS and Linux, in any Chromium browser with Manifest V3 support: Brave,
+Chrome, Edge, Opera, Vivaldi.
 
 ## What you get
 
@@ -81,57 +82,59 @@ Where it can, Glassgram reuses data the page already loaded instead of sending i
 
 ### ⬇️ Downloads
 
-- **Download toolbar** on every post, reel and story. Hover the media for: download this item,
-  download all, copy media URL, copy caption. Always the highest resolution Instagram serves.
+- A **download toolbar** on every post, reel and story. Hover the media to download this item,
+  download all, copy the media URL or copy the caption. You always get the highest resolution
+  Instagram serves.
 - **Filename templates** like `Instagram/{user}/{user}_{date}_{shortcode}_{index}`. Use `/` for folders.
 - **ZIP or separate files** when saving several at once. ZIP is the default.
-- **Bulk profile download** — a floating button on profiles saves the latest N posts, photos and/or
+- **Bulk profile download**: a floating button on profiles saves the latest N posts, photos and/or
   videos. Off by default.
-- **Right-click download** — *Download Instagram media* in the context menu.
-- **Voice messages** — a download button on every voice message in your chats, without playing it.
+- **Right-click download** with *Download Instagram media* in the context menu.
+- **Voice messages** get a download button in your chats, so you can save one without playing it.
 
 ### 👤 Profiles and stories
 
-- **HD profile pictures** — zoom with the wheel, drag to pan, download or copy the URL.
-- **Story mentions & stickers** — hidden mentions (shrunk to nothing, flagged hidden, or pushed
+- **HD profile pictures** open in a viewer where you can zoom with the wheel, drag to pan, download
+  or copy the URL.
+- **Story mentions & stickers** shows hidden mentions (shrunk to nothing, flagged hidden, or pushed
   outside the frame), plus hashtags, location, link stickers, music and shared posts.
-- **Follow status badge** — *Follow each other*, *Follows you*, *Doesn't follow you back* or
-  *Doesn't follow you*. Re-checks after you follow or unfollow.
-- **Unfollowers checker** — who doesn't follow you back and who you don't follow back, with search
-  and CSV export. Long scans save progress and resume later. Off by default.
+- The **follow status badge** says *Follow each other*, *Follows you*, *Doesn't follow you back* or
+  *Doesn't follow you*. It checks again after you follow or unfollow.
+- The **unfollowers checker** lists who doesn't follow you back and who you don't follow back, with
+  search and CSV export. Long scans save progress and resume later. Off by default.
 
 ### 🧹 Feed and video
 
-- **Declutter** — hide sponsored posts, suggested posts, the suggestions sidebar, the stories tray,
+- **Declutter** hides sponsored posts, suggested posts, the suggestions sidebar, the stories tray,
   the Reels and Explore tabs, and Threads links.
-- **Following-only feed** — Home opens the chronological feed of accounts you follow.
-- **No accidental likes** — double-clicking a photo no longer likes it.
-- **Video controls** — seek, speed, volume and loop on every video and reel. Speed and volume are
-  remembered. Optional: stop autoplay.
+- **Following-only feed** makes Home open the chronological feed of accounts you follow.
+- **No accidental likes**: double-clicking a photo doesn't like it.
+- **Video controls** add seek, speed, volume and loop to every video and reel. Speed and volume are
+  remembered. You can also turn off autoplay.
 
 ### 🔒 Privacy and links
 
-- **Clean share links** — "Copy link" drops `utm_source`, `stkn` and `igsh` tracking, optionally on
-  another domain such as `kkinstagram.com` for Discord and Telegram previews.
-- **Direct links** — outbound links skip Instagram's `l.instagram.com` redirect page.
-- **Block analytics** — blocks Instagram's event-logging requests.
-- **Anonymous story viewing** — blocks the "seen" request so you don't appear in the viewer list.
+- **Clean share links**: "Copy link" drops the `utm_source`, `stkn` and `igsh` tracking parameters
+  and can swap in another domain, such as `kkinstagram.com` for Discord and Telegram previews.
+- **Direct links** skip Instagram's `l.instagram.com` redirect page.
+- **Block analytics** blocks Instagram's event-logging requests.
+- **Anonymous story viewing** blocks the "seen" request so you don't appear in the viewer list.
   Off by default.
-- **DM privacy** — hide the typing indicator (experimental) and the "Seen" receipt (not tested yet).
+- **DM privacy** can hide the typing indicator (experimental) and the "Seen" receipt (not tested yet).
 
 ### ✨ Small extras
 
-- **Exact timestamps** — "3d" becomes the real date and time. Hover for the original.
-- **Copy comment** — a *Copy* button next to every comment.
-- **Keyboard shortcuts** — download, download all, zoom, copy URL. Rebindable.
-- **One settings page** — grouped, searchable, with export and import. A popup holds quick toggles
-  for the ones you change most.
+- **Exact timestamps** replace "3d" with the real date and time. Hover for the original.
+- **Copy comment** puts a *Copy* button next to every comment.
+- **Keyboard shortcuts** for download, download all, zoom and copy URL. You can rebind them.
+- **One settings page**, grouped and searchable, with export and import. A popup holds quick toggles
+  for the settings you change most.
 
 ## Settings
 
-Open the settings page from the extension's icon → gear. Changes apply immediately, with no reload,
-except anonymous story viewing, which needs Instagram refreshed. **Reset to defaults**, **Export
-settings** and **Import settings** are at the bottom of the page.
+Open the settings page from the extension's icon, then the gear. Changes apply immediately without a
+reload. The one exception is anonymous story viewing, which needs Instagram refreshed. **Reset to
+defaults**, **Export settings** and **Import settings** are at the bottom of the page.
 
 <details>
 <summary><b>⬇️ Media downloads</b></summary>
@@ -157,7 +160,7 @@ settings** and **Import settings** are at the bottom of the page.
 | HD profile picture | On | Zoom, download, copy URL |
 | Follow status badge | On | Next to the username |
 | Bulk download profile posts | Off | The floating button on profiles |
-| Bulk delay between requests | 1.5 s – 3.5 s | Spacing for bulk download |
+| Bulk delay between requests | 1.5 to 3.5 s | Spacing for bulk download |
 
 </details>
 
@@ -217,14 +220,14 @@ settings** and **Import settings** are at the bottom of the page.
 | Hide typing indicator | Off | Experimental |
 | Hide "Seen" | Off | Not tested yet |
 | Unfollowers checker | Off | Opened from the popup or your own profile |
-| Unfollowers scan delay | 2 s – 4 s | Spacing for the scan |
+| Unfollowers scan delay | 2 to 4 s | Spacing for the scan |
 
 </details>
 
 ## Keyboard shortcuts
 
-Shortcuts act on the media under the mouse, or the most visible post when nothing is hovered. They
-don't fire while you're typing. All of them can be rebound in settings.
+Shortcuts act on the media under the mouse, or on the most visible post when nothing is hovered.
+They don't fire while you're typing, and you can rebind all of them in settings.
 
 | Key | What it does |
 | :---: | :--- |
@@ -233,17 +236,20 @@ don't fire while you're typing. All of them can be rebound in settings.
 | `Z` | Open the profile picture full size (on a profile) |
 | `Shift` + `C` | Copy the media URL |
 
-In the image viewer: wheel to zoom, drag to pan, double-click or `0` to reset, `Esc` to close.
+In the image viewer, use the wheel to zoom and drag to pan. Double-click or press `0` to reset, and
+`Esc` to close.
 
 ## Privacy
 
-- **Everything runs in your browser.** No server, no analytics. Nothing is sent anywhere except
-  Instagram and its image servers.
-- **Your own session.** Requests use your logged-in Instagram session, the same way the website does.
-  The extension never sees your password. It reads two cookies, the CSRF token (sent back to
-  Instagram) and your user ID (to tell your own profile apart), and stores neither.
-- **Settings sync** through your browser account (`chrome.storage.sync`). The unfollowers scan and
-  remembered volume stay on this device (`chrome.storage.local`).
+Everything runs in your browser. There's no server and no analytics, and nothing is sent anywhere
+except Instagram and its image servers.
+
+Requests go through your logged-in Instagram session, the same way the website's own requests do,
+and the extension never sees your password. It reads two cookies: the CSRF token, which it sends
+back to Instagram, and your user ID, which it uses to recognise your own profile. It stores neither.
+
+Settings sync through your browser account (`chrome.storage.sync`). The unfollowers scan and the
+remembered volume stay on this device (`chrome.storage.local`).
 
 <details>
 <summary>Permissions it asks for</summary>
@@ -261,17 +267,17 @@ In the image viewer: wheel to zoom, drag to pan, double-click or `0` to reset, `
 
 ## Limitations
 
-- It uses Instagram's private web API, which Instagram can change at any time. When something
+- Glassgram uses Instagram's private web API, which Instagram can change at any time. When something
   breaks, the fix is usually in `src/content/core/selectors.ts` or `src/inject/main-world.ts`.
 - Heavy use, such as bulk-downloading large profiles or scanning accounts with many followers, can
   get your account temporarily rate-limited. Keep the default delays.
-- Bulk download pages through posts with the request Instagram's own profile grid sends. If you open
-  a profile and the extension hasn't seen that request yet, reload the profile once.
+- Bulk download pages through posts using the same request Instagram's profile grid sends. If you
+  open a profile before the extension has seen that request, reload the profile once.
 - Ads and suggestions are recognised by their label text, in English and a few other languages.
-- Hide typing indicator is experimental and Hide "Seen" isn't tested yet: confirming them means
-  someone else has to watch the result. Try them with a friend before relying on them.
-- Block analytics stops Instagram's logging requests, but some analytics also travel over its live
-  connection, mixed with other traffic, and are left alone.
+- Hide typing indicator is experimental and Hide "Seen" isn't tested yet, because checking them
+  takes someone else watching on the other end. Try them with a friend before you rely on them.
+- Block analytics stops Instagram's logging requests. Some analytics also travel over Instagram's
+  live connection, mixed in with other traffic, and the extension leaves those alone.
 - Downloading someone else's content doesn't give you the right to reuse it. Respect the creators
   and Instagram's terms.
 
