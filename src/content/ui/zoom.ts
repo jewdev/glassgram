@@ -13,8 +13,15 @@ export function openZoom(opts: ZoomOptions) {
   let x = 0;
   let y = 0;
   let drag: { sx: number; sy: number; ox: number; oy: number } | null = null;
+  // Backdrop-click-to-close only counts when the press started on the backdrop and never panned.
+  // Pointer capture retargets the click to the stage, so e.target alone can't tell.
+  let backdropPress = false;
 
-  const img = h('img', { class: 'ige-zoom__img', src: opts.src, alt: opts.caption ?? '', draggable: false });
+  // h() drops `false` props, so set draggable directly — otherwise the browser's native image drag
+  // swallows mouseup and the pan gets stuck to the cursor.
+  const img = h('img', { class: 'ige-zoom__img', src: opts.src, alt: opts.caption ?? '' });
+  img.draggable = false;
+  img.addEventListener('dragstart', (e) => e.preventDefault());
   img.addEventListener('load', () => {
     const cap = root.querySelector('.ige-zoom__caption');
     if (cap) cap.textContent = `${opts.caption ? `${opts.caption} · ` : ''}${img.naturalWidth}×${img.naturalHeight}`;
@@ -24,6 +31,11 @@ export function openZoom(opts: ZoomOptions) {
     scale = 1;
     x = y = 0;
     apply();
+  };
+
+  const endDrag = () => {
+    drag = null;
+    stage.classList.remove('is-dragging');
   };
 
   const close = () => {
@@ -52,25 +64,28 @@ export function openZoom(opts: ZoomOptions) {
       y = cy - ((cy - y) * scale) / prev;
       apply();
     },
-    onMousedown: (e: MouseEvent) => {
+    onPointerdown: (e: PointerEvent) => {
       if (e.button !== 0) return;
+      e.preventDefault();
+      backdropPress = e.target === stage;
       drag = { sx: e.clientX, sy: e.clientY, ox: x, oy: y };
+      stage.setPointerCapture(e.pointerId);
       stage.classList.add('is-dragging');
     },
-    onMousemove: (e: MouseEvent) => {
+    onPointermove: (e: PointerEvent) => {
       if (!drag) return;
+      if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 4) backdropPress = false;
       x = drag.ox + e.clientX - drag.sx;
       y = drag.oy + e.clientY - drag.sy;
       apply();
     },
-    onMouseup: () => {
-      drag = null;
-      stage.classList.remove('is-dragging');
-    },
-    onMouseleave: () => (drag = null),
+    onPointerup: endDrag,
+    onPointercancel: endDrag,
+    onLostpointercapture: endDrag,
     onDblclick: reset,
-    onClick: (e: MouseEvent) => {
-      if (e.target === stage) close();
+    onClick: () => {
+      if (backdropPress) close();
+      backdropPress = false;
     },
   }, img);
 
