@@ -6,7 +6,13 @@ import { setSettings } from './core/state';
 import { anonStories } from './features/anon-stories';
 import { contextDownload, contextMenu } from './features/context-menu';
 import { declutter } from './features/declutter';
+import { dmPrivacy, voiceDownload } from './features/dm-tools';
+import { copyComment } from './features/copy-comment';
 import { followBadge } from './features/follow-badge';
+import { followingFeed } from './features/following-feed';
+import { cleanLinks, directLinks } from './features/links';
+import { noAutoplay } from './features/no-autoplay';
+import { noDoubleTap } from './features/no-double-tap';
 import { mediaToolbar } from './features/media-toolbar';
 import { profileTools } from './features/profile-tools';
 import { shortcuts } from './features/shortcuts';
@@ -15,7 +21,25 @@ import type { Feature } from './features/types';
 import { openUnfollowers } from './features/unfollowers';
 import { videoControls } from './features/video-controls';
 
-const FEATURES: Feature[] = [anonStories, declutter, mediaToolbar, videoControls, timestamps, shortcuts, contextMenu, profileTools, followBadge];
+const FEATURES: Feature[] = [
+  anonStories,
+  declutter,
+  mediaToolbar,
+  videoControls,
+  timestamps,
+  shortcuts,
+  contextMenu,
+  profileTools,
+  followBadge,
+  followingFeed,
+  noDoubleTap,
+  noAutoplay,
+  copyComment,
+  cleanLinks,
+  directLinks,
+  dmPrivacy,
+  voiceDownload,
+];
 const running = new Map<string, () => void>();
 
 function sync(s: Settings) {

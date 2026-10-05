@@ -23,8 +23,13 @@ export const DEFAULTS = {
   'bulk.delayMin': 1.5,
   'bulk.delayMax': 3.5,
 
+  // Feed
+  'feed.followingOnly': false,
+  'feed.noDoubleTapLike': false,
+
   // Video
   'video.enabled': true,
+  'video.noAutoplay': false,
   'video.speed': '1',
   'video.rememberVolume': true,
   'video.loop': true,
@@ -49,9 +54,21 @@ export const DEFAULTS = {
   'info.timestamps': true,
   'info.timestampFormat': 'datetime' as 'datetime' | 'datetime24' | 'date',
   'info.contextMenu': true,
+  'info.copyComment': true,
+
+  // Links
+  'links.clean': true,
+  'links.shareDomain': '',
+  'links.direct': true,
 
   // Privacy
   'privacy.anonStories': false,
+  'privacy.blockAnalytics': false,
+
+  // Direct messages
+  'dm.voiceDownload': true,
+  'privacy.dmHideTyping': false,
+  'privacy.dmHideSeen': false,
 
   // Account tools
   'account.unfollowers': true,
@@ -150,11 +167,27 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
+    id: 'feed',
+    title: 'Feed',
+    icon: '☰',
+    items: [
+      {
+        type: 'toggle',
+        key: 'feed.followingOnly',
+        label: 'Following-only feed',
+        desc: 'Home always opens the chronological feed of accounts you follow, without suggested posts.',
+        quick: true,
+      },
+      { type: 'toggle', key: 'feed.noDoubleTapLike', label: 'Disable double-click like', desc: 'Double-clicking a photo or video no longer likes it.' },
+    ],
+  },
+  {
     id: 'video',
     title: 'Video',
     icon: '▶',
     items: [
       { type: 'toggle', key: 'video.enabled', label: 'Video control bar', desc: 'Seek bar, speed, volume and loop on hover.', quick: true },
+      { type: 'toggle', key: 'video.noAutoplay', label: 'Disable video autoplay', desc: "Videos don't start until you click them. Stories still play." },
       {
         type: 'select',
         key: 'video.speed',
@@ -211,6 +244,29 @@ export const SECTIONS: Section[] = [
         ],
       },
       { type: 'toggle', key: 'info.contextMenu', label: 'Right-click "Download Instagram media"', desc: 'Adds a context-menu entry on instagram.com.' },
+      { type: 'toggle', key: 'info.copyComment', label: 'Copy comment button', desc: 'A "Copy" button next to every comment.' },
+    ],
+  },
+  {
+    id: 'links',
+    title: 'Links',
+    icon: '🔗',
+    items: [
+      {
+        type: 'toggle',
+        key: 'links.clean',
+        label: 'Clean share links',
+        desc: 'Removes tracking (utm_source, stkn, igsh…) from links copied with "Copy link".',
+      },
+      {
+        type: 'text',
+        key: 'links.shareDomain',
+        label: 'Share domain',
+        placeholder: 'www.instagram.com',
+        help: 'Optional. Replace instagram.com in copied links, e.g. kkinstagram.com for better previews in Discord or Telegram. Leave empty to keep instagram.com.',
+        dependsOn: 'links.clean',
+      },
+      { type: 'toggle', key: 'links.direct', label: 'Open links directly', desc: "Outbound links skip Instagram's l.instagram.com redirect page." },
     ],
   },
   {
@@ -224,6 +280,39 @@ export const SECTIONS: Section[] = [
         label: 'Anonymous story viewing',
         desc: 'Blocks the "seen" request, so you won\'t appear in viewer lists. Reload Instagram after changing.',
         quick: true,
+      },
+      {
+        type: 'toggle',
+        key: 'privacy.blockAnalytics',
+        label: 'Block analytics',
+        desc: "Blocks Instagram's event-logging requests (/ajax/bz, /ajax/qm, /logging). Some analytics also travel over Instagram's live connection and can't be blocked separately.",
+      },
+    ],
+  },
+  {
+    id: 'dm',
+    title: 'Direct messages',
+    icon: '✉',
+    items: [
+      {
+        type: 'toggle',
+        key: 'dm.voiceDownload',
+        label: 'Download voice messages',
+        desc: 'A download button on every voice message in your chats. No need to play it first.',
+      },
+      {
+        type: 'toggle',
+        key: 'privacy.dmHideTyping',
+        label: 'Hide typing indicator (experimental)',
+        desc: 'The other person won\'t see "typing…" while you write.',
+        warning: 'Experimental: built from Instagram\'s chat protocol, not yet confirmed on your account. Test it with a friend.',
+      },
+      {
+        type: 'toggle',
+        key: 'privacy.dmHideSeen',
+        label: 'Hide "Seen" (not tested yet)',
+        desc: 'Opening a chat doesn\'t mark it as read for the other person. Sending a message still works.',
+        warning: 'Not tested yet: this hasn\'t been confirmed to work. Check with a friend before relying on it.',
       },
     ],
   },

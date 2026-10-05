@@ -114,8 +114,32 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // ---------------- anonymous stories: backup network rule for the REST endpoint ----------------
 const DNR_RULE_ID = 1;
+const ANALYTICS_RULE_IDS = [2, 3];
+const { RuleActionType, ResourceType } = chrome.declarativeNetRequest;
+const BEACON_TYPES = [ResourceType.XMLHTTPREQUEST, ResourceType.PING, ResourceType.OTHER];
+
+function analyticsRules(): chrome.declarativeNetRequest.Rule[] {
+  return [
+    {
+      id: ANALYTICS_RULE_IDS[0],
+      priority: 1,
+      action: { type: RuleActionType.BLOCK },
+      condition: { regexFilter: '^https://www\\.instagram\\.com/(ajax/bz|ajax/qm/|logging/)', resourceTypes: BEACON_TYPES },
+    },
+    {
+      id: ANALYTICS_RULE_IDS[1],
+      priority: 1,
+      action: { type: RuleActionType.BLOCK },
+      condition: { regexFilter: '^https://graph\\.instagram\\.com/logging_client_events', resourceTypes: BEACON_TYPES },
+    },
+  ];
+}
 
 async function syncDnr(s: Settings) {
+  await chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: ANALYTICS_RULE_IDS,
+    addRules: s['privacy.blockAnalytics'] ? analyticsRules() : [],
+  });
   await chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: [DNR_RULE_ID],
     addRules: s['privacy.anonStories']

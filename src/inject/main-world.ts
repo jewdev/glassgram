@@ -7,6 +7,9 @@
 //    queries so the content script can paginate the same way Instagram does.
 //    The content script talks to us via window.postMessage RPC (see content/core/bridge.ts).
 
+import { filterLightspeedRequest, filterMqttFrame } from '../shared/lightspeed';
+import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shared/links';
+
 (() => {
   // ---------------- shared helpers ----------------
   function bodyText(body: unknown): string {
@@ -39,6 +42,18 @@
   const isSeenRequest = (url: string, body: string) =>
     SEEN_URL_RE.test(url) || (/graphql|\/api\/v1\//.test(url) && SEEN_OP_RE.test(friendlyName(body)));
   const FAKE_OK = '{"status":"ok","data":{}}';
+
+  // ---------------- DM "Seen" ----------------
+  // Instagram's current DM client marks threads read with these GraphQL mutations
+  // (useIGDMarkThreadAsReadMutation / ...ValidationMutation); older clients used a REST endpoint.
+  const DM_SEEN_OP_RE = /IGDMarkThreadAsRead/;
+  const DM_SEEN_URL_RE = /\/direct_v2\/threads\/[^/]+\/items\/[^/]+\/seen/;
+  const dmSeenEnabled = () => document.documentElement.getAttribute('data-ige-dmseen') === '1';
+  const isDmSeenRequest = (url: string, body: string) => DM_SEEN_URL_RE.test(url) || (/graphql/.test(url) && DM_SEEN_OP_RE.test(friendlyName(body)));
+
+  /** Requests we swallow (answering with a fake success so Instagram doesn't retry). */
+  const shouldBlock = (url: string, body: string) =>
+    (anonEnabled() && isSeenRequest(url, body)) || (dmSeenEnabled() && isDmSeenRequest(url, body));
 
   // ---------------- data cache ----------------
   interface UserInfo {
@@ -123,8 +138,8 @@
   XHR.send = function (this: X, body?: Document | XMLHttpRequestBodyInit | null) {
     const url = this.__igeUrl ?? '';
     const text = bodyText(body);
-    if (anonEnabled() && isSeenRequest(url, text)) {
-      console.debug('[IGE] blocked story seen request', url);
+    if (shouldBlock(url, text)) {
+      console.debug('[IGE] blocked seen request', url);
       // Pretend success so Instagram doesn't retry.
       Object.defineProperty(this, 'readyState', { value: 4 });
       Object.defineProperty(this, 'status', { value: 200 });
@@ -156,8 +171,8 @@
   window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
     const url = input instanceof Request ? input.url : String(input);
     const text = bodyText(init?.body);
-    if (anonEnabled() && isSeenRequest(url, text)) {
-      console.debug('[IGE] blocked story seen request', url);
+    if (shouldBlock(url, text)) {
+      console.debug('[IGE] blocked seen request', url);
       return Promise.resolve(new Response(FAKE_OK, { status: 200, headers: { 'Content-Type': 'application/json' } }));
     }
     const p = origFetch.call(this, input, init);
@@ -166,6 +181,149 @@
     }
     return p;
   };
+
+  // ---------------- links: clean copied share links, skip the l.instagram.com shim ----------------
+  const attr = (name: string) => document.documentElement.getAttribute(name);
+
+  const clip = navigator.clipboard;
+  if (clip?.writeText) {
+    const origWriteText = clip.writeText.bind(clip);
+    clip.writeText = (text: string) =>
+      origWriteText(attr('data-ige-cleanlinks') === '1' && isSingleInstagramUrl(text) ? cleanInstagramUrl(text, attr('data-ige-sharedomain') ?? '') : text);
+  }
+
+  const origWindowOpen = window.open;
+  window.open = function (url?: string | URL, ...rest: unknown[]) {
+    const target = url != null && attr('data-ige-directlinks') === '1' ? unwrapLinkShim(String(url)) : undefined;
+    return (origWindowOpen as (...a: unknown[]) => Window | null).call(window, target ?? url, ...rest);
+  } as typeof window.open;
+
+  // ---------------- DMs: hide typing indicator / read receipts (experimental) ----------------
+  const DM_SOCKET_RE = /edge-chat\.instagram\.com|\/ws\/lightspeed/;
+  const origWsSend = WebSocket.prototype.send;
+  WebSocket.prototype.send = function (this: WebSocket, data: string | ArrayBufferLike | Blob | ArrayBufferView) {
+    const f = { typing: attr('data-ige-dmtyping') === '1', seen: attr('data-ige-dmseen') === '1' };
+    if ((f.typing || f.seen) && DM_SOCKET_RE.test(this.url)) {
+      try {
+        if (typeof data === 'string') {
+          const out = filterLightspeedRequest(data, f);
+          if (out === null) return console.debug('[IGE] DM typing/seen request dropped');
+          data = out;
+        } else if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
+          const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+          const out = filterMqttFrame(bytes, f);
+          if (out === null) return console.debug('[IGE] DM typing/seen frame dropped');
+          if (out !== bytes) data = out;
+        }
+      } catch {
+        /* never break the chat socket */
+      }
+    }
+    return origWsSend.call(this, data as never);
+  };
+
+  // Typing indicator: the current DM client publishes {"action":"indicate_activity", ...} to
+  // /ig_send_message through Instagram's MqttBypassDGWClient module. Patch that module's send
+  // methods once Instagram defines it, and drop only those calls.
+  const decodeArg = (a: unknown): string => {
+    if (typeof a === 'string') return a;
+    if (a instanceof Uint8Array) return new TextDecoder().decode(a);
+    if (a instanceof ArrayBuffer) return new TextDecoder().decode(new Uint8Array(a));
+    return '';
+  };
+  const isTypingCall = (args: unknown[]) => args.some((a) => decodeArg(a).includes('"indicate_activity"'));
+
+  function patchDgwClient(M: { prototype?: Record<string, unknown> } | undefined) {
+    const P = M?.prototype as (Record<string, unknown> & { __igePatched?: boolean }) | undefined;
+    if (!P || P.__igePatched) return;
+    P.__igePatched = true;
+    for (const name of ['send', 'sendAndForget', 'publish']) {
+      const orig = P[name];
+      if (typeof orig !== 'function') continue;
+      P[name] = function (this: unknown, ...args: unknown[]) {
+        if (attr('data-ige-dmtyping') === '1' && isTypingCall(args)) {
+          console.debug('[IGE] typing indicator suppressed');
+          return name === 'send' ? Promise.resolve(undefined) : undefined;
+        }
+        return (orig as (...a: unknown[]) => unknown).apply(this, args);
+      };
+    }
+  }
+
+  // Instagram's module loader (requireLazy) appears after its bootstrap script runs.
+  const waitForLoader = window.setInterval(() => {
+    const w = window as unknown as { requireLazy?: (deps: string[], cb: (m: never) => void) => void };
+    if (typeof w.requireLazy !== 'function') return;
+    clearInterval(waitForLoader);
+    try {
+      w.requireLazy(['MqttBypassDGWClient'], (m) => patchDgwClient(m));
+    } catch {
+      /* module system changed — feature stays inactive */
+    }
+  }, 200);
+
+  // ---------------- DMs: voice messages ----------------
+  // Voice bubbles are React components whose props reference a Relay record (XFBSlideAudioAttachment)
+  // holding attachment_cdn_url. React/Relay data is only visible in this world, so tag each bubble's
+  // element with the URL; the content script reads the attributes and adds a download button.
+  type Fiber = { memoizedProps?: Record<string, any>; return?: Fiber };
+  type RelaySource = { get(id: string): Record<string, any> | undefined };
+  let fiberKey: string | undefined;
+  let relaySource: RelaySource | undefined;
+
+  const fiberOf = (el: Element): Fiber | undefined => {
+    if (!fiberKey) fiberKey = Object.keys(el).find((k) => k.startsWith('__reactFiber$'));
+    return fiberKey ? (el as unknown as Record<string, Fiber>)[fiberKey] : undefined;
+  };
+
+  function findRelaySource(): RelaySource | undefined {
+    for (const el of document.querySelectorAll('main div, div[role="main"] div, div')) {
+      let f = fiberOf(el);
+      for (let i = 0; i < 80 && f; i++, f = f.return) {
+        const env = f.memoizedProps?.environment ?? f.memoizedProps?.value?.environment;
+        if (env && typeof env.getStore === 'function') return env.getStore().getSource();
+      }
+    }
+    return undefined;
+  }
+
+  function tagVoiceBubbles() {
+    if (attr('data-ige-voice') !== '1' || !location.pathname.startsWith('/direct/')) return;
+    relaySource ??= findRelaySource();
+    if (!relaySource) return;
+    const tagged = new Set<string>();
+    document.querySelectorAll('[data-ige-voice-ref]').forEach((el) => tagged.add(el.getAttribute('data-ige-voice-ref')!));
+    for (const el of document.querySelectorAll('div:not([data-ige-voice-ref])')) {
+      let f = fiberOf(el);
+      for (let i = 0; i < 4 && f; i++, f = f.return) {
+        const id: string | undefined = f.memoizedProps?.audioAttachmentRef?.__id;
+        if (!id) continue;
+        if (!tagged.has(id) && !el.parentElement?.closest('[data-ige-voice-ref]')) {
+          const rec = relaySource.get(id);
+          if (rec?.attachment_cdn_url) {
+            tagged.add(id);
+            el.setAttribute('data-ige-voice-ref', id);
+            el.setAttribute('data-ige-voice-url', rec.attachment_cdn_url);
+            el.setAttribute('data-ige-voice-id', String(rec.attachment_fbid ?? ''));
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  let voiceTimer: number | undefined;
+  new MutationObserver(() => {
+    if (voiceTimer !== undefined || attr('data-ige-voice') !== '1' || !location.pathname.startsWith('/direct/')) return;
+    voiceTimer = window.setTimeout(() => {
+      voiceTimer = undefined;
+      try {
+        tagVoiceBubbles();
+      } catch {
+        relaySource = undefined; // environment may have been replaced; find it again next time
+      }
+    }, 700);
+  }).observe(document, { childList: true, subtree: true });
 
   // ---------------- RPC for the content script ----------------
   async function replay(name: string, patch: (vars: Record<string, unknown>) => Record<string, unknown>) {

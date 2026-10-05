@@ -272,6 +272,26 @@ html.__fb-dark-mode .ige-sd__link { color: #6cb6ff; }
 .ige-zoom__actions { display: flex; gap: 4px; }
 .ige-zoom .ige-btn:hover { background: rgb(255 255 255 / 0.14); }
 
+/* ---------- voice message download button (inside Instagram's voice bubble) ---------- */
+.ige-voice-dl {
+  display: grid;
+  place-items: center;
+  flex: none;
+  align-self: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 8px 0 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(127 127 127 / 0.18);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ige-voice-dl:hover { background: rgb(127 127 127 / 0.32); }
+.ige-voice-dl:focus-visible { outline: 2px solid #0095f6; outline-offset: 2px; }
+
 /* ---------- floating profile tools ---------- */
 .ige-fab { position: fixed; right: 24px; bottom: 24px; display: none; flex-direction: column; align-items: flex-end; gap: 10px; }
 .ige-fab.is-visible { display: flex; }

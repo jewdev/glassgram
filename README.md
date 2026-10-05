@@ -63,6 +63,18 @@ and where it can, it reuses data the page already loaded instead of sending its 
   volume are remembered.
 - **A cleaner feed** — hide sponsored posts, suggested posts, the suggestions sidebar, the stories
   tray, the Reels and Explore tabs, and Threads links. Each one separately.
+- **Following-only feed** — Home always opens Instagram's chronological feed of accounts you follow.
+- **No accidental likes, no autoplay** — double-clicking a photo no longer likes it, and videos wait
+  until you click them. Both optional.
+- **Copy comment** — a *Copy* button next to every comment.
+- **Clean share links** — "Copy link" gives you the link without `utm_source`, `stkn` or `igsh`
+  tracking, optionally on another domain (for example `kkinstagram.com`, for previews in Discord or
+  Telegram).
+- **Direct links** — outbound links skip Instagram's `l.instagram.com` redirect page.
+- **Voice messages** — a download button on every voice message in your chats, without playing it.
+- **DM privacy** — hide the typing indicator (experimental) and the "Seen" receipt (not tested yet).
+  Only typing or read requests are stopped, so sending messages keeps working.
+- **Block analytics** — blocks Instagram's event-logging requests.
 - **Anonymous story viewing** — blocks the request that marks a story as seen, so you don't appear in
   its viewer list. Off by default.
 - **Exact timestamps** — "3d" becomes the real date and time; hover for the original.
@@ -97,7 +109,10 @@ except anonymous story viewing, which needs Instagram refreshed.
 | | Follow status badge | on | The badge next to the username |
 | | Bulk download profile posts | on | The floating button on profiles |
 | | Min / max delay between requests | 1.5 s / 3.5 s | Spacing for bulk download |
+| Feed | Following-only feed | off | Home opens the Following feed |
+| | Disable double-click like | off | |
 | Video | Video control bar | on | Seek, speed, volume, loop |
+| | Disable video autoplay | off | Stories still play |
 | | Default playback speed | 1× | 0.5× to 3× |
 | | Remember volume | on | |
 | | Loop videos | on | |
@@ -110,7 +125,15 @@ except anonymous story viewing, which needs Instagram refreshed.
 | Shortcuts | Enable keyboard shortcuts | on | Keys are set in the next section |
 | Info extras | Exact timestamps | on | Date + time (12h or 24h), or date only |
 | | Right-click "Download Instagram media" | on | |
+| | Copy comment button | on | |
+| Links | Clean share links | on | Strip tracking from copied links |
+| | Share domain | empty | Replace `instagram.com` in copied links, e.g. `kkinstagram.com` |
+| | Open links directly | on | Skip `l.instagram.com` |
 | Privacy | Anonymous story viewing | off | Blocks the story "seen" request |
+| | Block analytics | off | Blocks `/ajax/bz`, `/ajax/qm`, `/logging` |
+| Direct messages | Download voice messages | on | A download button on each voice message |
+| | Hide typing indicator | off | Experimental |
+| | Hide "Seen" | off | Not tested yet |
 | Account tools | Unfollowers checker | on | Opened from the popup or your own profile |
 | | Min / max delay between requests | 2 s / 4 s | Spacing for the scan |
 
@@ -152,6 +175,10 @@ In the image viewer: wheel to zoom, drag to pan, double-click or `0` to reset, `
 - Bulk download pages through posts with the request Instagram's own profile grid sends. If you
   open a profile and the extension hasn't seen that request yet, reload the profile once.
 - Ads and suggestions are recognised by their label text, in English and a few other languages.
+- Hide typing indicator is experimental and Hide "Seen" isn't tested yet: confirming them means
+  someone else has to watch the result. Try them with a friend before relying on them.
+- Block analytics stops Instagram's logging requests, but some analytics also travel over its live
+  connection, mixed with other traffic, and are left alone.
 - Downloading someone else's content doesn't give you the right to reuse it. Respect the creators
   and Instagram's terms.
 
@@ -164,8 +191,9 @@ npm test           # unit tests
 ```
 
 The page script is `src/inject/main-world.ts`: it runs before Instagram's own code, caches the
-posts and users Instagram loads, replays Instagram's profile queries for bulk download, and blocks
-the story "seen" request. The content script lives in `src/content/`, one file per feature in
+posts and users Instagram loads, replays Instagram's profile queries for bulk download, blocks the
+story "seen" request, cleans copied links, unwraps `l.instagram.com`, stops DM typing and read
+requests, and tags voice-message bubbles with their audio URL. The content script lives in `src/content/`, one file per feature in
 `features/`, and every assumption about Instagram's markup in `core/selectors.ts`. The background
 worker (`src/background/`) queues downloads and builds ZIPs in an offscreen document. Every setting
 is defined once in `src/shared/settings-schema.ts`; the settings page and popup are generated from it.
