@@ -6,6 +6,7 @@ import { problem, hero } from './scenes/intro.js';
 import { download, avatarScene, story, follow } from './scenes/media.js';
 import { feed, video, privacy, settings } from './scenes/controls.js';
 import { local, cta } from './scenes/outro.js';
+import { unfollowers, messages, extras } from './scenes/account.js';
 
 await loadGlassgramAssets();
 const stage = document.getElementById('stage');
@@ -23,7 +24,7 @@ function updateBg(t) {
 }
 
 // ---------------- scenes ----------------
-const makers = { problem, hero, download, avatar: avatarScene, story, follow, feed, video, privacy, settings, local, cta };
+const makers = { problem, hero, download, avatar: avatarScene, story, follow, unfollowers, feed, video, privacy, messages, extras, settings, local, cta };
 const scenes = Object.entries(makers).map(([key, make]) => {
   const s = make();
   s.key = key;

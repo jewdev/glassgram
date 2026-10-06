@@ -32,7 +32,7 @@
 
 ## See Glassgram in action
 
-[![Watch the Glassgram demo (74 s)](docs/glassgram-promo-poster.jpg)](https://files.catbox.moe/e52c32.mp4)
+[![Watch the Glassgram demo (90 s)](docs/glassgram-promo-poster.jpg)](https://files.catbox.moe/5fhxnn.mp4)
 
 <sub>Click to play the demo. The Instagram pages in the video are a recreation with fictional accounts.
 The Glassgram settings page and popup are the real extension pages.</sub>

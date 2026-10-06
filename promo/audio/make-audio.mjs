@@ -5,7 +5,12 @@
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { DURATION, BPM, CUES, CT } from '../src/timeline.js';
+import { DURATION, BPM, CUES, CT, SCENES } from '../src/timeline.js';
+
+// section boundaries the arrangement follows
+const SET = SCENES.settings[0];
+const LOC = SCENES.local[0];
+const CTA = SCENES.cta[0];
 
 const SR = 48000;
 const N = Math.ceil(DURATION * SR);
@@ -85,13 +90,13 @@ const CHORDS = [
 const chordAt = (t) => CHORDS[Math.floor(t / bar) % 4];
 
 // section automation
-const padGain = auto([[0, 0], [0.6, 0.5], [5.5, 0.55], [6.0, 0.42], [61.5, 0.42], [62, 0.55], [66.5, 0.6], [CT.brand, 0.75], [DURATION - 1.4, 0.6], [DURATION, 0]]);
-const padCut = auto([[0, 380], [5.8, 1600], [6.05, 2600], [55.5, 2600], [56, 1400], [60, 3000], [61.5, 2400], [66.5, 1100], [CT.brand - 0.05, 2200], [CT.brand + 0.1, 4200], [DURATION, 1800]]);
-const drumGain = auto([[0, 0], [5.98, 0], [6.0, 1], [61.2, 1], [61.6, 0], [DURATION, 0]]);
-const hatGain = auto([[0, 0], [7.9, 0], [8.0, 0.8], [61.2, 0.8], [61.6, 0], [CT.brand, 0], [CT.brand + 0.1, 0]]);
-const clapOn = (t) => t >= 11 && t < 61.5;
-const bassGain = auto([[0, 0], [5.99, 0], [6.0, 0.9], [61.4, 0.9], [62, 0.5], [66.4, 0.5], [66.6, 0], [CT.brand, 0], [CT.brand + 0.02, 0.8], [DURATION - 1.5, 0.4], [DURATION, 0]]);
-const arpGain = auto([[0, 0], [10.9, 0], [11.1, 0.5], [61.5, 0.5], [62, 0.38], [66.4, 0.38], [66.8, 0.22], [CT.brand, 0.22], [CT.brand + 0.2, 0.4], [DURATION - 1, 0.25], [DURATION, 0]]);
+const padGain = auto([[0, 0], [0.6, 0.5], [5.5, 0.55], [6.0, 0.42], [LOC, 0.42], [LOC + 0.5, 0.55], [CTA, 0.6], [CT.brand, 0.75], [DURATION - 1.4, 0.6], [DURATION, 0]]);
+const padCut = auto([[0, 380], [5.8, 1600], [6.05, 2600], [SET, 2600], [SET + 0.5, 1400], [SET + 4.5, 3000], [LOC, 2400], [CTA, 1100], [CT.brand - 0.05, 2200], [CT.brand + 0.1, 4200], [DURATION, 1800]]);
+const drumGain = auto([[0, 0], [5.98, 0], [6.0, 1], [LOC - 0.3, 1], [LOC + 0.1, 0], [DURATION, 0]]);
+const hatGain = auto([[0, 0], [7.9, 0], [8.0, 0.8], [LOC - 0.3, 0.8], [LOC + 0.1, 0], [CT.brand, 0], [CT.brand + 0.1, 0]]);
+const clapOn = (t) => t >= 11 && t < LOC;
+const bassGain = auto([[0, 0], [5.99, 0], [6.0, 0.9], [LOC - 0.1, 0.9], [LOC + 0.5, 0.5], [CTA - 0.1, 0.5], [CTA + 0.1, 0], [CT.brand, 0], [CT.brand + 0.02, 0.8], [DURATION - 1.5, 0.4], [DURATION, 0]]);
+const arpGain = auto([[0, 0], [10.9, 0], [11.1, 0.5], [LOC, 0.5], [LOC + 0.5, 0.38], [CTA - 0.1, 0.38], [CTA + 0.3, 0.22], [CT.brand, 0.22], [CT.brand + 0.2, 0.4], [DURATION - 1, 0.25], [DURATION, 0]]);
 
 // ---------------- pad ----------------
 {

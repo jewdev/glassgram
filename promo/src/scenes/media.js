@@ -6,18 +6,18 @@ import { lake, city, dunes, forest, cafe, ocean, toUrl } from '../art.js';
 
 const P = PEOPLE;
 /** Feature scenes share one framing: caption on one side, the browser on the other. */
-const WIN = { w: 1100, h: 840, left: 720, top: 120 };
+export const WIN = { w: 1100, h: 840, left: 720, top: 120 };
 
 /** Toolbar placement exactly as media-toolbar.ts computes it (top/right offsets from the hovered rect). */
 function placeToolbar(bar, rect, viewW, isStory = false) {
   style(bar, { top: `${Math.max(8, rect.top + (isStory ? 64 : 8))}px`, right: `${Math.max(8, viewW - rect.right + 8)}px` });
 }
-const rectIn = (el, space) => {
+export const rectIn = (el, space) => {
   const a = pointIn(el, space, 0, 0);
   const b = pointIn(el, space, 1, 1);
   return { left: a.x, top: a.y, right: b.x, bottom: b.y, width: b.x - a.x, height: b.y - a.y };
 };
-function toastEl(layer) {
+export function toastEl(layer) {
   const stack = h('div', { class: 'ige-toasts' });
   layer.append(stack);
   return {
@@ -152,7 +152,7 @@ export function download() {
 }
 
 // ======================= HD profile picture =======================
-function profilePage(person, opts = {}) {
+export function profilePage(person, opts = {}) {
   const grid = h('div', { class: 'ig-grid' }, ...[lake({ seed: 7, w: 600, h: 800 }), dunes({ w: 600, h: 800 }), forest({ w: 600, h: 800 }), city({ w: 600, h: 800, seed: 9 }), lake({ seed: 21, w: 600, h: 800, sky: ['#0f2a4a', '#3c6e9a', '#9cc9d9', '#f5e6c8'] }), cafe({ w: 600, h: 800 })].map((s) => h('div', { html: s })));
   const highlights = h('div', { style: { display: 'flex', gap: '40px', padding: '0 0 30px 60px' } }, ...['Alps', 'Norway', 'Iceland', 'Lisbon'].map((n, i) => h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600' } }, h('span', { style: { padding: '3px', borderRadius: '50%', border: '1px solid #363636' }, html: `<img src="${toUrl(i % 2 ? dunes({ w: 160, h: 160, seed: i }) : lake({ seed: i + 30, w: 160, h: 160 }))}" style="width:70px;height:70px;border-radius:50%;display:block;object-fit:cover">` }), n)));
   const header = profileHeader(person, opts);

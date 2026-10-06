@@ -15,7 +15,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './serve.mjs';
 import { makeAudio } from './audio/make-audio.mjs';
-import { DURATION, FPS } from './src/timeline.js';
+import { DURATION, FPS, SCENES } from './src/timeline.js';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPO = resolve(HERE, '..');
@@ -130,7 +130,7 @@ try {
     run('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, ...audioArgs, '-map', '0:v', '-map', '1:a', ...vArgs, '-pass', '2', '-af', 'loudnorm=I=-15:TP=-1.5:LRA=11', '-ar', '48000', '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-movflags', '+faststart', '-shortest', mp4]);
 
     if (!opt('out')) {
-      run('ffmpeg', ['-y', '-loglevel', 'error', '-ss', '71.5', '-i', mp4, '-frames:v', '1', '-q:v', '3', join(REPO, 'docs', 'glassgram-promo-poster.jpg')]);
+      run('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(SCENES.cta[0] + 5), '-i', mp4, '-frames:v', '1', '-q:v', '3', join(REPO, 'docs', 'glassgram-promo-poster.jpg')]);
       if (!flag('no-webm')) {
         const webm = join(REPO, 'docs', 'glassgram-promo.webm');
         console.log(`Encoding ${webm}…`);

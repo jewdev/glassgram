@@ -25,7 +25,7 @@ export function local() {
   const [start, end] = SCENES.local;
   const root = h('div');
   const cap = caption({ eyebrow: 'Privacy', icon: 'shield', title: ['Runs in your', '*browser.'], x: 130, y: 300, width: 640 });
-  const lines = ['No Glassgram server.', 'No Glassgram analytics.'].map((txt) => h('div', { style: { display: 'flex', alignItems: 'center', gap: '16px', marginTop: '22px', font: '600 38px/1.2 var(--display)', letterSpacing: '-0.02em' } }, h('span', { style: { display: 'grid', placeItems: 'center', width: '48px', height: '48px', borderRadius: '14px', background: 'rgb(94 227 154 / 0.14)', color: 'var(--ok)' }, html: CHECK }), txt));
+  const lines = ['No Glassgram server.', 'No Glassgram analytics.', 'Open source. MIT licensed.'].map((txt) => h('div', { style: { display: 'flex', alignItems: 'center', gap: '16px', marginTop: '22px', font: '600 38px/1.2 var(--display)', letterSpacing: '-0.02em' } }, h('span', { style: { display: 'grid', placeItems: 'center', width: '48px', height: '48px', borderRadius: '14px', background: 'rgb(94 227 154 / 0.14)', color: 'var(--ok)' }, html: CHECK }), txt));
   const linesBox = h('div', { style: { marginTop: '26px' } }, ...lines);
   cap.el.append(linesBox);
 
@@ -77,10 +77,10 @@ export function cta() {
   const root = h('div');
   const glow = h('div', { class: 'abs', style: { left: '710px', top: '0', width: '500px', height: '500px', borderRadius: '50%', background: 'conic-gradient(from 210deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #2fb3d6, #feda75)', filter: 'blur(110px)' } });
   const logo = h('img', { class: 'abs', src: '/repo/docs/icon.svg', width: '180', height: '180', style: { left: '870px', top: '160px', borderRadius: '42px', boxShadow: '0 30px 80px -20px rgb(150 40 160 / 0.55)' } });
-  const line = caption({ title: ['Instagram, but with the tools', 'it *should have had.'], x: 0, y: 420, width: 1920, size: 84 });
+  const line = caption({ title: ['The tools Instagram’s website', '*leaves out.'], x: 0, y: 420, width: 1920, size: 84 });
   line.el.style.textAlign = 'center';
   const brand = h('div', { class: 'abs', style: { left: '0', right: '0', top: '392px', textAlign: 'center', font: '700 140px/1 var(--display)', letterSpacing: '-0.045em' } }, 'Glassgram');
-  const meta = h('div', { class: 'abs', style: { left: '0', right: '0', top: '568px', textAlign: 'center', font: '500 32px/1 var(--text)', color: 'var(--ink-2)', letterSpacing: '0.01em' } }, 'Open source · Manifest V3 · Chromium');
+  const meta = h('div', { class: 'abs', style: { left: '0', right: '0', top: '568px', textAlign: 'center', font: '500 32px/1 var(--text)', color: 'var(--ink-2)', letterSpacing: '0.01em' } }, 'The tools Instagram’s website leaves out.');
   const url = h('div', { class: 'abs', style: { left: '0', right: '0', top: '650px', display: 'flex', justifyContent: 'center' } }, h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '14px', height: '68px', padding: '0 30px 0 24px', borderRadius: '999px', background: 'rgb(255 255 255 / 0.08)', boxShadow: 'inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 0 0 1px rgb(255 255 255 / 0.08), 0 20px 50px -20px rgb(0 0 0 / 0.8)', font: '600 32px/1 var(--text)', color: 'var(--ink)' }, html: `${GH.replace(/22/g, '30')}github.com/jewdev/glassgram` }));
   const disc = h('div', { class: 'abs', style: { left: '0', right: '0', top: '1000px', textAlign: 'center', font: '400 19px/1.4 var(--text)', color: 'var(--ink-3)' } }, 'Unofficial. Not affiliated with, endorsed by, or sponsored by Instagram or Meta. Instagram is a trademark of Meta Platforms, Inc.');
   root.append(glow, logo, line.el, brand, meta, url, disc);

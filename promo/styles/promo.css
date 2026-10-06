@@ -221,3 +221,68 @@ body { font: 15px/1.45 var(--text); color: var(--ink); -webkit-font-smoothing: a
 
 /* the real extension pages, embedded */
 .frame { position: absolute; border: 0; background: transparent; }
+
+/* ---------------- Instagram direct messages ---------------- */
+.ig-dm { position: absolute; left: 74px; right: 0; top: 0; bottom: 0; display: flex; border-left: 1px solid #262626; }
+.ig-inbox { width: 330px; flex: none; border-right: 1px solid #262626; padding: 26px 0; }
+.ig-inbox__me { padding: 0 24px 22px; font: 700 20px/1 var(--text); }
+.ig-inbox__h { display: flex; justify-content: space-between; padding: 0 24px 14px; font-size: 16px; }
+.ig-inbox__h span { color: #a8a8a8; font-weight: 600; font-size: 14px; }
+.ig-thread { display: flex; align-items: center; gap: 12px; padding: 9px 24px; }
+.ig-thread.is-on { background: #262626; }
+.ig-thread div { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 14px; }
+.ig-thread b { font-weight: 400; }
+.ig-thread span { color: #a8a8a8; font-size: 12px; white-space: nowrap; }
+.ig-chat { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ig-chat__head { display: flex; align-items: center; gap: 12px; height: 74px; padding: 0 18px; border-bottom: 1px solid #262626; }
+.ig-chat__head div { display: flex; flex-direction: column; gap: 2px; }
+.ig-chat__head b { font-size: 16px; }
+.ig-chat__head span { color: #a8a8a8; font-size: 12px; }
+.ig-chat__list { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; padding: 16px 16px 12px; }
+.ig-chat__day { align-self: center; margin-bottom: 10px; color: #a8a8a8; font-size: 12px; font-weight: 600; }
+.ig-msg { display: flex; align-items: flex-end; gap: 8px; transform-origin: 0 100%; }
+.ig-msg .ig-av, .ig-msg__pad { width: 28px; height: 28px; flex: none; }
+.ig-msg__b { max-width: 70%; padding: 8px 12px; border-radius: 18px; background: #262626; color: #f5f5f5; font-size: 14px; line-height: 1.35; }
+.ig-msg--out { justify-content: flex-end; transform-origin: 100% 100%; }
+.ig-msg--out .ig-msg__b { background: #3797f0; color: #fff; }
+.ig-chat .ige-ghost { padding-right: 0; }
+.ig-chat__input { display: flex; align-items: center; justify-content: space-between; margin: 0 16px 18px; height: 44px; padding: 0 18px; border: 1px solid #363636; border-radius: 22px; color: #a8a8a8; font-size: 14px; }
+
+/* ---------------- small extras grid ---------------- */
+.xgrid { position: absolute; left: 150px; top: 220px; display: grid; grid-template-columns: repeat(3, 520px); grid-auto-rows: 360px; gap: 30px; }
+.xcard {
+  position: relative; display: flex; flex-direction: column; padding: 26px 30px; border-radius: 26px;
+  background: rgb(255 255 255 / 0.045);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.07), 0 40px 80px -40px rgb(0 0 0 / 0.8);
+}
+.xcard__demo > * { zoom: 1.18; }
+.xcard__demo > .xc-ctxwrap { zoom: 1; }
+.xcard__demo { position: relative; flex: 1; min-height: 0; padding-bottom: 40px; display: flex; align-items: center; justify-content: center; font: 15px/1.4 -apple-system, 'Segoe UI', sans-serif; color: #f5f5f5; }
+.xcard__t { font: 650 28px/1.1 var(--display); letter-spacing: -0.02em; }
+.xcard__d { margin-top: 6px; font: 450 19px/1.3 var(--text); color: var(--ink-2); }
+.xcard__toast { position: absolute; left: 50%; bottom: -2px; white-space: nowrap; font-size: 14px; color: #f5f5f5; --ige-panel: rgb(34 36 48 / 0.9); }
+.xc-post { display: flex; align-items: center; gap: 14px; font-size: 18px; }
+.xc-timewrap { position: relative; height: 26px; width: 300px; margin-top: 4px; }
+.xc-time { position: absolute; left: 0; top: 0; color: #a8a8a8; font-size: 18px; white-space: nowrap; }
+.xc-com { display: flex; gap: 12px; align-items: flex-start; font-size: 17px; max-width: 440px; }
+.xc-com .ig-av { flex: none; }
+.xc-com__a { display: flex; gap: 16px; margin-top: 6px; color: #a8a8a8; font-size: 14px; font-weight: 600; }
+.xc-act { margin: -3px -8px; padding: 3px 8px; border-radius: 8px; color: #e8e8ff; }
+.xc-gif { width: 200px; height: 92px; margin-top: 8px; border-radius: 10px; overflow: hidden; }
+.xc-gif svg { display: block; width: 100%; height: 100%; transform-origin: center; }
+.xc-voice { display: flex; align-items: center; gap: 8px; }
+.xc-voice__b { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; border-radius: 23px; background: #262626; color: #f5f5f5; font-size: 13px; }
+.xc-wave { display: flex; align-items: center; gap: 3px; }
+.xc-wave i { display: block; width: 3px; border-radius: 2px; background: #d8d8d8; }
+.xc-voice .ige-voice-dl { width: 34px; height: 34px; color: #f5f5f5; }
+.xc-ctxwrap { position: relative; width: 420px; height: 190px; margin-top: 10px; }
+.xc-photo { position: absolute; left: 0; top: 0; width: 190px; height: 190px; border-radius: 6px; overflow: hidden; }
+.xc-photo svg { width: 100%; height: 100%; display: block; }
+.xc-ctx { position: absolute; left: 120px; top: 22px; width: 280px; padding: 6px 0; border-radius: 10px; background: #292a2d; box-shadow: 0 16px 40px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08); font: 14px/1 'Segoe UI', sans-serif; color: #e8eaed; }
+.xc-ctx__i { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 14px; }
+.xc-ctx__i img { border-radius: 4px; }
+.xc-ctx__sep { height: 1px; margin: 5px 0; background: #3c4043; }
+.xc-keylist { display: flex; flex-direction: column; gap: 12px; width: 100%; font: 500 18px/1 var(--text); color: var(--ink-2); }
+.xc-keyrow { display: flex; align-items: center; gap: 18px; }
+.xc-keys { display: inline-flex; gap: 6px; width: 132px; justify-content: flex-end; }
+.xc-keys kbd { min-width: 34px; height: 32px; padding: 0 10px; display: inline-grid; place-items: center; border-radius: 8px; background: #2a2c3a; color: var(--ink); font: 600 15px/1 var(--text); box-shadow: 0 3px 0 #0b0c12, inset 0 1px 0 rgb(255 255 255 / 0.12); }
