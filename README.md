@@ -129,7 +129,7 @@ Where it can, Glassgram reuses data the page already loaded instead of sending i
   Off by default.
 - **Anonymous live viewing** watches live videos without joining the viewer list. Off by default,
   not tested yet.
-- **DM privacy** can hide the typing indicator and the "Seen" receipt (not tested yet).
+- **DM privacy** can hide the typing indicator and the "Seen" receipt.
 
 ### ✨ Small extras
 
@@ -231,7 +231,7 @@ defaults**, **Export settings** and **Import settings** are at the bottom of the
 | Block analytics | On | Blocks `/ajax/bz`, `/ajax/qm`, `/logging` |
 | Download voice messages | On | A download button on each voice message |
 | Hide typing indicator | Off | |
-| Hide "Seen" | Off | Not tested yet |
+| Hide "Seen" | Off | Opening a chat doesn't mark it as read |
 | Keep unsent messages | Off | Shown in the chat with an unsent mark, and listed in the popup |
 | Remember received messages for | 30 days | 1 day to forever. Unsent messages stay until you clear them |
 | Unfollowers checker | Off | Opened from the popup or your own profile |
@@ -289,8 +289,6 @@ remembered volume stay on this device (`chrome.storage.local`).
 - Bulk download pages through posts using the same request Instagram's profile grid sends. If you
   open a profile before the extension has seen that request, reload the profile once.
 - Ads and suggestions are recognised by their label text, in English and a few other languages.
-- Hide "Seen" isn't tested yet, because checking it takes someone else watching on the other end.
-  Try it with a friend before you rely on it.
 - Keep unsent messages only catches messages that arrive while Instagram is open in this browser.
   Turning it off forgets the recent messages it was holding; the unsent ones stay until you press
   *Clear all*.

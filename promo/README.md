@@ -71,5 +71,5 @@ checker → Declutter + following-only feed → Video controls → Clean links +
 unsent messages → Small extras (timestamps, copy comment, Save GIF, voice download, right-click,
 shortcuts) → Settings page + popup → Runs in your browser / open source → Call to action.
 
-Features the README marks as not tested yet (Hide "Seen", anonymous live viewing) are not
+Features the README marks as not tested yet (anonymous live viewing) are not
 demonstrated; they only appear, with their *Not tested yet* tag, on the real settings page.

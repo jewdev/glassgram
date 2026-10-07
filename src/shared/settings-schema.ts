@@ -333,8 +333,6 @@ export const SECTIONS: Section[] = [
         key: 'privacy.dmHideSeen',
         label: 'Hide "Seen" in messages',
         desc: "Opening a chat doesn't mark it as read for the other person. Sending still works.",
-        badge: 'untested',
-        warning: "Not tested yet: this hasn't been confirmed to work. Check with a friend before relying on it.",
       },
       {
         type: 'toggle',

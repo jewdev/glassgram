@@ -39,7 +39,7 @@ plainly which features are experimental or untested.
   generated from it. Setting types: toggle, select, text, number, shortcut; `dependsOn` links a
   sub-option to its parent toggle; toggles can carry a warning.
 - Some features carry account risk (bulk download, unfollowers checker) or are experimental /
-  untested (DM typing indicator, DM "Seen"); this must stay visible.
+  untested (DM typing indicator); this must stay visible.
 - Extension pages may load only local assets (no remote fonts or scripts).
 - English only. Text should stay easy to translate later only if requested; not required now.
 
