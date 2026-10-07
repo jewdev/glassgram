@@ -1,6 +1,6 @@
 # Development
 
-Requires Node.js 20 or later. See the [README](../README.md#install) for loading `dist/` in the browser.
+Requires Node.js 20 or later. See the [README](../README.md#install) for loading `dist/` in the browser. Releases are built by `.github/workflows/release.yml` when you push a tag matching the `package.json` version (e.g. `git tag v1.0.0 && git push origin v1.0.0`).
 
 ```sh
 npm run dev        # dev build with hot reload (load dist/ the same way)

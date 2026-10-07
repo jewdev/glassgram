@@ -38,8 +38,32 @@
 
 ## Install
 
-Glassgram isn't in a web store yet. You need [Node.js](https://nodejs.org) 20+ and
-[Git](https://git-scm.com/downloads) (on macOS: `xcode-select --install`).
+Glassgram isn't in a web store yet, so you load it by hand. It takes about a minute and needs no
+coding tools.
+
+1. Download **[glassgram.zip](https://github.com/jewdev/glassgram/releases/latest/download/glassgram.zip)**
+   and unzip it. On Windows, right-click it and pick **Extract All**.
+2. In your browser, open `brave://extensions` (or `chrome://extensions`, `edge://extensions`).
+3. Turn on **Developer mode** (top right).
+4. Click **Load unpacked** and pick the unzipped folder, the one that contains `manifest.json`.
+
+Open Instagram and hover over a post. Pin Glassgram from the puzzle-piece menu to get quick access to its popup.
+
+> [!IMPORTANT]
+> Keep the unzipped folder where it is. The browser reads the extension from it, so moving or
+> deleting it disables Glassgram.
+
+**To update**, download the new ZIP from the [Releases](https://github.com/jewdev/glassgram/releases/latest)
+page, unzip it over the old folder, and press the reload icon on Glassgram's card in the extensions page.
+
+Works in any Chromium browser with Manifest V3 (Brave, Chrome, Edge, Opera, Vivaldi) on Windows,
+macOS and Linux.
+
+<details>
+<summary>🛠️ Build from source</summary>
+
+You need [Node.js](https://nodejs.org) 20+ and [Git](https://git-scm.com/downloads)
+(on macOS: `xcode-select --install`).
 
 ```sh
 git clone https://github.com/jewdev/glassgram
@@ -48,16 +72,10 @@ npm install
 npm run build
 ```
 
-Then open `brave://extensions` (or `chrome://extensions`, `edge://extensions`), turn on
-**Developer mode**, click **Load unpacked** and pick the `dist` folder.
+Then load the `dist` folder with **Load unpacked** as above. To update, `git pull`, rebuild, and
+press reload on the extension's card.
 
-> [!TIP]
-> No Git? Download the [ZIP](https://github.com/jewdev/glassgram/archive/refs/heads/main.zip) and run
-> the two `npm` commands in the extracted folder. To update, `git pull`, rebuild, and press reload on
-> the extension's card.
-
-Works in any Chromium browser with Manifest V3 (Brave, Chrome, Edge, Opera, Vivaldi) on Windows,
-macOS and Linux.
+</details>
 
 ## What you get
 
