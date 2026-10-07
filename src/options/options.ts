@@ -15,6 +15,8 @@ const HALVES = [
 
 let settings: Settings;
 
+$('version').textContent = `v${chrome.runtime.getManifest().version}`;
+
 // ---------------- saving ----------------
 let pending: Partial<Settings> = {};
 let saveTimer: number | undefined;

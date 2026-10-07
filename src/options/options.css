@@ -74,6 +74,9 @@ body { min-height: 100vh; }
 .sidebar__foot { display: flex; gap: 6px; padding-top: 10px; border-top: 1px solid var(--hairline); margin-top: auto; }
 
 .sidebar__note { margin: 0; padding: 0 8px 2px; color: var(--ink-3); font-size: 12.5px; line-height: 1.4; }
+.sidebar__credit { display: flex; justify-content: space-between; gap: 8px; padding-top: 6px; }
+.sidebar__credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.sidebar__credit a:hover { color: var(--ink-2); }
 
 /* ---------------- content ---------------- */
 .content { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
