@@ -49,7 +49,15 @@ The Glassgram settings page and popup are the real extension pages.</sub>
 
 Glassgram isn't in a web store yet. Build it once and load it as an unpacked extension.
 
-**1. Build** (needs [Node.js](https://nodejs.org) 20 or later)
+**1. Get the tools**
+
+- [Node.js](https://nodejs.org) 20 or later, which includes `npm`
+- [Git](https://git-scm.com/downloads), which Node.js doesn't include. On Windows, install
+  [Git for Windows](https://git-scm.com/download/win); on macOS, run `xcode-select --install`.
+
+Open a new terminal after installing so it picks them up. Check with `node -v` and `git --version`.
+
+**2. Build**
 
 ```sh
 git clone https://github.com/jewdev/glassgram
@@ -58,7 +66,12 @@ npm install
 npm run build
 ```
 
-**2. Load it in your browser**
+> [!NOTE]
+> No Git? Download the [ZIP](https://github.com/jewdev/glassgram/archive/refs/heads/main.zip),
+> extract it, open a terminal in the extracted `glassgram-main` folder, and run only
+> `npm install` and `npm run build`.
+
+**3. Load it in your browser**
 
 1. Open `brave://extensions` (or `chrome://extensions`, `edge://extensions`).
 2. Turn on **Developer mode**, top right.
@@ -67,8 +80,8 @@ npm run build
 The settings page opens on first install. Log in to instagram.com and you're set.
 
 > [!TIP]
-> To update, run `git pull` and `npm run build`, press reload on the extension's card, then refresh
-> Instagram.
+> To update, run `git pull` and `npm run build` (or download a fresh ZIP and build it again), press
+> reload on the extension's card, then refresh Instagram.
 >
 > To reach the settings later, click the extension icon and then the gear, or go to **Details →
 > Extension options**.
