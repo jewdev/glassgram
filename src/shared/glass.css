@@ -1,5 +1,5 @@
 /* Glassgram — shared Liquid Glass system: tokens, light field, glass material, switch, pill buttons.
-   Used by the settings page and the popup. See DESIGN.md. */
+   Used by the settings page and the popup. See docs/DESIGN.md. */
 
 :root {
   color-scheme: light dark;
