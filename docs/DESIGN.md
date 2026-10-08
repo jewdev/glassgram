@@ -288,7 +288,7 @@ The palette is a cool neutral glass set with one indigo signal and one coral war
 ## Layout
 
 - **Shell:** a centered two-column grid. A 272px sidebar sits beside a content column of up to 760px, with a 28px gap and 28px / 24px / 64px outer padding.
-- **Sidebar:** a sticky glass panel (top 28px, max height viewport minus 56px). From top to bottom it holds the brand, the search capsule, a scrolling nav grouped by half with an on-count per group, and a footer row of Export, Import and Reset separated by a hairline.
+- **Sidebar:** a sticky glass panel (top 28px, max height viewport minus 56px). From top to bottom it holds the brand, the search capsule, a scrolling nav grouped by half with an on-count per group, and a footer below a hairline: an Export, Import and Reset row; an Updates group (12px Ink 3 label with a quiet Check now button, a status line, and a compact switch for automatic checks); then, after another hairline, an 11.5px Ink 3 note with the version, credit and the unofficial disclaimer.
 - **Content:** a header row with the title and subline on the left and the Saved pill aligned to the bottom-right. The two halves follow, 36px apart. Within a half, panels sit 16px apart. Power tools carries one explanatory subline.
 - **Rows:** a two-column grid (text, then control on the right) with 13px / 12px padding and a 4px / 20px gap. Sub-option rows indent to 24px. Text settings stack the field below the label.
 - **Rhythm:** 4, 8, 12, 16, 20, 28 and 36px. 8px panel padding plus 12px row padding puts text 20px in from the glass edge.

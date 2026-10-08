@@ -366,9 +366,9 @@ function ago(ts: number): string {
 }
 
 function renderAutoCheck() {
-  $('update-auto').replaceChildren(
-    switchControl('set-updates.check', settings['updates.check'], 'Check for updates automatically', (v) => change('updates.check', v)),
-  );
+  const sw = switchControl('set-updates.check', settings['updates.check'], 'Check for updates automatically', (v) => change('updates.check', v));
+  sw.classList.add('switch--sm');
+  $('update-auto').replaceChildren(sw);
 }
 
 function renderUpdates(state: UpdateState) {

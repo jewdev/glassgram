@@ -32,26 +32,30 @@
         <nav id="nav" class="nav"></nav>
 
         <div class="sidebar__foot">
-          <button id="export" class="pill-btn" type="button">Export</button>
-          <button id="import" class="pill-btn" type="button">Import</button>
-          <button id="reset" class="pill-btn pill-btn--quiet" type="button">Reset</button>
-          <input id="import-file" type="file" accept="application/json" hidden />
-        </div>
-        <div class="updates">
-          <div class="updates__row">
-            <span id="update-status" class="updates__status" role="status" aria-live="polite"></span>
-            <button id="update-check" class="pill-btn pill-btn--quiet updates__btn" type="button">Check now</button>
+          <div class="sidebar__actions">
+            <button id="export" class="pill-btn" type="button">Export</button>
+            <button id="import" class="pill-btn" type="button">Import</button>
+            <button id="reset" class="pill-btn pill-btn--quiet" type="button">Reset</button>
+            <input id="import-file" type="file" accept="application/json" hidden />
           </div>
-          <div class="updates__row">
-            <label class="updates__label" for="set-updates.check">Check for updates automatically</label>
-            <span id="update-auto"></span>
-          </div>
+
+          <section class="updates" aria-labelledby="updates-title">
+            <div class="updates__head">
+              <h2 id="updates-title" class="updates__title">Updates</h2>
+              <button id="update-check" class="pill-btn pill-btn--quiet updates__btn" type="button">Check now</button>
+            </div>
+            <p id="update-status" class="updates__status" role="status" aria-live="polite"></p>
+            <div class="updates__auto">
+              <label class="updates__label" for="set-updates.check">Check automatically</label>
+              <span id="update-auto"></span>
+            </div>
+          </section>
+
+          <footer class="sidebar__meta">
+            <p>Glassgram <span id="version"></span> · by <a href="https://github.com/jewdev" target="_blank" rel="noopener noreferrer">jewdev</a></p>
+            <p>Unofficial. Not affiliated with Instagram or Meta.</p>
+          </footer>
         </div>
-        <p class="sidebar__note">Unofficial. Not affiliated with Instagram or Meta.</p>
-        <p class="sidebar__note sidebar__credit">
-          <span>Glassgram <span id="version"></span></span>
-          <span>Made by <a href="https://github.com/jewdev" target="_blank" rel="noopener noreferrer">jewdev</a></span>
-        </p>
       </aside>
 
       <main class="content">
