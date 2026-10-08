@@ -2,6 +2,7 @@ import type { DownloadResult, Message } from '../shared/messages';
 import { loadSettings, onSettingsChanged } from '../shared/settings';
 import type { Settings } from '../shared/settings-schema';
 import type { DownloadJob } from '../shared/types';
+import { availableUpdate, loadUpdateState, onUpdateStateChanged, parseReleases, patchUpdateState, RELEASES_API, type UpdateState } from '../shared/updates';
 
 // ---------------- download queue ----------------
 const MAX_CONCURRENT = 3;
@@ -88,8 +89,55 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
       .catch((e) => reply({ ok: false, error: String(e?.message ?? e) } satisfies DownloadResult));
     return true; // async reply
   }
+  if (msg.type === 'checkUpdates') {
+    checkForUpdates().then(reply);
+    return true;
+  }
   return false;
 });
+
+// ---------------- update check (GitHub Releases) ----------------
+const UPDATE_ALARM = 'update-check';
+const CHECK_EVERY_MIN = 12 * 60;
+const CURRENT_VERSION = chrome.runtime.getManifest().version;
+
+async function checkForUpdates(): Promise<UpdateState> {
+  try {
+    const res = await fetch(RELEASES_API, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    if (!res.ok) {
+      throw new Error(res.status === 403 || res.status === 429 ? 'GitHub is limiting update checks. Try again in an hour.' : `GitHub answered with an error (${res.status}).`);
+    }
+    return await patchUpdateState({ releases: parseReleases(await res.json()), checkedAt: Date.now(), error: undefined });
+  } catch (e) {
+    const error = e instanceof TypeError ? "Couldn't reach GitHub. Check your connection." : (e as Error).message;
+    return await patchUpdateState({ checkedAt: Date.now(), error });
+  }
+}
+
+function syncBadge(s: UpdateState) {
+  const update = availableUpdate(s, CURRENT_VERSION);
+  chrome.action.setBadgeText({ text: update ? 'NEW' : '' });
+  chrome.action.setTitle({ title: update ? `Glassgram: v${update.version} is available` : 'Glassgram' });
+  if (update) {
+    chrome.action.setBadgeBackgroundColor({ color: '#4b48e0' });
+    chrome.action.setBadgeTextColor({ color: '#ffffff' });
+  }
+}
+
+async function syncUpdateAlarm(s: Settings) {
+  if (!s['updates.check']) {
+    await chrome.alarms.clear(UPDATE_ALARM);
+    return;
+  }
+  // A short first delay so a fresh install or re-enable checks soon, then twice a day.
+  if (!(await chrome.alarms.get(UPDATE_ALARM))) chrome.alarms.create(UPDATE_ALARM, { delayInMinutes: 1, periodInMinutes: CHECK_EVERY_MIN });
+}
+
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === UPDATE_ALARM) checkForUpdates();
+});
+onUpdateStateChanged(syncBadge);
+loadUpdateState().then(syncBadge);
 
 // ---------------- context menu ----------------
 const MENU_ID = 'ige-download';
@@ -161,11 +209,17 @@ async function syncDnr(s: Settings) {
 function applySettings(s: Settings) {
   syncContextMenu(s);
   syncDnr(s).catch((e) => console.warn('[IGE] DNR', e));
+  syncUpdateAlarm(s).catch((e) => console.warn('[IGE] update alarm', e));
 }
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   applySettings(await loadSettings());
   if (details.reason === 'install') chrome.runtime.openOptionsPage();
+  // A real version change (not a reload of the same build): remember it for the "What's new" card.
+  if (details.reason === 'update' && details.previousVersion && details.previousVersion !== CURRENT_VERSION) {
+    await patchUpdateState({ updatedFrom: details.previousVersion, skipped: undefined });
+    checkForUpdates(); // fetch notes for the version just installed
+  }
 });
 chrome.runtime.onStartup.addListener(async () => applySettings(await loadSettings()));
 onSettingsChanged(applySettings);

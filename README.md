@@ -53,8 +53,10 @@ Open Instagram and hover over a post. Pin Glassgram from the puzzle-piece menu t
 > Keep the unzipped folder where it is. The browser reads the extension from it, so moving or
 > deleting it disables Glassgram.
 
-**To update**, download the new ZIP from the [Releases](https://github.com/jewdev/glassgram/releases/latest)
-page, unzip it over the old folder, and press the reload icon on Glassgram's card in the extensions page.
+**To update**, wait for the **NEW** badge on Glassgram's icon, or press **Check now** in the settings sidebar.
+The settings page shows what changed and walks you through it: download the ZIP, unzip it over the old
+folder, and press **Reload Glassgram**. You can also grab the ZIP from the
+[Releases](https://github.com/jewdev/glassgram/releases/latest) page yourself.
 
 Works in any Chromium browser with Manifest V3 (Brave, Chrome, Edge, Opera, Vivaldi) on Windows,
 macOS and Linux.
@@ -130,7 +132,9 @@ In the image viewer: wheel to zoom, drag to pan, `0` to reset, `Esc` to close.
 ## Privacy
 
 Everything runs in your browser: no server, no analytics, nothing sent anywhere but Instagram. Requests
-use your logged-in session; the extension never sees your password. Settings sync via
+use your logged-in session; the extension never sees your password. The one exception is the update
+check: twice a day it asks GitHub's public API for Glassgram's releases, sending nothing about you. Turn
+off **Check for updates automatically** in the settings sidebar to stop it. Settings sync via
 `chrome.storage.sync`; scan data and unsent messages stay local.
 
 <details>
@@ -143,7 +147,9 @@ use your logged-in session; the extension never sees your password. Settings syn
 | `contextMenus` | The right-click entry |
 | `offscreen` | Building ZIPs |
 | `declarativeNetRequest` | Blocking the story "seen" request |
+| `alarms` | Checking for updates twice a day |
 | `instagram.com`, `cdninstagram.com`, `fbcdn.net` | Working on Instagram and loading its media |
+| `api.github.com` | Reading Glassgram's releases for the update check |
 
 </details>
 

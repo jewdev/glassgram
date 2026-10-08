@@ -27,6 +27,26 @@
       </button>
     </header>
 
+    <section id="update" class="update glass" aria-labelledby="update-title" hidden>
+      <div class="update__head">
+        <span class="update__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+        </span>
+        <div class="update__text">
+          <h2 id="update-title" class="update__title"></h2>
+          <p id="update-sub" class="update__sub"></p>
+        </div>
+      </div>
+      <details class="update__notes">
+        <summary>What's new</summary>
+        <div id="update-notes"></div>
+      </details>
+      <div class="update__actions">
+        <button id="update-get" class="pill-btn pill-btn--accent" type="button">How to update</button>
+        <button id="update-skip" class="pill-btn pill-btn--quiet" type="button">Skip this version</button>
+      </div>
+    </section>
+
     <section class="panel glass" aria-labelledby="quick-title">
       <h1 id="quick-title" class="panel__title">Quick toggles <span id="count" class="count"></span></h1>
       <ul id="toggles" class="toggles"></ul>

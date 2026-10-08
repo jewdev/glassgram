@@ -12,8 +12,8 @@ export default defineManifest({
   action: { default_popup: 'src/popup/index.html', default_icon: { 16: 'icons/16.png', 32: 'icons/32.png' } },
   options_ui: { page: 'src/options/index.html', open_in_tab: true },
   background: { service_worker: 'src/background/index.ts', type: 'module' },
-  permissions: ['downloads', 'storage', 'contextMenus', 'offscreen', 'declarativeNetRequest', 'unlimitedStorage'],
-  host_permissions: ['https://*.instagram.com/*', 'https://*.cdninstagram.com/*', 'https://*.fbcdn.net/*'],
+  permissions: ['downloads', 'storage', 'contextMenus', 'offscreen', 'declarativeNetRequest', 'unlimitedStorage', 'alarms'],
+  host_permissions: ['https://*.instagram.com/*', 'https://*.cdninstagram.com/*', 'https://*.fbcdn.net/*', 'https://api.github.com/*'],
   content_scripts: [
     { matches: IG, js: ['src/inject/main-world.ts'], run_at: 'document_start', world: 'MAIN' },
     { matches: IG, js: ['src/content/index.ts'], run_at: 'document_start' },

@@ -37,6 +37,16 @@
           <button id="reset" class="pill-btn pill-btn--quiet" type="button">Reset</button>
           <input id="import-file" type="file" accept="application/json" hidden />
         </div>
+        <div class="updates">
+          <div class="updates__row">
+            <span id="update-status" class="updates__status" role="status" aria-live="polite"></span>
+            <button id="update-check" class="pill-btn pill-btn--quiet updates__btn" type="button">Check now</button>
+          </div>
+          <div class="updates__row">
+            <label class="updates__label" for="set-updates.check">Check for updates automatically</label>
+            <span id="update-auto"></span>
+          </div>
+        </div>
         <p class="sidebar__note">Unofficial. Not affiliated with Instagram or Meta.</p>
         <p class="sidebar__note sidebar__credit">
           <span>Glassgram <span id="version"></span></span>
@@ -61,6 +71,51 @@
             </span>
           </div>
         </header>
+
+        <section id="update" class="update-card glass" aria-labelledby="update-card-title" hidden>
+          <header class="update-card__head">
+            <span class="update-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+            </span>
+            <div class="update-card__text">
+              <h2 id="update-card-title"></h2>
+              <p id="update-card-sub" class="update-card__sub"></p>
+            </div>
+          </header>
+          <div id="update-card-notes" class="update-card__notes"></div>
+          <ol class="update-card__steps">
+            <li>
+              <span>Download the new version.</span>
+              <span class="update-card__btns">
+                <button id="update-download" class="pill-btn pill-btn--accent" type="button">Download ZIP</button>
+                <button id="update-show" class="pill-btn" type="button" hidden>Show in folder</button>
+              </span>
+            </li>
+            <li><span>Unzip it into your Glassgram folder and replace the old files when asked.</span></li>
+            <li>
+              <span>Reload Glassgram to start the new version.</span>
+              <span class="update-card__btns"><button id="update-reload" class="pill-btn" type="button">Reload Glassgram</button></span>
+            </li>
+          </ol>
+          <p class="update-card__hint">Installed with Git? Run <code>git pull</code> and <code>npm run build</code> instead, then reload.</p>
+          <div class="update-card__foot">
+            <button id="update-skip" class="pill-btn pill-btn--quiet" type="button">Skip this version</button>
+          </div>
+        </section>
+
+        <section id="whats-new" class="update-card glass" aria-labelledby="whats-new-title" hidden>
+          <header class="update-card__head">
+            <span class="update-card__icon update-card__icon--ok" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+            </span>
+            <div class="update-card__text">
+              <h2 id="whats-new-title"></h2>
+              <p id="whats-new-sub" class="update-card__sub"></p>
+            </div>
+            <button id="whats-new-close" class="pill-btn pill-btn--quiet update-card__close" type="button">Dismiss</button>
+          </header>
+          <div id="whats-new-notes" class="update-card__notes"></div>
+        </section>
 
         <div id="sections" class="sections"></div>
 

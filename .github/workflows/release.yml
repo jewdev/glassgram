@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags for the release notes
 
       - uses: actions/setup-node@v4
         with:
@@ -33,8 +35,12 @@ jobs:
       - name: Zip dist
         run: cd dist && zip -r ../glassgram.zip .
 
+      # Shown inside the extension's "Update available" and "What's new" cards.
+      - name: Write release notes
+        run: node scripts/release-notes.mjs "$GITHUB_REF_NAME" > notes.md
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           files: glassgram.zip
-          generate_release_notes: true
+          body_path: notes.md

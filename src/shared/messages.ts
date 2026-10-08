@@ -7,6 +7,7 @@ export type Message =
   | { type: 'openUnsent' }
   | { type: 'contextDownload' }
   | { type: 'zipProgress'; done: number; total: number }
+  | { type: 'checkUpdates' }
   // background <-> offscreen
   | { type: 'offscreen:zip'; jobs: DownloadJob[]; target: 'offscreen' }
   | { type: 'offscreen:revoke'; url: string; target: 'offscreen' };

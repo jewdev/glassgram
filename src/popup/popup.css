@@ -32,6 +32,27 @@ body { width: 360px; padding: 12px; font-size: 14px; }
 .icon-btn:hover { color: var(--ink); }
 .icon-btn:active { transform: scale(0.94); }
 
+/* ---------------- update banner ---------------- */
+.update { margin-bottom: 10px; padding: 12px; border-radius: 22px; }
+.update__head { display: flex; align-items: center; gap: 10px; }
+.update__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.update__text { min-width: 0; }
+.update__title { margin: 0; font-size: 14px; font-weight: 650; }
+.update__sub { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+.update__notes { margin: 8px 0 0; }
+.update__notes summary { padding: 4px 2px; color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer; }
+.update__notes .notes { max-height: 180px; overflow-y: auto; margin-top: 4px; padding: 8px 10px; border-radius: 14px; background: var(--fill); }
+.update__actions { display: flex; gap: 6px; margin-top: 10px; }
+
 /* ---------------- quick toggles ---------------- */
 .panel { border-radius: 28px; padding: 6px; }
 .panel__title {
@@ -74,5 +95,3 @@ body { width: 360px; padding: 12px; font-size: 14px; }
 /* ---------------- actions ---------------- */
 .actions { display: flex; gap: 8px; padding-top: 10px; }
 .actions .pill-btn { height: 36px; font-size: 13.5px; }
-.pill-btn--accent { background: var(--accent); color: var(--accent-ink); }
-.pill-btn--accent:hover { background: var(--accent); filter: brightness(1.08); }

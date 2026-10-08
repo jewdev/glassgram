@@ -166,6 +166,9 @@ button, input, select { font: inherit; color: inherit; }
 .pill-btn:active { transform: scale(0.96); }
 .pill-btn--quiet { background: transparent; color: var(--ink-2); }
 .pill-btn--quiet:hover { background: var(--fill); }
+.pill-btn--accent { background: var(--accent); color: var(--accent-ink); }
+.pill-btn--accent:hover { background: var(--accent); filter: brightness(1.08); }
+.pill-btn:disabled { opacity: 0.55; cursor: default; transform: none; }
 .pill-btn--danger { background: #c4362a; color: #fff; }
 .pill-btn--danger:hover { background: #ad2e23; }
 
@@ -175,6 +178,21 @@ button, input, select { font: inherit; color: inherit; }
 @media (prefers-reduced-transparency: reduce) {
   .glass { background: var(--glass-strong); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* ---------------- release notes ---------------- */
+.notes { font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.notes__release + .notes__release { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.notes__head { display: flex; align-items: baseline; gap: 8px; }
+.notes__version { color: var(--ink); font-weight: 680; text-decoration: none; }
+.notes__version:hover { text-decoration: underline; text-underline-offset: 2px; }
+.notes__date { color: var(--ink-3); font-size: 12px; }
+.notes h3 { margin: 8px 0 2px; color: var(--ink); font-size: 12.5px; font-weight: 650; }
+.notes ul { margin: 2px 0 0; padding-left: 18px; }
+.notes li + li { margin-top: 2px; }
+.notes p { margin: 4px 0 0; }
+.notes a:not(.notes__version) { color: var(--accent); }
+.notes code { padding: 0 4px; border-radius: 5px; background: var(--fill); font: 12px ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace; }
+.notes__empty { color: var(--ink-3); }
 
 /* ---------------- brand mark ---------------- */
 .brand__mark {

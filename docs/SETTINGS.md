@@ -89,3 +89,6 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | Unfollowers scan delay | 2 to 4 s | Spacing for the scan |
 
 </details>
+
+The settings sidebar also has **Check for updates automatically** (on). Glassgram asks GitHub for new
+releases twice a day and shows a **NEW** badge on its icon when one is out. **Check now** checks right away.

@@ -1,9 +1,12 @@
 import { renderFilename } from '../content/core/filename';
-import { controlFor } from '../shared/controls';
+import { controlFor, switchControl } from '../shared/controls';
 import { sectionIcon } from '../shared/icons';
+import type { Message } from '../shared/messages';
+import { downloadRelease, renderReleaseNotes } from '../shared/release-notes';
 import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
 import { loadSettings, onSettingsChanged, resetSettings, saveSettings } from '../shared/settings';
 import { DEFAULTS, SECTIONS, type Section, type SectionIcon, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
+import { availableUpdate, between, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, RELEASES_URL, type UpdateState } from '../shared/updates';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -195,6 +198,7 @@ function render() {
   }
 
   renderPreview();
+  renderAutoCheck();
   refreshState();
   applySearch(($('search') as HTMLInputElement).value);
   observeNav();
@@ -348,6 +352,117 @@ function renderThemeControl(current: ThemeChoice) {
   };
 }
 
+// ---------------- updates ----------------
+const CURRENT_VERSION = chrome.runtime.getManifest().version;
+let checking = false;
+let downloadId: number | undefined;
+
+function ago(ts: number): string {
+  const min = Math.round((Date.now() - ts) / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  const h = Math.round(min / 60);
+  return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
+}
+
+function renderAutoCheck() {
+  $('update-auto').replaceChildren(
+    switchControl('set-updates.check', settings['updates.check'], 'Check for updates automatically', (v) => change('updates.check', v)),
+  );
+}
+
+function renderUpdates(state: UpdateState) {
+  const pending = newerThan(state.releases, CURRENT_VERSION);
+  const update = availableUpdate(state, CURRENT_VERSION);
+
+  // Sidebar status line.
+  const status = $('update-status');
+  status.classList.toggle('is-new', !checking && !!pending.length);
+  status.classList.toggle('is-error', !checking && !pending.length && !!state.error);
+  if (checking) status.textContent = 'Checking…';
+  else if (pending.length) {
+    const link = el('a', '', `Version ${pending[0].version} is available`);
+    link.href = '#update';
+    // A skipped version stays reachable from here.
+    link.addEventListener('click', () => state.skipped && patchUpdateState({ skipped: undefined }));
+    status.replaceChildren(link);
+  } else if (state.error) status.textContent = state.error;
+  else status.textContent = state.checkedAt ? `Up to date · checked ${ago(state.checkedAt)}` : 'Not checked yet';
+
+  // "Update available" card, with the notes of every version since the installed one.
+  $('update').hidden = !update;
+  if (update) {
+    $('update-card-title').textContent = `Glassgram ${update.version} is available`;
+    $('update-card-sub').textContent = `You have ${CURRENT_VERSION}.${pending.length > 1 ? ` Changes from ${pending.length} new versions below.` : ' Here is what changed.'}`;
+    $('update-card-notes').replaceChildren(renderReleaseNotes(pending));
+    const dl = $<HTMLButtonElement>('update-download');
+    dl.onclick = async () => {
+      dl.disabled = true;
+      dl.textContent = 'Downloading…';
+      try {
+        downloadId = await downloadRelease(update);
+      } catch {
+        dl.disabled = false;
+        dl.textContent = 'Download ZIP';
+        showNotice("Couldn't start the download.");
+      }
+    };
+    $('update-skip').onclick = () => patchUpdateState({ skipped: update.version });
+  }
+
+  // "What's new" card after an update was installed.
+  const from = state.updatedFrom;
+  $('whats-new').hidden = !from;
+  if (from) {
+    $('whats-new-title').textContent = `Updated to ${CURRENT_VERSION}`;
+    $('whats-new-sub').textContent = `You were on ${from}. Here is what changed.`;
+    const changed = between(state.releases, from, CURRENT_VERSION);
+    const notes = $('whats-new-notes');
+    if (changed.length) notes.replaceChildren(renderReleaseNotes(changed));
+    else {
+      const p = el('p', 'update-card__sub', state.error ? "Release notes couldn't load. " : 'Loading release notes…');
+      if (state.error) {
+        const a = el('a', '', 'See them on GitHub');
+        a.href = RELEASES_URL;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        p.append(a);
+      }
+      notes.replaceChildren(p);
+    }
+  }
+}
+
+async function checkNow() {
+  const btn = $<HTMLButtonElement>('update-check');
+  checking = true;
+  btn.disabled = true;
+  renderUpdates(await loadUpdateState());
+  try {
+    await chrome.runtime.sendMessage({ type: 'checkUpdates' } satisfies Message);
+  } finally {
+    checking = false;
+    btn.disabled = false;
+    renderUpdates(await loadUpdateState());
+  }
+}
+
+function wireUpdates() {
+  $('update-check').addEventListener('click', checkNow);
+  $('update-reload').addEventListener('click', () => chrome.runtime.reload());
+  $('update-show').addEventListener('click', () => downloadId !== undefined && chrome.downloads.show(downloadId));
+  $('whats-new-close').addEventListener('click', () => patchUpdateState({ updatedFrom: undefined }));
+  chrome.downloads.onChanged.addListener((d) => {
+    if (d.id !== downloadId || !d.state) return;
+    const dl = $<HTMLButtonElement>('update-download');
+    const done = d.state.current === 'complete';
+    dl.textContent = done ? 'Downloaded' : d.state.current === 'interrupted' ? 'Download ZIP' : dl.textContent;
+    dl.disabled = d.state.current !== 'interrupted';
+    $('update-show').hidden = !done;
+  });
+  onUpdateStateChanged((s) => !checking && renderUpdates(s));
+}
+
 // ---------------- init ----------------
 initTheme((choice) => renderThemeControl(choice));
 
@@ -356,6 +471,9 @@ async function init() {
   renderThemeControl(settings['ui.theme']);
   render();
   wireActions();
+  wireUpdates();
+  renderUpdates(await loadUpdateState());
+  if (location.hash === '#update') $('update').scrollIntoView();
 
   const search = $<HTMLInputElement>('search');
   search.addEventListener('input', () => applySearch(search.value));

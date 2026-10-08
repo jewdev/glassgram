@@ -3,7 +3,9 @@ import { sectionIcon } from '../shared/icons';
 import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
 import type { Message } from '../shared/messages';
 import { loadSettings, saveSettings } from '../shared/settings';
+import { renderReleaseNotes } from '../shared/release-notes';
 import { SECTIONS, type SettingKey, type Settings } from '../shared/settings-schema';
+import { availableUpdate, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, type UpdateState } from '../shared/updates';
 
 const $ = (id: string) => document.getElementById(id)!;
 const IG_URL = 'https://www.instagram.com/';
@@ -83,6 +85,28 @@ async function init() {
   };
   tool('unfollowers', settings['account.unfollowers'], { type: 'openUnfollowers' });
   tool('unsent', settings['dm.keepUnsent'], { type: 'openUnsent' });
+
+  renderUpdate(await loadUpdateState());
+  onUpdateStateChanged(renderUpdate);
+}
+
+// ---------------- update banner ----------------
+const CURRENT_VERSION = chrome.runtime.getManifest().version;
+
+/** Shows the newest release with the notes of every version since the installed one. */
+function renderUpdate(state: UpdateState) {
+  const box = $('update');
+  const update = availableUpdate(state, CURRENT_VERSION);
+  box.hidden = !update;
+  if (!update) return;
+  $('update-title').textContent = `Version ${update.version} is available`;
+  $('update-sub').textContent = `You have ${CURRENT_VERSION}`;
+  $('update-notes').replaceChildren(renderReleaseNotes(newerThan(state.releases, CURRENT_VERSION)));
+  $('update-get').onclick = () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('src/options/index.html#update') });
+    window.close();
+  };
+  $('update-skip').onclick = () => patchUpdateState({ skipped: update.version });
 }
 
 init();

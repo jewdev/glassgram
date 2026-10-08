@@ -2,6 +2,8 @@
 
 Requires Node.js 20 or later. See the [README](../README.md#install) for loading `dist/` in the browser. Releases are built by `.github/workflows/release.yml` when you push a tag matching the `package.json` version (e.g. `git tag v1.0.0 && git push origin v1.0.0`).
 
+Release notes come from the Conventional Commit subjects since the previous tag (`scripts/release-notes.mjs`): `feat` goes under **New**, `fix` under **Fixes**, `perf` under **Improvements**, and `!` or `BREAKING CHANGE:` under **Breaking changes**. Other types are left out. The extension shows these notes to users in its update cards, so write subjects for them. Preview with `git tag vX.Y.Z && node scripts/release-notes.mjs vX.Y.Z`.
+
 ```sh
 npm run dev        # dev build with hot reload (load dist/ the same way)
 npm run build      # typecheck and production build into dist/

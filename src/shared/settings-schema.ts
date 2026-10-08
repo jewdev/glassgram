@@ -5,6 +5,8 @@
 export const DEFAULTS = {
   // Appearance of the extension's own pages (settings, popup)
   'ui.theme': 'system' as 'system' | 'light' | 'dark',
+  // Look for new releases on GitHub twice a day (set from the settings sidebar)
+  'updates.check': true,
 
   // Media downloads
   'download.enabled': true,
