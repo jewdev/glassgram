@@ -95,7 +95,7 @@ type Base<K extends SettingKey> = {
   /** Shown in the popup as a quick toggle. */
   quick?: boolean;
   /** Status the user should know before turning it on. */
-  badge?: 'experimental' | 'untested' | 'risky';
+  badge?: 'experimental' | 'untested' | 'risky' | 'account';
 };
 
 export type SettingDef =
@@ -313,14 +313,16 @@ export const SECTIONS: Section[] = [
         label: 'Anonymous story viewing',
         desc: "Blocks the \"seen\" request, so you don't appear in a story's viewer list.",
         quick: true,
+        badge: 'account',
+        warning: "Instagram can see that you load stories without ever marking them seen. That mismatch may get your account flagged or sent to a verification check.",
       },
       {
         type: 'toggle',
         key: 'privacy.anonLive',
         label: 'Anonymous live viewing',
         desc: "Watch live videos without joining the viewer list. The viewer count still updates.",
-        badge: 'untested',
-        warning: "Not tested yet: this hasn't been confirmed to work. Check with a friend before relying on it.",
+        badge: 'account',
+        warning: "Replaces the live heartbeat with repeated info lookups, a pattern no official client makes. Highest flag risk of the privacy tools. Also not tested yet: check with a friend before relying on it.",
       },
       {
         type: 'toggle',
@@ -333,6 +335,8 @@ export const SECTIONS: Section[] = [
         key: 'privacy.dmHideSeen',
         label: 'Hide "Seen" in messages',
         desc: "Opening a chat doesn't mark it as read for the other person. Sending still works.",
+        badge: 'account',
+        warning: "Instagram can see you read messages without ever sending a read receipt. That mismatch may get your account flagged or sent to a verification check.",
       },
       {
         type: 'toggle',

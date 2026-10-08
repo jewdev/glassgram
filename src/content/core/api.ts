@@ -36,8 +36,38 @@ export function jitter(minS: number, maxS: number): Promise<void> {
   return sleep((lo + Math.random() * (hi - lo)) * 1000);
 }
 
+// ---------- rate-limit cooldown ----------
+// When Instagram signals a rate limit we stop calling it entirely for a while instead of retrying.
+// Shared across tabs and reloads through extension storage.
+const COOLDOWN_KEY = 'ige.rateLimitedUntil';
+const COOLDOWN_MS = 30 * 60 * 1000;
+const RATE_LIMIT_MSG = 'Instagram is rate-limiting requests. Glassgram paused its own requests for 30 minutes.';
+let cooldownUntil = 0;
+const cooldownLoaded = chrome.storage.local
+  .get(COOLDOWN_KEY)
+  .then((r) => (cooldownUntil = Math.max(cooldownUntil, Number(r[COOLDOWN_KEY]) || 0)))
+  .catch(() => 0);
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && COOLDOWN_KEY in changes) cooldownUntil = Number(changes[COOLDOWN_KEY].newValue) || 0;
+});
+
+function startCooldown() {
+  cooldownUntil = Date.now() + COOLDOWN_MS;
+  chrome.storage.local.set({ [COOLDOWN_KEY]: cooldownUntil }).catch(() => {});
+}
+
+/** Throws while a rate-limit cooldown is active, without touching the network. */
+async function assertNotCoolingDown() {
+  await cooldownLoaded;
+  if (Date.now() < cooldownUntil) {
+    const mins = Math.ceil((cooldownUntil - Date.now()) / 60000);
+    throw new ApiError(`Instagram rate-limited Glassgram recently. Its requests are paused for ${mins} more min.`, 429, true);
+  }
+}
+
 /** Same-origin GET against instagram.com — session cookies are sent automatically. */
-export async function igGet<T>(path: string, retries = 2): Promise<T> {
+export async function igGet<T>(path: string): Promise<T> {
+  await assertNotCoolingDown();
   const res = await fetch(path, {
     credentials: 'include',
     headers: {
@@ -47,13 +77,11 @@ export async function igGet<T>(path: string, retries = 2): Promise<T> {
       Accept: 'application/json',
     },
   });
-  if (res.status === 429 || res.status === 401) {
-    if (retries > 0 && res.status === 429) {
-      await sleep(5000 * (3 - retries));
-      return igGet(path, retries - 1);
-    }
-    throw new ApiError('Instagram is rate-limiting requests. Wait a few minutes and try again.', res.status, true);
+  if (res.status === 429) {
+    startCooldown();
+    throw new ApiError(RATE_LIMIT_MSG, 429, true);
   }
+  if (res.status === 401) throw new ApiError('Instagram refused the request. Make sure you are logged in.', 401, true);
   const text = await res.text();
   let json: any;
   try {
@@ -64,6 +92,7 @@ export async function igGet<T>(path: string, retries = 2): Promise<T> {
   if (!res.ok || json.status === 'fail') {
     const msg: string = json.message ?? `Request failed (${res.status})`;
     const limited = /wait|checkpoint|feedback_required|limit/i.test(msg);
+    if (limited) startCooldown();
     throw new ApiError(limited ? `Instagram blocked the request: ${msg}` : msg, res.status, limited);
   }
   return json as T;
@@ -180,11 +209,16 @@ export async function getFriendshipDetails(username: string): Promise<Friendship
 /** Profile info via Instagram's own profile query (falls back to REST). */
 export async function getProfileSummary(username: string): Promise<ProfileSummary> {
   const id = await getUserId(username);
+  await assertNotCoolingDown();
   try {
     const u = await bridge<{ media_count?: number; is_private?: boolean; hd_profile_pic_url_info?: HdPic } | null>('profileInfo', { id });
     if (u) return { id, username, mediaCount: u.media_count, isPrivate: u.is_private, hd: u.hd_profile_pic_url_info };
-  } catch {
-    /* no template yet or blocked — use REST */
+  } catch (e) {
+    if ((e as Error).message === 'RATE_LIMITED') {
+      startCooldown();
+      throw new ApiError(RATE_LIMIT_MSG, 429, true);
+    }
+    /* no template yet — use REST */
   }
   const info = await igGet<{ user: { media_count?: number; is_private?: boolean; hd_profile_pic_url_info?: HdPic } }>(`/api/v1/users/${id}/info/`);
   return { id, username, mediaCount: info.user.media_count, isPrivate: info.user.is_private, hd: info.user.hd_profile_pic_url_info };
@@ -235,13 +269,17 @@ export async function getReelItems(reelId: string): Promise<ResolvedPost[]> {
 // ---------- paginated feeds ----------
 /** One page of a profile's posts, using Instagram's own profile-grid query. */
 export async function getUserFeedPage(username: string, cursor?: string) {
+  await assertNotCoolingDown();
   try {
     const page = await bridge<{ items: ApiMedia[]; next: string | null }>('profilePosts', { username, after: cursor ?? null }, 30000);
     return { posts: page.items.map(normalizeMedia), next: page.next ?? undefined };
   } catch (e) {
     const msg = (e as Error).message;
     if (msg.startsWith('NO_TEMPLATE')) throw new ApiError('Reload this profile page once, then try again (Instagram request format not captured yet).', 0);
-    if (msg === 'RATE_LIMITED') throw new ApiError('Instagram is rate-limiting requests. Wait a few minutes and try again.', 429, true);
+    if (msg === 'RATE_LIMITED') {
+      startCooldown();
+      throw new ApiError(RATE_LIMIT_MSG, 429, true);
+    }
     throw new ApiError(msg, 0);
   }
 }

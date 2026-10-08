@@ -7,7 +7,7 @@ import { DEFAULTS, SECTIONS, type Section, type SectionIcon, type SettingDef, ty
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const BADGE_TEXT = { experimental: 'Experimental', untested: 'Not tested yet', risky: 'Rate-limit risk' } as const;
+const BADGE_TEXT = { experimental: 'Experimental', untested: 'Not tested yet', risky: 'Rate-limit risk', account: 'Account risk' } as const;
 const HALVES = [
   { id: 'everyday', title: 'Everyday' },
   { id: 'power', title: 'Power tools' },
