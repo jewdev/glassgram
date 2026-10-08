@@ -1,6 +1,7 @@
 import type { ResolvedPost } from '../../shared/types';
 import { normalizeMedia, type ApiMedia } from './media';
 import { bridge, bridgeSafe } from './bridge';
+import { isRateLimited } from './rate-limit';
 import { shortcodeToPk } from './shortcode';
 import { extractStoryExtras } from './story-extras';
 
@@ -91,7 +92,7 @@ export async function igGet<T>(path: string): Promise<T> {
   }
   if (!res.ok || json.status === 'fail') {
     const msg: string = json.message ?? `Request failed (${res.status})`;
-    const limited = /wait|checkpoint|feedback_required|limit/i.test(msg);
+    const limited = isRateLimited(json);
     if (limited) startCooldown();
     throw new ApiError(limited ? `Instagram blocked the request: ${msg}` : msg, res.status, limited);
   }
