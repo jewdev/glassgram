@@ -5,9 +5,16 @@ import { h, icon, ICONS, uiLayer } from '../ui/dom';
 import type { Feature } from './types';
 
 const VOLUME_KEY = 'video.volume';
+const MUTED_KEY = 'video.muted';
 const SPEEDS = ['0.5', '0.75', '1', '1.25', '1.5', '1.75', '2', '3'];
+/** Instagram re-mutes a video shortly after it starts; undo that within this window. */
+const ENFORCE_MS = 1500;
 
+/** Last audible level (never 0), so unmuting goes back to it. */
 let savedVolume: number | undefined;
+/** Whether the user left videos muted (volume button or slider at 0). Unset until they choose. */
+let savedMuted: boolean | undefined;
+const playedAt = new WeakMap<HTMLVideoElement, number>();
 /** Videos whose speed the user changed manually — don't override them on play. */
 const manualSpeed = new WeakSet<HTMLVideoElement>();
 const manualLoop = new WeakSet<HTMLVideoElement>();
@@ -29,17 +36,48 @@ function applyDefaults(v: HTMLVideoElement) {
   const s = getSettings();
   if (!manualSpeed.has(v)) v.playbackRate = Number(s['video.speed']) || 1;
   if (!manualLoop.has(v)) v.loop = onStoryRoute() ? false : s['video.loop'];
-  if (s['video.rememberVolume'] && savedVolume !== undefined && Math.abs(v.volume - savedVolume) > 0.01) v.volume = savedVolume;
+  if (s['video.rememberVolume']) applyVolume(v);
+}
+
+function applyVolume(v: HTMLVideoElement) {
+  if (savedVolume !== undefined && Math.abs(v.volume - savedVolume) > 0.01) v.volume = savedVolume;
+  if (savedMuted === undefined || v.muted === savedMuted) return;
+  // Browsers pause a video unmuted before the user has interacted with the page; leave it muted then.
+  if (!savedMuted && !navigator.userActivation?.hasBeenActive) return;
+  v.muted = savedMuted;
 }
 
 export const videoControls: Feature = {
   id: 'video-controls',
   isEnabled: (s) => s['video.enabled'],
   start() {
-    chrome.storage.local.get(VOLUME_KEY).then((r) => (savedVolume = r[VOLUME_KEY] as number | undefined));
+    // Videos already on the page played before the saved volume loaded, so apply it once it arrives.
+    chrome.storage.local.get([VOLUME_KEY, MUTED_KEY]).then((r) => {
+      savedVolume = r[VOLUME_KEY] as number | undefined;
+      savedMuted = r[MUTED_KEY] as boolean | undefined;
+      document.querySelectorAll('video').forEach(applyDefaults);
+    });
+    // Keep other tabs in step with the volume picked here.
+    const onStorage = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area !== 'local') return;
+      if (VOLUME_KEY in changes) savedVolume = changes[VOLUME_KEY].newValue as number | undefined;
+      if (MUTED_KEY in changes) savedMuted = changes[MUTED_KEY].newValue as boolean | undefined;
+    };
+    chrome.storage.onChanged.addListener(onStorage);
 
-    const onPlay = (e: Event) => e.target instanceof HTMLVideoElement && applyDefaults(e.target);
+    const onPlay = (e: Event) => {
+      if (!(e.target instanceof HTMLVideoElement)) return;
+      playedAt.set(e.target, performance.now());
+      applyDefaults(e.target);
+    };
     document.addEventListener('play', onPlay, true);
+    // Instagram sets its own mute state right after a video starts; put the remembered one back.
+    const onVolume = (e: Event) => {
+      const v = e.target;
+      if (!(v instanceof HTMLVideoElement) || !getSettings()['video.rememberVolume']) return;
+      if (performance.now() - (playedAt.get(v) ?? -Infinity) < ENFORCE_MS) applyVolume(v);
+    };
+    document.addEventListener('volumechange', onVolume, true);
     document.querySelectorAll('video').forEach(applyDefaults);
 
     let video: HTMLVideoElement | null = null;
@@ -98,20 +136,26 @@ export const videoControls: Feature = {
       manualSpeed.add(video);
       video.playbackRate = Number(speed.value);
     });
-    const saveVolume = (v: number) => {
-      savedVolume = v;
-      if (getSettings()['video.rememberVolume']) chrome.storage.local.set({ [VOLUME_KEY]: v });
+    const saveVolume = (muted: boolean, level?: number) => {
+      savedMuted = muted;
+      if (level !== undefined) savedVolume = level;
+      if (!getSettings()['video.rememberVolume']) return;
+      const items: Record<string, unknown> = { [MUTED_KEY]: muted };
+      if (level !== undefined) items[VOLUME_KEY] = level;
+      chrome.storage.local.set(items);
     };
     muteBtn.addEventListener('click', () => {
       if (!video) return;
       video.muted = !video.muted;
       if (!video.muted && video.volume === 0) video.volume = savedVolume || 0.5;
+      saveVolume(video.muted);
     });
     vol.addEventListener('input', () => {
       if (!video) return;
       video.volume = Number(vol.value);
       video.muted = video.volume === 0;
-      saveVolume(video.volume);
+      // 0 is remembered as "muted"; the level stays at the last audible one so unmuting restores it.
+      saveVolume(video.muted, video.muted ? undefined : video.volume);
     });
     loopBtn.addEventListener('click', () => {
       if (!video) return;
@@ -137,7 +181,9 @@ export const videoControls: Feature = {
     return () => {
       off();
       bind(null);
+      chrome.storage.onChanged.removeListener(onStorage);
       document.removeEventListener('play', onPlay, true);
+      document.removeEventListener('volumechange', onVolume, true);
       bar.remove();
     };
   },
