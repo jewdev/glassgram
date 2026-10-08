@@ -1,4 +1,5 @@
 import { onHover } from '../core/hover';
+import { currentRoute } from '../core/router';
 import { getSettings } from '../core/state';
 import { h, icon, ICONS, uiLayer } from '../ui/dom';
 import type { Feature } from './types';
@@ -18,10 +19,16 @@ function fmt(t: number) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/** Stories advance when their video ends, so a looping story video would replay forever. */
+function onStoryRoute() {
+  const k = currentRoute().kind;
+  return k === 'stories' || k === 'highlight';
+}
+
 function applyDefaults(v: HTMLVideoElement) {
   const s = getSettings();
   if (!manualSpeed.has(v)) v.playbackRate = Number(s['video.speed']) || 1;
-  if (!manualLoop.has(v)) v.loop = s['video.loop'];
+  if (!manualLoop.has(v)) v.loop = onStoryRoute() ? false : s['video.loop'];
   if (s['video.rememberVolume'] && savedVolume !== undefined && Math.abs(v.volume - savedVolume) > 0.01) v.volume = savedVolume;
 }
 
