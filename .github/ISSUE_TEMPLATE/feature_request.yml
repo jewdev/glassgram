@@ -1,0 +1,37 @@
+name: ✨ Feature request
+description: Suggest something Glassgram could add or do better.
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Not sure it's a good fit yet? Start a thread in [Ideas](https://github.com/jewdev/glassgram/discussions/categories/ideas) first.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the problem or the thing Instagram's website makes hard.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: How should Glassgram handle it? Mockups or examples from other tools are welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Optional. Workarounds you use today, or other ways it could work.
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to work on this myself.

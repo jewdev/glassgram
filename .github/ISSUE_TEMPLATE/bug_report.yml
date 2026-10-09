@@ -1,0 +1,83 @@
+name: 🐞 Bug report
+description: Something in Glassgram is broken or stopped working.
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Glassgram relies on Instagram's private web API, so things can break when Instagram changes its site. The details below help pin down what changed.
+
+        **Don't paste cookies, session IDs or private messages.** Blur usernames in screenshots if you'd rather not share them.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature
+      description: Which part of Glassgram is affected?
+      options:
+        - Downloads (hover toolbar, bulk, ZIP, right-click)
+        - Profiles and stories (HD picture, mentions, follow badge, unfollowers)
+        - Feed and video (declutter, video controls)
+        - Privacy and links (clean links, anonymous stories, seen/typing)
+        - Direct messages (voice messages, unsent messages)
+        - Settings page or popup
+        - Update check
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Which page were you on (feed, profile, reel, story, DMs) and what did you click or press?
+      placeholder: |
+        1. Open a profile
+        2. Hover a carousel post
+        3. Click "Download all"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Glassgram version
+      description: Shown in the settings sidebar, or on the extension's card in `chrome://extensions`.
+      placeholder: "1.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: "Brave 1.70 on Windows 11"
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Optional. Press F12 on Instagram, open the Console tab, and paste any red errors mentioning Glassgram.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I'm on the latest release.
+          required: true
+        - label: I reloaded the Instagram tab after installing or updating.
+          required: true
+        - label: I searched existing issues for this problem.
+          required: true

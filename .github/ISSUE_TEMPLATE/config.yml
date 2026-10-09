@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Question or help installing
+    url: https://github.com/jewdev/glassgram/discussions/categories/q-a
+    about: Ask in Q&A. Install steps are also in the README.
+  - name: 💡 Idea or open-ended suggestion
+    url: https://github.com/jewdev/glassgram/discussions/categories/ideas
+    about: Talk it through before it becomes a feature request.
