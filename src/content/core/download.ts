@@ -11,6 +11,13 @@ export function jobsForPost(post: ResolvedPost, indices?: number[]): DownloadJob
     .map((i) => ({ url: post.items[i].url, filename: filenameFor(tpl, post, post.items[i], i) }));
 }
 
+/** `<root>/<path>`, where root is the first folder of the filename template (e.g. Glassgram/DMs/x.m4a). */
+export function inRootFolder(path: string): string {
+  const tpl = getSettings()['download.filename'];
+  const root = tpl.includes('/') ? tpl.split('/')[0] : '';
+  return `${root ? `${root}/` : ''}${path}`;
+}
+
 /** Zip path = folder of the first file + `<name>.zip`. */
 export function zipNameFor(jobs: DownloadJob[], name: string): string {
   const first = jobs[0]?.filename ?? '';

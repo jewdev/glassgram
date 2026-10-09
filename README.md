@@ -84,7 +84,7 @@ press reload on the extension's card.
 ### ⬇️ Downloads
 
 - **Hover toolbar** on posts, reels and stories: download one or all, copy media URL or caption. Always the highest resolution.
-- **Filename templates** with folders, e.g. `Instagram/{user}/{user}_{date}_{shortcode}_{index}`.
+- **Filename templates** with folders, e.g. `Glassgram/{user}/{user}_{date}_{shortcode}_{index}`.
 - **ZIP or separate files** for carousels and story trays.
 - **Bulk profile download** of the latest N posts. Off by default.
 - **Right-click download** and **voice message download** in chats.

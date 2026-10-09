@@ -1,9 +1,9 @@
 import { send, type DownloadResult } from '../../shared/messages';
+import { inRootFolder } from '../core/download';
 import { renderFilename } from '../core/filename';
 import { extFromUrl } from '../core/media';
 import { onDomChange } from '../core/observer';
 import { isCommentGif } from '../core/selectors';
-import { getSettings } from '../core/state';
 import { toast } from '../ui/toast';
 import { actionLineItem, makeCommentAction } from './copy-comment';
 import type { Feature } from './types';
@@ -34,13 +34,11 @@ function commenter(row: Element): string {
   return 'unknown';
 }
 
-/** e.g. Instagram/Comments/someone_gif_2026-10-06_14-03-12.gif — same root folder as the filename template. */
+/** e.g. Glassgram/Comments/someone_gif_2026-10-06_14-03-12.gif — same root folder as the filename template. */
 function mediaFilename(user: string, url: string): string {
   const now = Date.now() / 1000;
   const name = renderFilename('{user}_gif_{date}_{time}', { user, shortcode: '', index: 1, id: '', takenAt: now, type: 'gif' }, extFromUrl(url, 'gif'));
-  const tpl = getSettings()['download.filename'];
-  const root = tpl.includes('/') ? tpl.split('/')[0] : '';
-  return `${root ? `${root}/` : ''}Comments/${name}`;
+  return inRootFolder(`Comments/${name}`);
 }
 
 async function save(img: HTMLImageElement, row: Element) {

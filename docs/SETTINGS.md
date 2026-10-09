@@ -11,7 +11,7 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | "Download all" for carousels | On | Shown when a post has several items |
 | "Copy media URL" button | On | |
 | "Copy caption" button | On | |
-| Filename template | `Instagram/{user}/{user}_{date}_{shortcode}_{index}` | Tokens: `{user}` `{shortcode}` `{index}` `{id}` `{date}` `{time}` `{type}` |
+| Filename template | `Glassgram/{user}/{user}_{date}_{shortcode}_{index}` | Tokens: `{user}` `{shortcode}` `{index}` `{id}` `{date}` `{time}` `{type}` |
 | Saving several files | ZIP | One ZIP, or separate files in a folder |
 
 </details>

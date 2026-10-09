@@ -13,7 +13,7 @@ export const DEFAULTS = {
   'download.showAll': true,
   'download.copyUrl': true,
   'download.copyCaption': true,
-  'download.filename': 'Instagram/{user}/{user}_{date}_{shortcode}_{index}',
+  'download.filename': 'Glassgram/{user}/{user}_{date}_{shortcode}_{index}',
   'download.mode': 'zip' as 'folder' | 'zip',
 
   // Stories

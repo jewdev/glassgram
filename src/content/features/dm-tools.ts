@@ -1,6 +1,6 @@
 import { send, type DownloadResult } from '../../shared/messages';
+import { inRootFolder } from '../core/download';
 import { renderFilename } from '../core/filename';
-import { getSettings } from '../core/state';
 import { onDomChange } from '../core/observer';
 import { h, icon, ICONS } from '../ui/dom';
 import { toast } from '../ui/toast';
@@ -33,12 +33,10 @@ export const dmPrivacy: Feature = {
   },
 };
 
-/** e.g. Instagram/DMs/voice_2026-10-05_1628169548894483.m4a — same root folder as the filename template. */
+/** e.g. Glassgram/DMs/voice_2026-10-05_1628169548894483.m4a — same root folder as the filename template. */
 function voiceFilename(attachmentId: string): string {
   const name = renderFilename('voice_{date}_{id}', { user: '', shortcode: '', index: 1, id: attachmentId || String(Date.now()), takenAt: Date.now() / 1000, type: 'audio' }, 'm4a');
-  const tpl = getSettings()['download.filename'];
-  const root = tpl.includes('/') ? tpl.split('/')[0] : '';
-  return `${root ? `${root}/` : ''}DMs/${name}`;
+  return inRootFolder(`DMs/${name}`);
 }
 
 const BTN_CLASS = 'ige-voice-dl';
