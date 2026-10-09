@@ -1,5 +1,8 @@
+import { send, type DownloadResult } from '../../shared/messages';
 import type { DmEvent, DmMessage } from '../../shared/slide';
 import { myUserId } from '../core/api';
+import { inRootFolder } from '../core/download';
+import { renderFilename } from '../core/filename';
 import { onDomChange } from '../core/observer';
 import { getSettings } from '../core/state';
 import { h, icon } from '../ui/dom';
@@ -200,6 +203,24 @@ function renderGhosts() {
 
 // ---------------- list panel ----------------
 
+/** Save the unsent list as readable JSON (newest first) to e.g. Glassgram/DMs/Unsent/unsent_2026-10-09_18-30-05.json. */
+async function saveToFile(items: ArchivedMessage[]) {
+  const messages = items.map((m) => ({
+    ...m,
+    from: m.username ? `@${m.username}` : m.name || null,
+    text: describeContent(m),
+    sent: new Date(m.ts).toISOString(),
+    unsent: new Date(m.unsentAt!).toISOString(),
+    chat: `https://www.instagram.com/direct/t/${m.thread}/`,
+  }));
+  const json = JSON.stringify({ savedAt: new Date().toISOString(), count: messages.length, messages }, null, 2);
+  // A data URL so the background can save it through chrome.downloads, which is what makes the folders.
+  const url = `data:application/json;charset=utf-8,${encodeURIComponent(json)}`;
+  const name = renderFilename('unsent_{date}_{time}', { user: '', shortcode: '', index: 1, id: '', takenAt: Date.now() / 1000, type: 'json' }, 'json');
+  const res = await send<DownloadResult>({ type: 'download', jobs: [{ url, filename: inRootFolder(`DMs/Unsent/${name}`) }] });
+  toast(res?.ok ? 'Saving unsent messages' : 'Saving failed', res?.ok ? 'success' : 'error');
+}
+
 /** Panel listing every message that was unsent while Instagram was open. */
 export async function openUnsentMessages() {
   const m = openModal('Unsent messages', { width: 520 });
@@ -238,6 +259,20 @@ export async function openUnsentMessages() {
   render();
 
   m.footer.append(
+    h('span', { class: 'ige-muted ige-dmu__hint' }, 'Saved in this browser. Use Save to file to keep a copy.'),
+    h(
+      'button',
+      {
+        class: 'ige-btn ige-btn--ghost',
+        type: 'button',
+        onClick: () => {
+          const items = list();
+          if (items.length) saveToFile(items);
+          else toast('Nothing to save yet', 'info');
+        },
+      },
+      'Save to file',
+    ),
     h(
       'button',
       {

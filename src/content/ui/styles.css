@@ -301,6 +301,7 @@ html[data-ige-theme='dark'] .ige-sd__link { color: #6cb6ff; }
 .ige-dmu__head a:hover { text-decoration: underline; }
 .ige-dmu__text { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .ige-dmu__time { font-size: 12px; }
+.ige-dmu__hint { margin-right: auto; align-self: center; font-size: 12px; }
 .ige-fs__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 14px; }
 .ige-fs__on { color: var(--ige-accent); font-weight: 600; }
 .ige-pill { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: var(--ige-warn-bg); color: var(--ige-warn-fg); font-size: 12px; font-weight: 600; }

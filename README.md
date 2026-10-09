@@ -88,7 +88,7 @@ press reload on the extension's card.
 - **ZIP or separate files** for carousels and story trays.
 - **Bulk profile download** of the latest N posts. Off by default.
 - **Right-click download** and **voice message download** in chats.
-- **Keep unsent messages**: when someone unsends a message, it stays visible with an unsent mark. Off by default.
+- **Keep unsent messages**: when someone unsends a message, it stays visible with an unsent mark, and the list can be saved to a file. Off by default.
 
 ### 👤 Profiles and stories
 
