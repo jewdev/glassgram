@@ -13,7 +13,7 @@ export default defineManifest({
   options_ui: { page: 'src/options/index.html', open_in_tab: true },
   background: { service_worker: 'src/background/index.ts', type: 'module' },
   permissions: ['downloads', 'storage', 'contextMenus', 'offscreen', 'declarativeNetRequest', 'unlimitedStorage', 'alarms'],
-  host_permissions: ['https://*.instagram.com/*', 'https://*.cdninstagram.com/*', 'https://*.fbcdn.net/*', 'https://api.github.com/*'],
+  host_permissions: ['https://*.instagram.com/*', 'https://*.cdninstagram.com/*', 'https://*.fbcdn.net/*', 'https://api.github.com/*', 'https://github.com/*', 'https://release-assets.githubusercontent.com/*', 'https://objects.githubusercontent.com/*'],
   content_scripts: [
     { matches: IG, js: ['src/inject/main-world.ts'], run_at: 'document_start', world: 'MAIN' },
     { matches: IG, js: ['src/content/index.ts'], run_at: 'document_start' },

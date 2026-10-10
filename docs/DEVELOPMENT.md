@@ -4,6 +4,8 @@ Requires Node.js 20 or later. See the [README](../README.md#install) for loading
 
 Release notes come from the Conventional Commit subjects since the previous tag (`scripts/release-notes.mjs`): `feat` goes under **New**, `fix` under **Fixes**, `perf` under **Improvements**, and `!` or `BREAKING CHANGE:` under **Breaking changes**. Other types are left out. The extension shows these notes to users in its update cards, so write subjects for them. Preview with `git tag vX.Y.Z && node scripts/release-notes.mjs vX.Y.Z`.
 
+**Update now** (`src/options/self-update.ts`) installs the release's `.zip` asset only if GitHub lists a `sha256:` digest for it, the ZIP has `manifest.json` at its root, and that manifest's name and version match the release. Keep the workflow's `cd dist && zip -r` layout. Each update removes the old build's leftover files under `assets/` and nothing else.
+
 ```sh
 npm run dev        # dev build with hot reload (load dist/ the same way)
 npm run build      # typecheck and production build into dist/

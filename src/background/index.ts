@@ -2,7 +2,7 @@ import type { DownloadResult, Message } from '../shared/messages';
 import { loadSettings, onSettingsChanged } from '../shared/settings';
 import type { Settings } from '../shared/settings-schema';
 import type { DownloadJob } from '../shared/types';
-import { availableUpdate, loadUpdateState, onUpdateStateChanged, parseReleases, patchUpdateState, RELEASES_API, type UpdateState } from '../shared/updates';
+import { availableUpdate, compareVersions, loadUpdateState, onUpdateStateChanged, parseReleases, patchUpdateState, RELEASES_API, type UpdateState } from '../shared/updates';
 
 // ---------------- download queue ----------------
 const MAX_CONCURRENT = 3;
@@ -275,6 +275,19 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await patchUpdateState({ updatedFrom: details.previousVersion, skipped: undefined });
     checkForUpdates(); // fetch notes for the version just installed
   }
+  if (details.reason === 'update') await confirmOneClickInstall();
 });
+
+/** After "Update now" reloads the extension: reopen settings on the result, or say why it didn't take. */
+async function confirmOneClickInstall() {
+  const { installing } = await loadUpdateState();
+  if (!installing) return;
+  const ok = compareVersions(CURRENT_VERSION, installing) >= 0;
+  await patchUpdateState({
+    installing: undefined,
+    installError: ok ? undefined : `Glassgram reloaded but is still on ${CURRENT_VERSION}. The folder you picked may not be the one it's loaded from. Use another folder and try again.`,
+  });
+  chrome.runtime.openOptionsPage();
+}
 chrome.runtime.onStartup.addListener(async () => applySettings(await loadSettings()));
 onSettingsChanged(applySettings);

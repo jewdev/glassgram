@@ -226,6 +226,15 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 .update-card__btns .pill-btn { flex: none; }
 .update-card__hint { margin: 0; color: var(--ink-3); font-size: 12.5px; }
 .update-card__hint code { padding: 0 4px; border-radius: 5px; background: var(--fill); font: 12px ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace; }
+.update-card__oneclick { display: flex; flex-direction: column; gap: 8px; }
+.update-card__oneclick .update-card__hint.is-error { color: var(--risk); }
+.update-card__folder { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 16px; background: var(--fill); font-size: 13.5px; line-height: 1.45; }
+.update-card__folder p { margin: 0; }
+.update-card__folder code { padding: 0 4px; border-radius: 5px; background: var(--fill); font: 12.5px ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace; }
+.update-card__manual { display: flex; flex-direction: column; gap: 10px; }
+.update-card__manual > summary { width: fit-content; color: var(--ink-2); font-size: 13px; cursor: pointer; }
+.update-card__manual > summary:hover { color: var(--ink); }
+.update-card__manual[open] > summary { margin-bottom: 10px; }
 .update-card__foot { display: flex; justify-content: flex-end; margin-top: -6px; }
 .update-card__foot .pill-btn { flex: none; }
 

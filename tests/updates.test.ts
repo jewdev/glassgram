@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { availableUpdate, between, compareVersions, newerThan, parseNotes, parseReleases, type Release } from '../src/shared/updates';
+import { availableUpdate, between, checkBundle, compareVersions, newerThan, parseNotes, parseReleases, safeZipPath, staleAssets, type Release } from '../src/shared/updates';
 
 const rel = (version: string): Release => ({ version, name: `v${version}`, notes: '', url: '', publishedAt: '' });
 
@@ -21,6 +21,16 @@ describe('parseReleases', () => {
     ]);
     expect(out.map((r) => r.version)).toEqual(['1.2.0', '1.0.0']);
     expect(out[0].zipUrl).toBe('zip');
+  });
+
+  it('reads the ZIP digest only when it is a SHA-256', () => {
+    const sha = 'AB'.repeat(32);
+    const out = parseReleases([
+      { tag_name: 'v2.0.0', html_url: 'u', draft: false, prerelease: false, assets: [{ name: 'glassgram.zip', browser_download_url: 'zip', digest: `sha256:${sha}` }] },
+      { tag_name: 'v1.0.0', html_url: 'u', draft: false, prerelease: false, assets: [{ name: 'glassgram.zip', browser_download_url: 'zip', digest: 'md5:abc' }] },
+    ]);
+    expect(out[0].zipSha256).toBe(sha.toLowerCase());
+    expect(out[1].zipSha256).toBeUndefined();
   });
 
   it('ignores a non-array response', () => {
@@ -70,5 +80,28 @@ describe('parseNotes', () => {
 
   it('never turns non-https links into anchors', () => {
     expect(parseNotes('[x](javascript:alert(1))')[0]).toEqual({ kind: 'para', parts: [{ text: '[x](javascript:alert(1))' }] });
+  });
+});
+
+describe('one-click install', () => {
+  const enc = (o: unknown) => new TextEncoder().encode(JSON.stringify(o));
+  const bundle = (m: unknown) => new Map([['manifest.json', enc(m)]]);
+
+  it('keeps paths inside the extension folder', () => {
+    expect(safeZipPath('assets/index-abc.js')).toBe('assets/index-abc.js');
+    expect(safeZipPath('manifest.json')).toBe('manifest.json');
+    for (const bad of ['../evil.js', 'a/../../b', '/etc/x', 'C:/x', 'a\\b', 'a//b', './a', 'dir/', '']) expect(safeZipPath(bad)).toBeNull();
+  });
+
+  it('accepts only a Glassgram build of the expected version', () => {
+    expect(checkBundle(bundle({ name: 'Glassgram', manifest_version: 3, version: '1.2.0' }), 'Glassgram', '1.2.0')).toBeUndefined();
+    expect(checkBundle(bundle({ name: 'Other', manifest_version: 3, version: '1.2.0' }), 'Glassgram', '1.2.0')).toMatch(/isn't a Glassgram/);
+    expect(checkBundle(bundle({ name: 'Glassgram', manifest_version: 3, version: '1.1.0' }), 'Glassgram', '1.2.0')).toMatch(/1\.1\.0/);
+    expect(checkBundle(new Map(), 'Glassgram', '1.2.0')).toMatch(/no manifest/);
+    expect(checkBundle(new Map([['manifest.json', new Uint8Array([123])]]), 'Glassgram', '1.2.0')).toMatch(/broken/);
+  });
+
+  it('removes only old build chunks', () => {
+    expect(staleAssets(['assets/old.js', 'assets/kept.js', 'icons/16.png', 'notes.txt'], ['assets/kept.js', 'manifest.json'])).toEqual(['assets/old.js']);
   });
 });

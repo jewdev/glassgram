@@ -54,9 +54,17 @@ Open Instagram and hover over a post. Pin Glassgram from the puzzle-piece menu t
 > deleting it disables Glassgram.
 
 **To update**, wait for the **NEW** badge on Glassgram's icon, or press **Check now** in the settings sidebar.
-The settings page shows what changed and walks you through it: download the ZIP, unzip it over the old
-folder, and press **Reload Glassgram**. You can also grab the ZIP from the
-[Releases](https://github.com/jewdev/glassgram/releases/latest) page yourself.
+The settings page shows what changed. Press **Update now**. The first time, Glassgram asks for the folder
+you picked with **Load unpacked**, because browsers don't tell extensions where they live. **Show me where
+it is** opens the page that lists the path, and picking the folder around it (like Downloads) works too.
+Glassgram refuses any folder without its own `manifest.json`. After that, it downloads the release, checks it matches the
+file published on GitHub, writes it into that folder and reloads itself. If writing fails, it puts the
+old files back.
+
+One-click updates are off by default in Brave. Turn on `brave://flags/#file-system-access-api` and
+restart Brave, or update by hand: download the ZIP, unzip it over the old folder, and press **Reload
+Glassgram**. You can also grab the ZIP from the [Releases](https://github.com/jewdev/glassgram/releases/latest)
+page yourself.
 
 Works in any Chromium browser with Manifest V3 (Brave, Chrome, Edge, Opera, Vivaldi) on Windows,
 macOS and Linux.
@@ -150,6 +158,7 @@ off **Check for updates automatically** in the settings sidebar to stop it. Sett
 | `alarms` | Checking for updates twice a day |
 | `instagram.com`, `cdninstagram.com`, `fbcdn.net` | Working on Instagram and loading its media |
 | `api.github.com` | Reading Glassgram's releases for the update check |
+| `github.com`, `release-assets.githubusercontent.com`, `objects.githubusercontent.com` | Downloading a release when you press **Update now** |
 
 </details>
 

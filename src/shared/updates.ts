@@ -12,6 +12,8 @@ export interface Release {
   notes: string;
   url: string;
   zipUrl?: string;
+  /** SHA-256 of the ZIP as hex, from GitHub's asset digest. One-click install needs it. */
+  zipSha256?: string;
   publishedAt: string;
 }
 
@@ -24,6 +26,10 @@ export interface UpdateState {
   skipped?: string;
   /** Set when the extension was updated, until the user dismisses the "What's new" card. */
   updatedFrom?: string;
+  /** Version a one-click install just wrote to disk, until the reload confirms it. */
+  installing?: string;
+  /** Why the last one-click install didn't take. */
+  installError?: string;
 }
 
 export const EMPTY_STATE: UpdateState = { releases: [] };
@@ -49,7 +55,7 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-type ApiAsset = { name: string; browser_download_url: string };
+type ApiAsset = { name: string; browser_download_url: string; digest?: string | null };
 type ApiRelease = { tag_name: string; name?: string | null; body?: string | null; html_url: string; draft: boolean; prerelease: boolean; published_at?: string | null; assets?: ApiAsset[] };
 
 /** GitHub's /releases response → published releases, newest version first. */
@@ -57,14 +63,18 @@ export function parseReleases(json: unknown): Release[] {
   if (!Array.isArray(json)) return [];
   return (json as ApiRelease[])
     .filter((r) => r && !r.draft && !r.prerelease && /^v?\d/.test(r.tag_name ?? ''))
-    .map((r) => ({
-      version: r.tag_name.replace(/^v/i, ''),
-      name: r.name || r.tag_name,
-      notes: r.body ?? '',
-      url: r.html_url,
-      zipUrl: r.assets?.find((a) => a.name.endsWith('.zip'))?.browser_download_url,
-      publishedAt: r.published_at ?? '',
-    }))
+    .map((r) => {
+      const zip = r.assets?.find((a) => a.name.endsWith('.zip'));
+      return {
+        version: r.tag_name.replace(/^v/i, ''),
+        name: r.name || r.tag_name,
+        notes: r.body ?? '',
+        url: r.html_url,
+        zipUrl: zip?.browser_download_url,
+        zipSha256: /^sha256:([0-9a-f]{64})$/i.exec(zip?.digest ?? '')?.[1].toLowerCase(),
+        publishedAt: r.published_at ?? '',
+      };
+    })
     .sort((a, b) => compareVersions(b.version, a.version));
 }
 
@@ -83,6 +93,38 @@ export function availableUpdate(state: UpdateState, current: string): Release | 
   const latest = newerThan(state.releases, current)[0];
   if (!latest || (state.skipped && compareVersions(latest.version, state.skipped) <= 0)) return undefined;
   return latest;
+}
+
+// ---------------- one-click install ----------------
+/**
+ * A ZIP entry name as a path inside the extension folder, or null for directories and anything that
+ * could escape it (absolute paths, drive letters, "..", backslashes).
+ */
+export function safeZipPath(name: string): string | null {
+  if (!name || name.endsWith('/') || name.startsWith('/') || /[\\:\0]/.test(name)) return null;
+  const segs = name.split('/');
+  return segs.every((s) => s && s !== '.' && s !== '..') ? name : null;
+}
+
+/** Why an unzipped release can't be installed over `name`, or undefined when it can. */
+export function checkBundle(files: Map<string, Uint8Array>, name: string, version: string): string | undefined {
+  const raw = files.get('manifest.json');
+  if (!raw) return 'The download has no manifest.json.';
+  let m: { name?: unknown; version?: unknown; manifest_version?: unknown };
+  try {
+    m = JSON.parse(new TextDecoder().decode(raw));
+  } catch {
+    return "The download's manifest.json is broken.";
+  }
+  if (m.name !== name || m.manifest_version !== 3) return "The download isn't a Glassgram build.";
+  if (m.version !== version) return `The download is version ${String(m.version)}, not ${version}.`;
+  return undefined;
+}
+
+/** Build chunks left over from the old version. Only hashed files under assets/ are ever removed. */
+export function staleAssets(existing: string[], incoming: Iterable<string>): string[] {
+  const keep = new Set(incoming);
+  return existing.filter((p) => p.startsWith('assets/') && !keep.has(p));
 }
 
 // ---------------- storage ----------------

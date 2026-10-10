@@ -87,21 +87,40 @@
             </div>
           </header>
           <div id="update-card-notes" class="update-card__notes"></div>
-          <ol class="update-card__steps">
-            <li>
-              <span>Download the new version.</span>
+          <div id="update-oneclick" class="update-card__oneclick">
+            <span class="update-card__btns">
+              <button id="update-install" class="pill-btn pill-btn--accent" type="button">Update now</button>
+              <button id="update-forget" class="pill-btn pill-btn--quiet" type="button" hidden>Use another folder</button>
+            </span>
+            <p id="update-install-note" class="update-card__hint" aria-live="polite"></p>
+            <div id="update-folder" class="update-card__folder" hidden>
+              <p><strong>First, show Glassgram its folder.</strong> Browsers don't tell extensions where they live, so you point to it once and Glassgram remembers it.</p>
+              <p>Pick the folder you chose with <strong>Load unpacked</strong> when you installed Glassgram, the one with <code>manifest.json</code> in it. Picking the folder around it, like Downloads, works too. Any other folder is refused, so nothing else gets touched.</p>
               <span class="update-card__btns">
-                <button id="update-download" class="pill-btn pill-btn--accent" type="button">Download ZIP</button>
-                <button id="update-show" class="pill-btn" type="button" hidden>Show in folder</button>
+                <button id="update-pick" class="pill-btn pill-btn--accent" type="button">Choose folder</button>
+                <button id="update-where" class="pill-btn" type="button">Show me where it is</button>
               </span>
-            </li>
-            <li><span>Unzip it into your Glassgram folder and replace the old files when asked.</span></li>
-            <li>
-              <span>Reload Glassgram to start the new version.</span>
-              <span class="update-card__btns"><button id="update-reload" class="pill-btn" type="button">Reload Glassgram</button></span>
-            </li>
-          </ol>
-          <p class="update-card__hint">Installed with Git? Run <code>git pull</code> and <code>npm run build</code> instead, then reload.</p>
+              <p class="update-card__hint">"Show me where it is" opens Glassgram in your browser's extension list. The path is next to <strong>Source</strong> or <strong>Loaded from</strong>.</p>
+            </div>
+          </div>
+          <details id="update-manual" class="update-card__manual">
+            <summary>Update by hand instead</summary>
+            <ol class="update-card__steps">
+              <li>
+                <span>Download the new version.</span>
+                <span class="update-card__btns">
+                  <button id="update-download" class="pill-btn" type="button">Download ZIP</button>
+                  <button id="update-show" class="pill-btn" type="button" hidden>Show in folder</button>
+                </span>
+              </li>
+              <li><span>Unzip it into your Glassgram folder and replace the old files when asked.</span></li>
+              <li>
+                <span>Reload Glassgram to start the new version.</span>
+                <span class="update-card__btns"><button id="update-reload" class="pill-btn" type="button">Reload Glassgram</button></span>
+              </li>
+            </ol>
+            <p class="update-card__hint">Installed with Git? Run <code>git pull</code> and <code>npm run build</code> instead, then reload.</p>
+          </details>
           <div class="update-card__foot">
             <button id="update-skip" class="pill-btn pill-btn--quiet" type="button">Skip this version</button>
           </div>

@@ -6,7 +6,8 @@ import { downloadRelease, renderReleaseNotes } from '../shared/release-notes';
 import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
 import { loadSettings, onSettingsChanged, resetSettings, sanitizeSettings, saveSettings } from '../shared/settings';
 import { SECTIONS, type Section, type SectionIcon, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
-import { availableUpdate, between, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, RELEASES_URL, type UpdateState } from '../shared/updates';
+import { availableUpdate, between, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, RELEASES_URL, type Release, type UpdateState } from '../shared/updates';
+import { canSelfUpdate, forgetFolder, isBrave, savedFolder, selfUpdate, showInstallFolder, UpdateError, type Step } from './self-update';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -365,7 +366,11 @@ function renderThemeControl(current: ThemeChoice) {
 // ---------------- updates ----------------
 const CURRENT_VERSION = chrome.runtime.getManifest().version;
 let checking = false;
+let installing = false;
+let folderAsked = false;
+const KEEP_OPEN = 'Keep this page open. Glassgram reloads when it is done.';
 let downloadId: number | undefined;
+const STEP_LABEL: Record<Step, string> = { folder: 'Waiting for folder…', download: 'Downloading…', install: 'Installing…' };
 
 function ago(ts: number): string {
   const min = Math.round((Date.now() - ts) / 60000);
@@ -418,6 +423,7 @@ function renderUpdates(state: UpdateState) {
       }
     };
     $('update-skip').onclick = () => patchUpdateState({ skipped: update.version });
+    renderOneClick(update, state);
   }
 
   // "What's new" card after an update was installed.
@@ -441,6 +447,76 @@ function renderUpdates(state: UpdateState) {
       notes.replaceChildren(p);
     }
   }
+}
+
+/** "Update now" when the browser can write to the extension folder; otherwise the manual steps, open. */
+async function renderOneClick(update: Release, state: UpdateState) {
+  const btn = $<HTMLButtonElement>('update-install');
+  const pick = $<HTMLButtonElement>('update-pick');
+  const note = $('update-install-note');
+  const forget = $('update-forget');
+  const panel = $('update-folder');
+  const supported = canSelfUpdate() && !!update.zipUrl && !!update.zipSha256;
+  $<HTMLDetailsElement>('update-manual').open ||= !supported;
+  $('update-download').classList.toggle('pill-btn--accent', !supported);
+
+  if (!supported) {
+    btn.hidden = forget.hidden = panel.hidden = true;
+    note.hidden = false;
+    note.classList.remove('is-error');
+    note.textContent = !canSelfUpdate()
+      ? isBrave()
+        ? 'One-click updates are off in Brave. Turn on brave://flags/#file-system-access-api and restart Brave to get an Update now button here.'
+        : "This browser can't update Glassgram in one click. Follow the steps below."
+      : "This release can't be installed in one click. Follow the steps below.";
+    return;
+  }
+
+  // No folder yet: "Update now" first explains which folder to pick, then "Choose folder" opens the picker.
+  const folder = await savedFolder();
+  const asking = !folder && folderAsked;
+  btn.hidden = asking;
+  panel.hidden = !asking;
+  forget.hidden = !folder || installing;
+  note.classList.toggle('is-error', !!state.installError);
+  note.hidden = asking && !state.installError && !installing;
+  if (state.installError) note.textContent = state.installError;
+  else if (installing) note.textContent = KEEP_OPEN;
+  else note.textContent = folder
+    ? `Downloads ${update.version}, checks it matches the release, installs it into your Glassgram folder and reloads.`
+    : 'The first time, you show Glassgram which folder it runs from.';
+  btn.disabled = pick.disabled = installing;
+
+  const run = async (b: HTMLButtonElement) => {
+    const label = b.textContent;
+    installing = true;
+    btn.disabled = pick.disabled = true;
+    forget.hidden = true;
+    note.hidden = false;
+    note.classList.remove('is-error');
+    note.textContent = KEEP_OPEN;
+    try {
+      await selfUpdate(update, (s) => (b.textContent = STEP_LABEL[s]));
+    } catch (e) {
+      installing = false;
+      b.textContent = label;
+      // Rendered here too: storage doesn't fire a change when the same error repeats.
+      renderUpdates(await patchUpdateState({ installError: e instanceof UpdateError ? e.message : `The update failed (${(e as Error).message}). Your current version was kept.` }));
+    }
+  };
+  btn.onclick = async () => {
+    if (folder) return run(btn);
+    folderAsked = true;
+    await renderOneClick(update, state);
+    pick.focus();
+  };
+  pick.onclick = () => run(pick);
+  $('update-where').onclick = () => showInstallFolder();
+  forget.onclick = async () => {
+    await forgetFolder().catch(() => {});
+    folderAsked = true;
+    renderUpdates(await patchUpdateState({ installError: undefined }));
+  };
 }
 
 async function checkNow() {
