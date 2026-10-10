@@ -29,8 +29,9 @@ function emptyProgress(): Progress {
   return { followers: [], following: [], next: { followers: undefined, following: undefined }, done: { followers: false, following: false }, updatedAt: 0 };
 }
 
-function csv(users: FriendUser[]): string {
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+export function csv(users: FriendUser[]): string {
+  // Names are chosen by other people: a leading = + - @ (or tab/CR) would run as a spreadsheet formula.
+  const esc = (v: string) => `"${(/^[=+\-@\t\r]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`;
   const rows = users.map((u) => [u.username, u.full_name ?? '', `https://www.instagram.com/${u.username}/`, u.is_verified ? 'yes' : 'no', u.is_private ? 'yes' : 'no'].map(esc).join(','));
   return ['username,full_name,profile_url,verified,private', ...rows].join('\r\n');
 }
