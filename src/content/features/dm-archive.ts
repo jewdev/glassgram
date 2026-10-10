@@ -32,32 +32,51 @@ export interface ArchivedMessage extends DmMessage {
 type Shard = Record<string, ArchivedMessage>;
 
 let unsent: Shard | null = null;
+// Promises, not values: two event batches arriving together must share one load, or the
+// second copy replaces the first and the messages written into it are lost.
+let unsentLoad: Promise<Shard> | null = null;
 const shards = new Map<string, Shard>();
+const shardLoads = new Map<string, Promise<Shard>>();
 const dirty = new Set<string>(); // thread ids, or UNSENT_KEY
 let saveTimer: number | undefined;
 
-async function loadUnsent(): Promise<Shard> {
-  if (unsent) return unsent;
-  const r = await chrome.storage.local.get([UNSENT_KEY, LEGACY_KEY]);
-  unsent = (r[UNSENT_KEY] as Shard | undefined) ?? {};
-  // One-time move from the first version, which kept everything under a single key.
-  const legacy = r[LEGACY_KEY] as Shard | undefined;
-  if (legacy) {
-    for (const m of Object.values(legacy)) if (m.unsentAt) unsent[m.id] = m;
-    await chrome.storage.local.set({ [UNSENT_KEY]: unsent });
-    await chrome.storage.local.remove(LEGACY_KEY);
-  }
-  return unsent;
+function loadUnsent(): Promise<Shard> {
+  unsentLoad ??= (async () => {
+    const r = await chrome.storage.local.get([UNSENT_KEY, LEGACY_KEY]);
+    const un = (r[UNSENT_KEY] as Shard | undefined) ?? {};
+    // One-time move from the first version, which kept everything under a single key.
+    const legacy = r[LEGACY_KEY] as Shard | undefined;
+    if (legacy) {
+      for (const m of Object.values(legacy)) if (m.unsentAt) un[m.id] = m;
+      await chrome.storage.local.set({ [UNSENT_KEY]: un });
+      await chrome.storage.local.remove(LEGACY_KEY);
+    }
+    return (unsent = un);
+  })().catch((e) => {
+    unsentLoad = null;
+    throw e;
+  });
+  return unsentLoad;
 }
 
-async function loadShard(thread: string): Promise<Shard> {
-  let s = shards.get(thread);
-  if (!s) {
+function loadShard(thread: string): Promise<Shard> {
+  let p = shardLoads.get(thread);
+  if (!p) {
     const key = THREAD_PREFIX + thread;
-    s = ((await chrome.storage.local.get(key))[key] as Shard | undefined) ?? {};
-    shards.set(thread, s);
+    p = chrome.storage.local.get(key).then(
+      (r) => {
+        const s = (r[key] as Shard | undefined) ?? {};
+        shards.set(thread, s);
+        return s;
+      },
+      (e) => {
+        shardLoads.delete(thread);
+        throw e;
+      },
+    );
+    shardLoads.set(thread, p);
   }
-  return s;
+  return p;
 }
 
 /** Retention in days; 0 = forever. */
@@ -74,25 +93,33 @@ function prune(s: Shard) {
     });
 }
 
-function scheduleSave() {
+function flush(): Promise<void> {
   clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => {
-    const out: Record<string, Shard> = {};
-    for (const key of dirty) {
-      if (key === UNSENT_KEY) {
-        if (unsent) out[UNSENT_KEY] = unsent;
-      } else {
-        const s = shards.get(key);
-        if (s) {
-          prune(s);
-          out[THREAD_PREFIX + key] = s;
-        }
+  saveTimer = undefined;
+  const out: Record<string, Shard> = {};
+  for (const key of dirty) {
+    if (key === UNSENT_KEY) {
+      if (unsent) out[UNSENT_KEY] = unsent;
+    } else {
+      const s = shards.get(key);
+      if (s) {
+        prune(s);
+        out[THREAD_PREFIX + key] = s;
       }
     }
-    dirty.clear();
-    chrome.storage.local.set(out).catch((e) => console.warn('[IGE] DM archive save failed', e));
-  }, SAVE_DELAY);
+  }
+  dirty.clear();
+  if (!Object.keys(out).length) return Promise.resolve();
+  return chrome.storage.local.set(out).catch((e) => console.warn('[IGE] DM archive save failed', e));
 }
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(flush, SAVE_DELAY);
+}
+
+/** Only web links from DM payloads become hrefs. */
+const safeUrl = (url: string) => (/^https:\/\//i.test(url) ? url : undefined);
 
 export function describeContent(m: ArchivedMessage): string {
   if (m.text) return m.text;
@@ -103,7 +130,8 @@ export function describeContent(m: ArchivedMessage): string {
 const who = (m: ArchivedMessage) => (m.username ? `@${m.username}` : m.name || 'Someone');
 const fmt = (ms: number) => new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-async function handle(events: DmEvent[]) {
+/** Exported for tests. */
+export async function handle(events: DmEvent[]) {
   const me = myUserId();
   const un = await loadUnsent();
   let fresh = false;
@@ -160,7 +188,7 @@ function ghostFor(m: ArchivedMessage, inset: number): HTMLElement {
       'div',
       { class: 'ige-ghost__bubble', title: `Unsent by ${who(m)}\nSent ${fmt(m.ts)}\nUnsent ${fmt(m.unsentAt!)}` },
       h('span', { class: 'ige-ghost__text' }, describeContent(m)),
-      ...m.media.map((url, i) => h('a', { class: 'ige-ghost__link', href: url, target: '_blank', rel: 'noopener noreferrer' }, `Attachment ${i + 1}`)),
+      ...m.media.map((url, i) => h('a', { class: 'ige-ghost__link', href: safeUrl(url), target: '_blank', rel: 'noopener noreferrer' }, `Attachment ${i + 1}`)),
     ),
     h('span', { class: 'ige-ghost__icon', title: 'Unsent', 'aria-label': 'Unsent message', html: icon(UNSENT_ICON, 14) }),
   );
@@ -249,7 +277,7 @@ export async function openUnsentMessages() {
               h('a', { class: 'ige-muted', href: `/direct/t/${x.thread}/`, title: 'Open the chat' }, 'chat'),
             ),
             h('p', { class: 'ige-dmu__text' }, describeContent(x)),
-            ...x.media.map((url, i) => h('a', { class: 'ige-sd__link', href: url, target: '_blank', rel: 'noopener noreferrer' }, `Attachment ${i + 1} (may have expired)`)),
+            ...x.media.map((url, i) => h('a', { class: 'ige-sd__link', href: safeUrl(url), target: '_blank', rel: 'noopener noreferrer' }, `Attachment ${i + 1} (may have expired)`)),
             h('span', { class: 'ige-muted ige-dmu__time' }, `Sent ${fmt(x.ts)} · unsent ${fmt(x.unsentAt!)}`),
           ),
         ),
@@ -310,11 +338,14 @@ export const dmArchive: Feature = {
       window.removeEventListener('message', onMessage);
       document.documentElement.removeAttribute(ATTR);
       document.querySelectorAll(`[${GHOST}]`).forEach((g) => g.remove());
-      clearTimeout(saveTimer);
-      dirty.clear();
-      shards.clear();
       // Turning the feature off forgets the recent-message buffer; unsent ones stay until cleared.
-      chrome.storage.local.get(null).then((all) => chrome.storage.local.remove(Object.keys(all).filter((k) => k.startsWith(THREAD_PREFIX))));
+      dirty.forEach((k) => k !== UNSENT_KEY && dirty.delete(k));
+      shards.clear();
+      shardLoads.clear();
+      flush() // a message unsent just before this must still reach storage
+        // getKeys() needs Chrome 130; older builds fall back to reading everything.
+        .then(() => chrome.storage.local.getKeys?.() ?? chrome.storage.local.get(null).then(Object.keys))
+        .then((keys) => chrome.storage.local.remove(keys.filter((k) => k.startsWith(THREAD_PREFIX))));
     };
   },
 };
