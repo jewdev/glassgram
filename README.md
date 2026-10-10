@@ -32,7 +32,7 @@
 
 ## See Glassgram in action
 
-[![Watch the Glassgram demo (90 s)](docs/glassgram-promo-poster.jpg)](https://files.catbox.moe/5fhxnn.mp4)
+https://github.com/user-attachments/assets/7901fa6e-2934-4989-9c95-73bea4ea19a2
 
 <sub>The Instagram pages in the video are a recreation with fictional accounts. The Glassgram pages are real.</sub>
 
