@@ -25,12 +25,32 @@ let pending: Partial<Settings> = {};
 let saveTimer: number | undefined;
 let savedTimer: number | undefined;
 
-function flashSaved() {
-  const el = $('saved');
-  el.classList.add('is-on');
+// The header pill scrolls away on a long page; the floating toast stands in for it meanwhile.
+let pillInView = true;
+new IntersectionObserver(([e]) => (pillInView = e.isIntersecting)).observe($('saved'));
+
+function showStatus(text: string, error: boolean) {
+  const pill = $('saved');
+  const toast = $('save-toast');
+  for (const el of [pill, toast]) {
+    el.querySelector('span')!.textContent = text;
+    el.classList.toggle('is-error', error);
+  }
+  pill.classList.add('is-on');
+  toast.classList.toggle('is-on', !pillInView);
   clearTimeout(savedTimer);
-  savedTimer = window.setTimeout(() => el.classList.remove('is-on'), 1600);
+  savedTimer = window.setTimeout(
+    () => {
+      pill.classList.remove('is-on', 'is-error');
+      pill.querySelector('span')!.textContent = 'Saved';
+      toast.classList.remove('is-on');
+    },
+    error ? 3000 : 1600,
+  );
 }
+
+const flashSaved = () => showStatus('Saved', false);
+const showNotice = (text: string) => showStatus(text, true);
 
 /** Debounced save: text inputs fire on every keystroke and storage.sync has write quotas. */
 function change(key: SettingKey, value: Settings[SettingKey]) {
@@ -42,8 +62,12 @@ function change(key: SettingKey, value: Settings[SettingKey]) {
   saveTimer = window.setTimeout(async () => {
     const patch = pending;
     pending = {};
-    await saveSettings(patch);
-    flashSaved();
+    try {
+      await saveSettings(patch);
+      flashSaved();
+    } catch {
+      showNotice("Couldn't save. Try again.");
+    }
   }, 250);
 }
 
@@ -303,16 +327,6 @@ function wireActions() {
     render();
     flashSaved();
   });
-}
-
-function showNotice(text: string) {
-  const s = $('saved');
-  s.querySelector('span')!.textContent = text;
-  s.classList.add('is-on', 'is-error');
-  setTimeout(() => {
-    s.classList.remove('is-on', 'is-error');
-    s.querySelector('span')!.textContent = 'Saved';
-  }, 3000);
 }
 
 // ---------------- appearance ----------------

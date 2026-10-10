@@ -155,6 +155,30 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 .saved.is-error { color: var(--risk); }
 .saved.is-error svg { display: none; }
 
+/* Floating copy of the status, shown only while the header pill is scrolled out of view. */
+.save-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  color: var(--ok);
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease);
+}
+.save-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+.save-toast.is-error { color: var(--risk); }
+.save-toast.is-error svg { display: none; }
+
 /* ---------------- update + what's new cards ---------------- */
 .update-card { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 16px; border-radius: var(--r-panel); scroll-margin-top: 24px; }
 .update-card__head { display: flex; align-items: center; gap: 12px; }
@@ -383,4 +407,5 @@ select.control option { background: var(--base); color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .save-toast, .save-toast.is-on { transform: translate(-50%, 0); }
 }
