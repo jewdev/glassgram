@@ -4,8 +4,8 @@ import { sectionIcon } from '../shared/icons';
 import type { Message } from '../shared/messages';
 import { downloadRelease, renderReleaseNotes } from '../shared/release-notes';
 import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
-import { loadSettings, onSettingsChanged, resetSettings, saveSettings } from '../shared/settings';
-import { DEFAULTS, SECTIONS, type Section, type SectionIcon, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
+import { loadSettings, onSettingsChanged, resetSettings, sanitizeSettings, saveSettings } from '../shared/settings';
+import { SECTIONS, type Section, type SectionIcon, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
 import { availableUpdate, between, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, RELEASES_URL, type UpdateState } from '../shared/updates';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -285,13 +285,9 @@ function wireActions() {
     file.value = '';
     if (!f) return;
     try {
-      const raw = JSON.parse(await f.text()) as Record<string, unknown>;
-      // Only accept known keys with matching value types.
-      const patch: Partial<Settings> = {};
-      for (const k of Object.keys(DEFAULTS) as SettingKey[]) {
-        if (k in raw && typeof raw[k] === typeof DEFAULTS[k]) (patch as Record<string, unknown>)[k] = raw[k];
-      }
-      settings = await saveSettings(patch);
+      const raw = JSON.parse(await f.text()) as unknown;
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('not an object');
+      settings = await saveSettings(sanitizeSettings(raw as Record<string, unknown>));
       render();
       flashSaved();
     } catch {

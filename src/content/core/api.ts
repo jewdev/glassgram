@@ -82,7 +82,7 @@ export async function igGet<T>(path: string): Promise<T> {
     startCooldown();
     throw new ApiError(RATE_LIMIT_MSG, 429, true);
   }
-  if (res.status === 401) throw new ApiError('Instagram refused the request. Make sure you are logged in.', 401, true);
+  if (res.status === 401) throw new ApiError('Instagram refused the request. Make sure you are logged in.', 401);
   const text = await res.text();
   let json: any;
   try {

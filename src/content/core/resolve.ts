@@ -93,6 +93,8 @@ export async function resolveTarget(ctx: MediaContext): Promise<Target> {
       const flat = tray.map((p) => p.items[0]).filter(Boolean);
       i = matchIndex(flat, ctx.el);
     }
+    // Guessing would download someone else's story item; only a single-item tray is unambiguous.
+    if (i < 0 && tray.length > 1) throw new Error("Couldn't tell which story is showing. It may have expired.");
     return { post: tray[Math.max(0, i)], index: 0, tray };
   }
   throw new Error('Avatar targets are handled by the profile picture feature');
