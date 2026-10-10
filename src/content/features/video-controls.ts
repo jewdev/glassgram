@@ -17,7 +17,12 @@ let savedMuted: boolean | undefined;
 const playedAt = new WeakMap<HTMLVideoElement, number>();
 /** Videos whose speed the user changed manually — don't override them on play. */
 const manualSpeed = new WeakSet<HTMLVideoElement>();
-const manualLoop = new WeakSet<HTMLVideoElement>();
+/** Loop state the user picked with the loop button, per video. */
+const manualLoop = new WeakMap<HTMLVideoElement, boolean>();
+/** When (and on which source) a video last reached its end, to catch Instagram restarting it. */
+const endedAt = new WeakMap<HTMLVideoElement, { at: number; src: string }>();
+/** Instagram restarts a finished video itself; a play this soon after `ended` with no user input is that. */
+const REPLAY_MS = 1000;
 
 function fmt(t: number) {
   if (!Number.isFinite(t)) return '0:00';
@@ -32,10 +37,14 @@ function onStoryRoute() {
   return k === 'stories' || k === 'highlight';
 }
 
+function wantsLoop(v: HTMLVideoElement) {
+  return manualLoop.get(v) ?? (onStoryRoute() ? false : getSettings()['video.loop']);
+}
+
 function applyDefaults(v: HTMLVideoElement) {
   const s = getSettings();
   if (!manualSpeed.has(v)) v.playbackRate = Number(s['video.speed']) || 1;
-  if (!manualLoop.has(v)) v.loop = onStoryRoute() ? false : s['video.loop'];
+  v.loop = wantsLoop(v);
   if (s['video.rememberVolume']) applyVolume(v);
 }
 
@@ -65,12 +74,35 @@ export const videoControls: Feature = {
     };
     chrome.storage.onChanged.addListener(onStorage);
 
+    let lastInput = -Infinity;
+    const onInput = () => (lastInput = performance.now());
+    document.addEventListener('pointerdown', onInput, true);
+    document.addEventListener('keydown', onInput, true);
+
     const onPlay = (e: Event) => {
-      if (!(e.target instanceof HTMLVideoElement)) return;
-      playedAt.set(e.target, performance.now());
-      applyDefaults(e.target);
+      const v = e.target;
+      if (!(v instanceof HTMLVideoElement)) return;
+      const ended = endedAt.get(v);
+      endedAt.delete(v);
+      // Instagram loops by restarting the video from script, so the loop attribute alone isn't enough.
+      if (ended && ended.src === v.currentSrc && !wantsLoop(v) && lastInput < ended.at && performance.now() - ended.at < REPLAY_MS) {
+        v.pause();
+        return;
+      }
+      playedAt.set(v, performance.now());
+      applyDefaults(v);
     };
     document.addEventListener('play', onPlay, true);
+    const onEnded = (e: Event) => {
+      if (e.target instanceof HTMLVideoElement) endedAt.set(e.target, { at: performance.now(), src: e.target.currentSrc });
+    };
+    document.addEventListener('ended', onEnded, true);
+    // Instagram can also turn the loop attribute back on after the video starts.
+    const onTime = (e: Event) => {
+      const v = e.target;
+      if (v instanceof HTMLVideoElement && v.loop !== wantsLoop(v)) v.loop = wantsLoop(v);
+    };
+    document.addEventListener('timeupdate', onTime, true);
     // Instagram sets its own mute state right after a video starts; put the remembered one back.
     const onVolume = (e: Event) => {
       const v = e.target;
@@ -95,7 +127,9 @@ export const videoControls: Feature = {
     const vol = h('input', { class: 'ige-range ige-vbar__vol', type: 'range', min: '0', max: '1', step: '0.05', value: '1', 'aria-label': 'Volume' });
     const loopBtn = h('button', { class: 'ige-btn ige-btn--sm', type: 'button', title: 'Loop', html: icon(ICONS.loop, 16) });
 
-    const bar = h('div', { class: 'ige-vbar' }, playBtn, time, seek, speed, muteBtn, vol, loopBtn);
+    const fsBtn = h('button', { class: 'ige-btn ige-btn--sm', type: 'button', title: 'Fullscreen', html: icon(ICONS.fullscreen, 16) });
+
+    const bar = h('div', { class: 'ige-vbar' }, playBtn, time, seek, speed, muteBtn, vol, loopBtn, fsBtn);
     uiLayer().append(bar);
 
     const render = () => {
@@ -159,10 +193,35 @@ export const videoControls: Feature = {
     });
     loopBtn.addEventListener('click', () => {
       if (!video) return;
-      manualLoop.add(video);
       video.loop = !video.loop;
+      manualLoop.set(video, video.loop);
       render();
     });
+    // The bar lives in the overlay layer, which a fullscreen video hides, so show native controls there instead.
+    // Instagram also crops some videos with `object-fit: cover`, which zooms them in fullscreen; letterbox instead.
+    let fsVideo: HTMLVideoElement | null = null;
+    let fsHadControls = false;
+    let fsFit = { value: '', priority: '' };
+    const restoreFullscreen = () => {
+      if (!fsVideo) return;
+      fsVideo.controls = fsHadControls;
+      fsVideo.style.setProperty('object-fit', fsFit.value, fsFit.priority);
+      fsVideo = null;
+    };
+    fsBtn.addEventListener('click', () => {
+      const v = video;
+      if (!v) return;
+      fsVideo = v;
+      fsHadControls = v.controls;
+      fsFit = { value: v.style.getPropertyValue('object-fit'), priority: v.style.getPropertyPriority('object-fit') };
+      v.controls = true;
+      v.style.setProperty('object-fit', 'contain', 'important');
+      v.requestFullscreen().catch(restoreFullscreen);
+    });
+    const onFullscreen = () => {
+      if (!document.fullscreenElement) restoreFullscreen();
+    };
+    document.addEventListener('fullscreenchange', onFullscreen);
 
     const off = onHover((hv) => {
       if (!hv || !(hv.el instanceof HTMLVideoElement)) {
@@ -184,6 +243,11 @@ export const videoControls: Feature = {
       chrome.storage.onChanged.removeListener(onStorage);
       document.removeEventListener('play', onPlay, true);
       document.removeEventListener('volumechange', onVolume, true);
+      document.removeEventListener('fullscreenchange', onFullscreen);
+      document.removeEventListener('pointerdown', onInput, true);
+      document.removeEventListener('keydown', onInput, true);
+      document.removeEventListener('ended', onEnded, true);
+      document.removeEventListener('timeupdate', onTime, true);
       bar.remove();
     };
   },
