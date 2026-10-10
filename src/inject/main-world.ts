@@ -7,7 +7,7 @@
 //    queries so the content script can paginate the same way Instagram does.
 //    The content script talks to us via window.postMessage RPC (see content/core/bridge.ts).
 
-import { filterLightspeedRequest, filterMqttFrame } from '../shared/lightspeed';
+import { filterLightspeedRequest, filterMqttFrame, mqttPubAck } from '../shared/lightspeed';
 import { cleanInstagramUrl, isSingleInstagramUrl, unwrapLinkShim } from '../shared/links';
 import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/slide';
 
@@ -231,8 +231,18 @@ import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/sli
   // ---------------- fetch ----------------
   const origFetch = window.fetch;
   window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+    // A Request object carries its own body, which can only be read asynchronously.
+    if (input instanceof Request && init?.body == null && input.body) {
+      return input
+        .clone()
+        .text()
+        .then((text) => hookedFetch.call(this, input, init, text));
+    }
+    return hookedFetch.call(this, input, init, bodyText(init?.body));
+  };
+
+  function hookedFetch(this: unknown, input: RequestInfo | URL, init: RequestInit | undefined, text: string): Promise<Response> {
     const url = input instanceof Request ? input.url : String(input);
-    const text = bodyText(init?.body);
     const liveId = liveHeartbeatId(url);
     if (shouldBlock(url, text) || liveId) {
       console.debug('[IGE] answered locally', url);
@@ -246,7 +256,7 @@ import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/sli
       p.then((r) => r.clone().text().then(sniff)).catch(() => {});
     }
     return p;
-  };
+  }
 
   // ---------------- links: clean copied share links, skip the l.instagram.com shim ----------------
   const attr = (name: string) => document.documentElement.getAttribute(name);
@@ -278,7 +288,12 @@ import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/sli
         } else if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
           const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
           const out = filterMqttFrame(bytes, f);
-          if (out === null) return console.debug('[IGE] DM typing/seen frame dropped');
+          if (out === null) {
+            // The client waits for an acknowledgement of a QoS 1 publish; answer it ourselves.
+            const ack = mqttPubAck(bytes);
+            if (ack) setTimeout(() => this.dispatchEvent(new MessageEvent('message', { data: this.binaryType === 'blob' ? new Blob([ack]) : ack.buffer })));
+            return console.debug('[IGE] DM typing/seen frame dropped');
+          }
           if (out !== bytes) data = out;
         }
       } catch {
@@ -316,10 +331,15 @@ import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/sli
     }
   }
 
-  // Instagram's module loader (requireLazy) appears after its bootstrap script runs.
+  // Instagram's module loader (requireLazy) appears after its bootstrap script runs. Pages that
+  // never get one (embeds, error pages) stop looking after 30s.
+  const loaderDeadline = Date.now() + 30_000;
   const waitForLoader = window.setInterval(() => {
     const w = window as unknown as { requireLazy?: (deps: string[], cb: (m: never) => void) => void };
-    if (typeof w.requireLazy !== 'function') return;
+    if (typeof w.requireLazy !== 'function') {
+      if (Date.now() > loaderDeadline) clearInterval(waitForLoader);
+      return;
+    }
     clearInterval(waitForLoader);
     try {
       w.requireLazy(['MqttBypassDGWClient'], (m) => patchDgwClient(m));
@@ -353,9 +373,20 @@ import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/sli
     return undefined;
   }
 
+  // Finding the Relay store walks the whole DOM; after a miss, wait before trying again.
+  const RELAY_RETRY_MS = 5000;
+  let relayRetryAt = 0;
+  function getRelaySource(): RelaySource | undefined {
+    if (!relaySource && Date.now() >= relayRetryAt) {
+      relaySource = findRelaySource();
+      if (!relaySource) relayRetryAt = Date.now() + RELAY_RETRY_MS;
+    }
+    return relaySource;
+  }
+
   function tagVoiceBubbles() {
     if (attr('data-ige-voice') !== '1' || !location.pathname.startsWith('/direct/')) return;
-    relaySource ??= findRelaySource();
+    const relaySource = getRelaySource();
     if (!relaySource) return;
     const tagged = new Set<string>();
     document.querySelectorAll('[data-ige-voice-ref]').forEach((el) => tagged.add(el.getAttribute('data-ige-voice-ref')!));
@@ -395,10 +426,18 @@ import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/sli
     return undefined;
   }
 
+  // Without the usual row marker every div on the page is a candidate, so that scan runs at most
+  // every few seconds, and only while no chat list has been found.
+  const FALLBACK_SCAN_MS = 3000;
+  let fallbackScanAt = 0;
+
   function findLists(): Set<Element> {
     const lists = new Set<Element>(document.querySelectorAll(`[${LIST_MARK}]`));
     const seeds: Element[] = [...document.querySelectorAll(ROW_SEED)];
-    if (!seeds.length && location.pathname.startsWith('/direct/')) seeds.push(...document.querySelectorAll('div'));
+    if (!seeds.length && !lists.size && location.pathname.startsWith('/direct/') && Date.now() >= fallbackScanAt) {
+      fallbackScanAt = Date.now() + FALLBACK_SCAN_MS;
+      seeds.push(...document.querySelectorAll('div'));
+    }
     for (const seed of seeds) {
       if (seed.closest(`[${LIST_MARK}]`)) continue;
       for (let x: Element | null = seed, i = 0; x && i < 10; x = x.parentElement, i++) {
@@ -416,7 +455,7 @@ import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/sli
     if (!dmKeepEnabled()) return;
     const lists = findLists();
     if (!lists.size) return; // no chat open — skip the (expensive) Relay lookup
-    relaySource ??= findRelaySource();
+    const relaySource = getRelaySource();
     if (!relaySource) return;
     for (const list of lists) {
       for (const row of list.children) {
@@ -487,7 +526,7 @@ import { collectDmEvents, decodeGatewayFrame, type DmEvent } from '../shared/sli
 
   window.addEventListener('message', async (e) => {
     const d = e.data;
-    if (e.source !== window || !d || d.__ige !== 'rpc' || !(d.op in ops)) return;
+    if (e.source !== window || !d || d.__ige !== 'rpc' || typeof d.op !== 'string' || !Object.hasOwn(ops, d.op)) return;
     try {
       const result = await ops[d.op](d.args ?? {});
       window.postMessage({ __ige: 'rpc-reply', id: d.id, ok: true, result }, location.origin);

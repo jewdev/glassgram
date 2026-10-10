@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterLightspeedRequest, filterMqttFrame } from '../src/shared/lightspeed';
+import { filterLightspeedRequest, filterMqttFrame, mqttPubAck } from '../src/shared/lightspeed';
 
 const typing = JSON.stringify({ request_id: 1, type: 4, payload: JSON.stringify({ label: '3', payload: JSON.stringify({ thread_key: 1, is_typing: 1 }), version: '1' }) });
 const tasks = (...labels: string[]) =>
@@ -63,5 +63,34 @@ describe('filterMqttFrame', () => {
     expect(filterMqttFrame(other, ON)).toBe(other);
     const ping = new Uint8Array([0xc0, 0]);
     expect(filterMqttFrame(ping, ON)).toBe(ping);
+  });
+
+  it('rewrites QoS 0 frames without a packet id', () => {
+    const out = filterMqttFrame(publish('/ls_req', tasks('46', '21'), 0), ON)!;
+    expect([...out]).toEqual([...publish('/ls_req', filterLightspeedRequest(tasks('46', '21'), ON)!, 0)]);
+  });
+
+  it('re-encodes a multi-byte remaining length', () => {
+    const big = tasks('46', '21', ...Array.from({ length: 6 }, () => '46'));
+    const frame = publish('/ls_req', big);
+    expect(frame[1] & 0x80).toBeTruthy(); // multi-byte remaining length
+    const out = filterMqttFrame(frame, ON)!;
+    expect([...out]).toEqual([...publish('/ls_req', filterLightspeedRequest(big, ON)!)]);
+  });
+
+  it('never drops a QoS 2 publish', () => {
+    const frame = publish('/ls_req', typing, 2);
+    expect(filterMqttFrame(frame, ON)).toBe(frame);
+  });
+});
+
+describe('mqttPubAck', () => {
+  it('acknowledges a QoS 1 publish with its packet id', () => {
+    expect([...mqttPubAck(publish('/ls_req', typing))!]).toEqual([0x40, 2, 0, 7]);
+  });
+
+  it('ignores QoS 0 publishes and other packets', () => {
+    expect(mqttPubAck(publish('/ls_req', typing, 0))).toBeNull();
+    expect(mqttPubAck(new Uint8Array([0xc0, 0]))).toBeNull();
   });
 });

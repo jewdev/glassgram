@@ -66,7 +66,9 @@ function writeVarint(n: number): number[] {
 
 /**
  * Filter an MQTT PUBLISH to /ls_req. Returns the original bytes, new bytes, or null to drop.
- * Anything that isn't a well-formed single PUBLISH to /ls_req is returned untouched.
+ * Anything that isn't a well-formed single PUBLISH to /ls_req is returned untouched. A dropped
+ * QoS 1 publish still needs its PUBACK (see mqttPubAck); QoS 2 is never dropped, since its
+ * four-step handshake can't be answered locally.
  */
 export function filterMqttFrame(bytes: Uint8Array, f: DmFilter): Uint8Array | null {
   if ((bytes[0] >> 4) !== 3) return bytes; // not PUBLISH
@@ -81,7 +83,7 @@ export function filterMqttFrame(bytes: Uint8Array, f: DmFilter): Uint8Array | nu
   const header = bytes.subarray(len.next, p);
   const payload = new TextDecoder().decode(bytes.subarray(p));
   const filtered = filterLightspeedRequest(payload, f);
-  if (filtered === null) return null;
+  if (filtered === null) return qos === 2 ? bytes : null;
   if (filtered === payload) return bytes;
   const body = new TextEncoder().encode(filtered);
   const rest = header.length + body.length;
@@ -91,4 +93,14 @@ export function filterMqttFrame(bytes: Uint8Array, f: DmFilter): Uint8Array | nu
   out.set(header, 1 + writeVarint(rest).length);
   out.set(body, 1 + writeVarint(rest).length + header.length);
   return out;
+}
+
+/** The PUBACK the server would send for a QoS 1 PUBLISH, or null for anything else. */
+export function mqttPubAck(bytes: Uint8Array): Uint8Array<ArrayBuffer> | null {
+  if (bytes[0] >> 4 !== 3 || ((bytes[0] >> 1) & 3) !== 1) return null;
+  const len = readVarint(bytes, 1);
+  if (!len) return null;
+  const p = len.next + 2 + ((bytes[len.next] << 8) | bytes[len.next + 1]);
+  if (p + 2 > bytes.length) return null;
+  return new Uint8Array([0x40, 2, bytes[p], bytes[p + 1]]);
 }
