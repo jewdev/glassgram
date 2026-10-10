@@ -6,13 +6,35 @@ import { availableUpdate, loadUpdateState, onUpdateStateChanged, parseReleases, 
 
 // ---------------- download queue ----------------
 const MAX_CONCURRENT = 3;
-const queue: DownloadJob[] = [];
+// Chrome stops an idle worker after ~30s, even mid bulk download, so the queue is kept in session
+// storage and picked up again when the next download event wakes the worker.
+const QUEUE_KEY = 'ige.downloadQueue';
+let queue: DownloadJob[] = [];
 const active = new Set<number>();
 /** Blob-URL downloads (ZIPs) → cleanup once finished. */
 const blobDownloads = new Map<number, () => void>();
 let pumping = false;
 
+const ready = (async () => {
+  try {
+    const saved = (await chrome.storage.session.get(QUEUE_KEY))[QUEUE_KEY] as { queue: DownloadJob[]; active: number[] } | undefined;
+    if (!saved) return;
+    queue = [...saved.queue, ...queue];
+    for (const id of saved.active) {
+      const [d] = await chrome.downloads.search({ id });
+      if (d?.state === 'in_progress') active.add(id);
+    }
+  } catch (e) {
+    console.warn('[IGE] download queue restore failed', e);
+  }
+})();
+
+function persist() {
+  chrome.storage.session.set({ [QUEUE_KEY]: { queue, active: [...active] } }).catch((e) => console.warn('[IGE] download queue save failed', e));
+}
+
 async function pump() {
+  await ready;
   if (pumping) return;
   pumping = true;
   try {
@@ -24,53 +46,82 @@ async function pump() {
       } catch (e) {
         console.warn('[IGE] download failed', job.filename, e);
       }
+      persist();
     }
   } finally {
     pumping = false;
   }
 }
 
-chrome.downloads.onChanged.addListener((delta) => {
+chrome.downloads.onChanged.addListener(async (delta) => {
   const state = delta.state?.current;
   if (state !== 'complete' && state !== 'interrupted') return;
-  active.delete(delta.id);
+  await ready;
   blobDownloads.get(delta.id)?.();
   blobDownloads.delete(delta.id);
+  if (active.delete(delta.id)) persist();
   pump();
 });
 
+ready.then(pump);
+
 // ---------------- ZIP via offscreen document ----------------
 const OFFSCREEN_URL = 'src/offscreen/offscreen.html';
+let offscreenCreating: Promise<void> | null = null;
 
 async function ensureOffscreen() {
   const contexts = await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] });
   if (contexts.length) return;
-  await chrome.offscreen.createDocument({
-    url: OFFSCREEN_URL,
-    reasons: [chrome.offscreen.Reason.BLOBS],
-    justification: 'Bundle downloaded Instagram media into a ZIP file',
-  });
+  // Two ZIP requests at once must share one creation: a second createDocument throws.
+  offscreenCreating ??= chrome.offscreen
+    .createDocument({
+      url: OFFSCREEN_URL,
+      reasons: [chrome.offscreen.Reason.BLOBS],
+      justification: 'Bundle downloaded Instagram media into a ZIP file',
+    })
+    .finally(() => (offscreenCreating = null));
+  await offscreenCreating;
 }
 
-type ZipReply = { ok: true; url: string; count: number } | { ok: false; error: string };
+type ZipReply = { ok: true; urls: string[]; count: number } | { ok: false; error: string };
+
+const revoke = (url: string) => chrome.runtime.sendMessage({ type: 'offscreen:revoke', target: 'offscreen', url } satisfies Message).catch(() => {});
+
+/** user_posts.zip → user_posts_part2.zip */
+function partName(zipName: string, i: number, parts: number) {
+  if (parts < 2) return zipName;
+  const dot = zipName.toLowerCase().endsWith('.zip') ? zipName.length - 4 : zipName.length;
+  return `${zipName.slice(0, dot)}_part${i + 1}${zipName.slice(dot)}`;
+}
+
+/** Progress from the offscreen document, routed by job to the tab that asked for that ZIP. */
+const zipTabs = new Map<string, number | undefined>();
+chrome.runtime.onMessage.addListener((msg: Message) => {
+  if (msg.type !== 'zipProgress' || !msg.jobId) return false;
+  const tabId = zipTabs.get(msg.jobId);
+  if (tabId !== undefined) chrome.tabs.sendMessage(tabId, { type: 'zipProgress', done: msg.done, total: msg.total } satisfies Message).catch(() => {});
+  return false;
+});
 
 async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: number): Promise<DownloadResult> {
   await ensureOffscreen();
-  // Forward progress from the offscreen document to the requesting tab.
-  const onProgress = (msg: Message) => {
-    if (msg.type === 'zipProgress' && tabId !== undefined) chrome.tabs.sendMessage(tabId, msg).catch(() => {});
-  };
-  chrome.runtime.onMessage.addListener(onProgress);
+  const jobId = crypto.randomUUID();
+  zipTabs.set(jobId, tabId);
   try {
-    const res = (await chrome.runtime.sendMessage({ type: 'offscreen:zip', target: 'offscreen', jobs } satisfies Message)) as ZipReply;
+    const res = (await chrome.runtime.sendMessage({ type: 'offscreen:zip', target: 'offscreen', jobs, jobId } satisfies Message)) as ZipReply;
     if (!res?.ok) return { ok: false, error: res?.error ?? 'ZIP failed' };
-    const id = await chrome.downloads.download({ url: res.url, filename: zipName, conflictAction: 'uniquify' });
-    blobDownloads.set(id, () => {
-      chrome.runtime.sendMessage({ type: 'offscreen:revoke', target: 'offscreen', url: res.url } satisfies Message).catch(() => {});
-    });
+    for (const [i, url] of res.urls.entries()) {
+      try {
+        const id = await chrome.downloads.download({ url, filename: partName(zipName, i, res.urls.length), conflictAction: 'uniquify' });
+        blobDownloads.set(id, () => revoke(url));
+      } catch (e) {
+        res.urls.slice(i).forEach(revoke); // never handed to Chrome, so nothing else frees them
+        throw e;
+      }
+    }
     return { ok: true, count: res.count };
   } finally {
-    chrome.runtime.onMessage.removeListener(onProgress);
+    zipTabs.delete(jobId);
   }
 }
 
@@ -78,8 +129,12 @@ async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: numb
 chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
   if ('target' in msg) return false; // meant for the offscreen document
   if (msg.type === 'download') {
-    queue.push(...msg.jobs);
-    pump();
+    // After the restore, so these jobs are added to the saved queue rather than racing it.
+    ready.then(() => {
+      queue.push(...msg.jobs);
+      persist();
+      pump();
+    });
     reply({ ok: true, count: msg.jobs.length } satisfies DownloadResult);
     return false;
   }
