@@ -13,6 +13,7 @@ export const DEFAULTS = {
   'download.showAll': true,
   'download.copyUrl': true,
   'download.copyCaption': true,
+  'download.zoom': true,
   'download.filename': 'Glassgram/{user}/{user}_{date}_{shortcode}_{index}',
   'download.mode': 'zip' as 'folder' | 'zip',
 
@@ -133,6 +134,7 @@ export const SECTIONS: Section[] = [
       { type: 'toggle', key: 'download.showAll', label: '"Download all" for carousels', dependsOn: 'download.enabled' },
       { type: 'toggle', key: 'download.copyUrl', label: '"Copy media URL" button', dependsOn: 'download.enabled' },
       { type: 'toggle', key: 'download.copyCaption', label: '"Copy caption" button', dependsOn: 'download.enabled' },
+      { type: 'toggle', key: 'download.zoom', label: '"View full size" button on photos', desc: 'Opens the photo in a viewer: wheel to zoom, drag to pan.', dependsOn: 'download.enabled' },
       { type: 'toggle', key: 'stories.download', label: 'Download stories & highlights', desc: 'The current story or the whole tray, from the story viewer.', quick: true },
       { type: 'toggle', key: 'info.contextMenu', label: 'Right-click "Download Instagram media"', desc: 'Adds an entry to the browser\'s context menu on instagram.com.' },
       {
@@ -297,7 +299,7 @@ export const SECTIONS: Section[] = [
       { type: 'toggle', key: 'shortcuts.enabled', label: 'Keyboard shortcuts', quick: true },
       { type: 'shortcut', key: 'shortcuts.download', label: 'Download current media', dependsOn: 'shortcuts.enabled' },
       { type: 'shortcut', key: 'shortcuts.downloadAll', label: 'Download all', dependsOn: 'shortcuts.enabled' },
-      { type: 'shortcut', key: 'shortcuts.zoom', label: 'Zoom profile picture', dependsOn: 'shortcuts.enabled' },
+      { type: 'shortcut', key: 'shortcuts.zoom', label: 'Zoom photo or profile picture', dependsOn: 'shortcuts.enabled' },
       { type: 'shortcut', key: 'shortcuts.copyUrl', label: 'Copy media URL', dependsOn: 'shortcuts.enabled' },
     ],
   },

@@ -38,7 +38,20 @@ export const copyCaption = (ctx: MediaContext) =>
     else toast('This post has no caption');
   });
 
-export const showStoryDetails = (ctx: MediaContext) => withTarget(ctx, (t) => openStoryDetails(t.post));
+export const zoomMedia = (ctx: MediaContext) =>
+  withTarget(ctx, (t) => {
+    const item = t.post.items[t.index];
+    if (item.type !== 'image') return toast('Only photos can be zoomed');
+    const n = t.post.items.length;
+    openZoom({
+      src: item.url,
+      caption: `@${t.post.username}${n > 1 ? ` · ${t.index + 1}/${n}` : ''}`,
+      onDownload: () => downloadCurrent(ctx),
+      onCopy: () => copyText(item.url, 'Image URL copied'),
+    });
+  });
+
+export const showStoryDetails =(ctx: MediaContext) => withTarget(ctx, (t) => openStoryDetails(t.post));
 
 /** True when the target has more than one item (carousel or story tray). */
 export async function hasMultiple(ctx: MediaContext): Promise<boolean> {

@@ -1,4 +1,4 @@
-import { copyMediaUrl, downloadAll, downloadCurrent, zoomAvatar } from '../core/actions';
+import { copyMediaUrl, downloadAll, downloadCurrent, zoomAvatar, zoomMedia } from '../core/actions';
 import { getHovered, type MediaEl } from '../core/hover';
 import { contextFor, type MediaContext } from '../core/resolve';
 import { currentRoute } from '../core/router';
@@ -43,9 +43,10 @@ export const shortcuts: Feature = {
       const combo = comboFromEvent(e);
       const map: [string, () => void][] = [
         [s['shortcuts.zoom'], () => {
+          // Hovered media wins; on a profile, the profile picture beats the most visible grid post.
           const r = currentRoute();
-          if (r.kind === 'profile' && r.username) zoomAvatar(r.username);
-          else toast('Open a profile to zoom its picture');
+          if (!getHovered() && r.kind === 'profile' && r.username) return zoomAvatar(r.username);
+          run((c) => (c.kind === 'avatar' ? zoomAvatar(c.username) : zoomMedia(c)));
         }],
         [s['shortcuts.download'], () => run((c) => (c.kind === 'avatar' ? zoomAvatar(c.username) : downloadCurrent(c)))],
         [s['shortcuts.downloadAll'], () => run((c) => c.kind !== 'avatar' && downloadAll(c))],

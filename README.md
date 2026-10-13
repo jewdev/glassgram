@@ -91,7 +91,7 @@ press reload on the extension's card.
 
 ### ⬇️ Downloads
 
-- **Hover toolbar** on posts, reels and stories: download one or all, copy media URL or caption. Always the highest resolution.
+- **Hover toolbar** on posts, reels and stories: download one or all, zoom photos full size, copy media URL or caption. Always the highest resolution.
 - **Filename templates** with folders, e.g. `Glassgram/{user}/{user}_{date}_{shortcode}_{index}`.
 - **ZIP or separate files** for carousels and story trays.
 - **Bulk profile download** of the latest N posts. Off by default.
@@ -132,7 +132,7 @@ Act on the hovered media, or the most visible post. Rebindable in settings.
 | :---: | :--- |
 | `D` | Download current photo, video or story |
 | `Shift` + `D` | Download all (carousel or story tray) |
-| `Z` | Open profile picture full size |
+| `Z` | Open photo or profile picture full size |
 | `Shift` + `C` | Copy media URL |
 
 In the image viewer: wheel to zoom, drag to pan, `0` to reset, `Esc` to close.

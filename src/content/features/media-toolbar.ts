@@ -1,4 +1,4 @@
-import { copyAvatarUrl, copyCaption, copyMediaUrl, downloadAll, downloadAvatar, downloadCurrent, hasMultiple, showStoryDetails, zoomAvatar } from '../core/actions';
+import { copyAvatarUrl, copyCaption, copyMediaUrl, downloadAll, downloadAvatar, downloadCurrent, hasMultiple, showStoryDetails, zoomAvatar, zoomMedia } from '../core/actions';
 import { extrasCount } from '../core/story-extras';
 import { onHover, type Hovered } from '../core/hover';
 import { contextFor, resolveTarget, type MediaContext } from '../core/resolve';
@@ -43,6 +43,7 @@ function buttonsFor(ctx: MediaContext): Buttons | null {
   }
   if (isStory || s['download.copyUrl']) btns.push(iconButton('link', 'Copy media URL', () => copyMediaUrl(ctx)));
   if (!isStory && s['download.copyCaption']) btns.push(iconButton('caption', 'Copy caption', () => copyCaption(ctx)));
+  if (ctx.el instanceof HTMLImageElement && (isStory || s['download.zoom'])) btns.push(iconButton('zoom', 'View full size', () => zoomMedia(ctx)));
   if (details) btns.unshift(details);
   return { btns, all, details };
 }
