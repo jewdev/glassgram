@@ -139,9 +139,12 @@ export const videoControls: Feature = {
       if (!seeking) seek.value = String(video.duration ? Math.round((video.currentTime / video.duration) * 1000) : 0);
       time.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
       vol.value = String(video.muted ? 0 : video.volume);
-      const rate = String(video.playbackRate);
-      if (!SPEEDS.includes(rate)) speed.append(h('option', { value: rate }, `${rate}×`));
-      speed.value = rate;
+      // Instagram drops the rate to 0 while seeking/buffering; keep showing the real speed.
+      if (video.playbackRate > 0) {
+        const rate = String(video.playbackRate);
+        if (![...speed.options].some((o) => o.value === rate)) speed.append(h('option', { value: rate }, `${rate}×`));
+        speed.value = rate;
+      }
       loopBtn.classList.toggle('is-active', video.loop);
     };
 
