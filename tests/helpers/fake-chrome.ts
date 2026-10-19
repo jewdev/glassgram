@@ -87,7 +87,8 @@ export function fakeChrome(opts: { downloads?: FakeDownload[]; session?: Record<
     alarms: { get: vi.fn(async () => undefined), create: vi.fn(), clear: vi.fn(async () => true), onAlarm: event() },
     contextMenus: { removeAll: vi.fn(), create: vi.fn(), onClicked: event() },
     declarativeNetRequest: {
-      RuleActionType: { BLOCK: 'block' },
+      RuleActionType: { BLOCK: 'block', MODIFY_HEADERS: 'modifyHeaders' },
+      HeaderOperation: { REMOVE: 'remove', SET: 'set' },
       ResourceType: { XMLHTTPREQUEST: 'xmlhttprequest', PING: 'ping', OTHER: 'other' },
       updateSessionRules: vi.fn(async () => {}),
     },

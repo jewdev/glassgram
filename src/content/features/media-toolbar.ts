@@ -86,11 +86,12 @@ export const mediaToolbar: Feature = {
           bar.classList.remove('is-visible');
           return;
         }
-        // After a short dwell, warm the API cache (clicks feel instant) and reveal "Download all" if useful.
+        // After a short dwell, reveal "Download all" / story details if useful. Only from what Instagram
+        // already loaded: hovering must not send requests Instagram's own client wouldn't.
         if (ctx.kind !== 'avatar') {
           dwell = window.setTimeout(() => {
-            if (b.all) hasMultiple(ctx).then((multi) => multi && b.all!.classList.remove('is-hidden'));
-            const target = resolveTarget(ctx);
+            if (b.all) hasMultiple(ctx, true).then((multi) => multi && b.all!.classList.remove('is-hidden'));
+            const target = resolveTarget(ctx, true);
             target.catch(() => {});
             const details = b.details;
             if (details) {

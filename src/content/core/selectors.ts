@@ -66,9 +66,7 @@ export function isOnTopLayer(el: Element): boolean {
   return !dialogs.length || dialogs.some((d) => d.contains(el));
 }
 
-export function isOwnUi(el: Element | null): boolean {
-  return !!el?.closest('.ige-root');
-}
+export { isOwnUi } from '../ui/hosts';
 
 export function textMatches(el: Element, words: string[]): boolean {
   const t = el.textContent ?? '';

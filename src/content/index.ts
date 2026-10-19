@@ -1,13 +1,12 @@
-import './ui/styles.css';
 import type { Message } from '../shared/messages';
 import type { Settings } from '../shared/settings-schema';
 import { loadSettings, onSettingsChanged } from '../shared/settings';
+import { connectPage, sendPageSettings } from './core/bridge';
 import { setSettings } from './core/state';
-import { anonLive, anonStories } from './features/anon-stories';
 import { contextDownload, contextMenu } from './features/context-menu';
 import { declutter } from './features/declutter';
 import { dmArchive, openUnsentMessages } from './features/dm-archive';
-import { dmPrivacy, voiceDownload } from './features/dm-tools';
+import { voiceDownload } from './features/dm-tools';
 import { commentMedia } from './features/comment-media';
 import { copyComment } from './features/copy-comment';
 import { followBadge } from './features/follow-badge';
@@ -23,10 +22,12 @@ import { timestamps } from './features/timestamps';
 import type { Feature } from './features/types';
 import { openUnfollowers } from './features/unfollowers';
 import { videoControls } from './features/video-controls';
+import { setTheme } from './ui/dom';
+
+// The channel to the page script must exist before Instagram's scripts do (see shared/page-channel.ts).
+connectPage();
 
 const FEATURES: Feature[] = [
-  anonStories,
-  anonLive,
   declutter,
   mediaToolbar,
   videoControls,
@@ -43,7 +44,6 @@ const FEATURES: Feature[] = [
   storyNoAdvance,
   cleanLinks,
   directLinks,
-  dmPrivacy,
   voiceDownload,
   dmArchive,
 ];
@@ -51,8 +51,9 @@ const running = new Map<string, () => void>();
 
 function sync(s: Settings) {
   setSettings(s);
-  // Our floating UI follows the extension's Appearance setting, not Instagram's own theme.
-  document.documentElement.setAttribute('data-ige-theme', s['ui.theme']);
+  // Anonymous stories, DM privacy and link cleaning run in the page script.
+  sendPageSettings(s);
+  setTheme(s['ui.theme']);
   for (const f of FEATURES) {
     const on = f.isEnabled(s);
     const stop = running.get(f.id);
@@ -75,10 +76,9 @@ function whenBody(): Promise<void> {
 
 async function boot() {
   const settings = await loadSettings();
-  // Anonymous stories must be armed before Instagram sends its first request.
-  if (settings['privacy.anonStories']) document.documentElement.setAttribute('data-ige-anon', '1');
-  // Same for the DM archive: the chat socket delivers its first messages right after page load.
-  if (settings['dm.keepUnsent']) document.documentElement.setAttribute('data-ige-dmkeep', '1');
+  // The page script patches what these settings need right away: anonymous stories must be armed
+  // before Instagram's first request, the DM archive before the chat socket's first messages.
+  sendPageSettings(settings);
   await whenBody();
   sync(settings);
   onSettingsChanged(sync);

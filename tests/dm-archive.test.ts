@@ -5,7 +5,8 @@ vi.mock('../src/content/core/api', () => ({ myUserId: () => 'me' }));
 vi.mock('../src/content/core/download', () => ({ inRootFolder: (p: string) => p }));
 vi.mock('../src/content/core/observer', () => ({ onDomChange: () => () => {} }));
 vi.mock('../src/content/core/state', () => ({ getSettings: () => settings }));
-vi.mock('../src/content/ui/dom', () => ({ h: () => ({}), icon: () => '' }));
+vi.mock('../src/content/core/bridge', () => ({ onFound: () => () => {}, onPage: () => () => {}, requestScan: () => {} }));
+vi.mock('../src/content/ui/dom', () => ({ h: () => ({}), icon: () => '', shadowHost: () => ({}) }));
 vi.mock('../src/content/ui/modal', () => ({ openModal: () => ({}) }));
 vi.mock('../src/content/ui/toast', () => ({ toast: () => {} }));
 

@@ -1,37 +1,14 @@
 import { send, type DownloadResult } from '../../shared/messages';
+import { onFound, requestScan } from '../core/bridge';
 import { inRootFolder } from '../core/download';
 import { renderFilename } from '../core/filename';
 import { onDomChange } from '../core/observer';
-import { h, icon, ICONS } from '../ui/dom';
+import { h, icon, ICONS, shadowHost } from '../ui/dom';
 import { toast } from '../ui/toast';
 import type { Feature } from './types';
 
-// The MAIN-world script reads these attributes on every chat-socket send.
-const ATTR_TYPING = 'data-ige-dmtyping';
-const ATTR_SEEN = 'data-ige-dmseen';
-const ATTR_VOICE = 'data-ige-voice';
-
-/** Hide typing indicator / read receipts in DMs (experimental). */
-export const dmPrivacy: Feature = {
-  id: 'dm-privacy',
-  isEnabled: (s) => s['privacy.dmHideTyping'] || s['privacy.dmHideSeen'],
-  start() {
-    return () => {
-      document.documentElement.removeAttribute(ATTR_TYPING);
-      document.documentElement.removeAttribute(ATTR_SEEN);
-    };
-  },
-  onSettings(s) {
-    const html = document.documentElement;
-    for (const [attr, on] of [
-      [ATTR_TYPING, s['privacy.dmHideTyping']],
-      [ATTR_SEEN, s['privacy.dmHideSeen']],
-    ] as const) {
-      if (on) html.setAttribute(attr, '1');
-      else html.removeAttribute(attr);
-    }
-  },
-};
+// Hiding the typing indicator and read receipts happens entirely in the page script, which gets
+// those settings over the bridge (see content/index.ts).
 
 /** e.g. Glassgram/DMs/voice_2026-10-05_1628169548894483.m4a — same root folder as the filename template. */
 function voiceFilename(attachmentId: string): string {
@@ -39,12 +16,11 @@ function voiceFilename(attachmentId: string): string {
   return inRootFolder(`DMs/${name}`);
 }
 
-const BTN_CLASS = 'ige-voice-dl';
+/** The host is the flex item next to Instagram's voice bubble. */
+const BTN_HOST_CSS = ':host { display: grid; flex: none; align-self: center; }';
 
-async function downloadVoice(bubble: Element) {
-  const url = bubble.getAttribute('data-ige-voice-url');
-  if (!url) return;
-  const res = await send<DownloadResult>({ type: 'download', jobs: [{ url, filename: voiceFilename(bubble.getAttribute('data-ige-voice-id') ?? '') }] });
+async function downloadVoice(voice: { url: string; id: string }) {
+  const res = await send<DownloadResult>({ type: 'download', jobs: [{ url: voice.url, filename: voiceFilename(voice.id) }] });
   toast(res?.ok ? 'Downloading voice message' : 'Download failed', res?.ok ? 'success' : 'error');
 }
 
@@ -53,33 +29,38 @@ export const voiceDownload: Feature = {
   id: 'voice-download',
   isEnabled: (s) => s['dm.voiceDownload'],
   start() {
-    document.documentElement.setAttribute(ATTR_VOICE, '1');
+    /** Voice bubble → our button next to it. */
+    const buttons = new Map<Element, HTMLElement>();
 
-    // The MAIN-world script tags bubbles with data-ige-voice-url (from Instagram's own message data).
-    const off = onDomChange(() => {
-      for (const bubble of document.querySelectorAll('[data-ige-voice-url]:not([data-ige-vbtn])')) {
-        bubble.setAttribute('data-ige-vbtn', '');
-        const btn = h('button', {
-          class: `ige-root ${BTN_CLASS}`,
-          type: 'button',
-          title: 'Download voice message',
-          'aria-label': 'Download voice message',
-          html: icon(ICONS.download, 16),
-          onClick: (e: MouseEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            downloadVoice(bubble);
-          },
-        });
-        bubble.insertAdjacentElement('afterend', btn);
-      }
+    // The page script points at each bubble with its URL (from Instagram's own message data).
+    const offFound = onFound('voice', (bubble, voice) => {
+      if (buttons.get(bubble)?.isConnected) return;
+      const btn = h('button', {
+        class: 'ige-root ige-voice-dl',
+        type: 'button',
+        title: 'Download voice message',
+        'aria-label': 'Download voice message',
+        html: icon(ICONS.download, 16),
+        onClick: (e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          downloadVoice(voice);
+        },
+      });
+      const host = shadowHost('span', btn, BTN_HOST_CSS);
+      buttons.set(bubble, host);
+      bubble.insertAdjacentElement('afterend', host);
+    });
+    const offDom = onDomChange(() => {
+      for (const [bubble, host] of buttons) if (!bubble.isConnected) (buttons.delete(bubble), host.remove());
+      if (location.pathname.startsWith('/direct/')) requestScan();
     });
 
     return () => {
-      off();
-      document.querySelectorAll(`.${BTN_CLASS}`).forEach((b) => b.remove());
-      document.querySelectorAll('[data-ige-vbtn]').forEach((b) => b.removeAttribute('data-ige-vbtn'));
-      document.documentElement.removeAttribute(ATTR_VOICE);
+      offFound();
+      offDom();
+      buttons.forEach((host) => host.remove());
+      buttons.clear();
     };
   },
 };

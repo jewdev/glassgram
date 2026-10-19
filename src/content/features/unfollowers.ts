@@ -38,10 +38,8 @@ export function csv(users: FriendUser[]): string {
 
 function saveCsv(name: string, users: FriendUser[]) {
   const url = URL.createObjectURL(new Blob(['﻿' + csv(users)], { type: 'text/csv;charset=utf-8' }));
-  const a = h('a', { href: url, download: name });
-  document.body.append(a);
-  a.click();
-  a.remove();
+  // A detached link downloads just the same, without showing up in Instagram's DOM.
+  h('a', { href: url, download: name }).click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 

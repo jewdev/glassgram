@@ -1,12 +1,14 @@
+import type { KnownUser } from '../../shared/relay';
 import type { ResolvedPost } from '../../shared/types';
 import { normalizeMedia, type ApiMedia } from './media';
 import { bridge, bridgeSafe } from './bridge';
+import { randomPageId, restHeaders } from './headers';
 import { isRateLimited } from './rate-limit';
 import { shortcodeToPk } from './shortcode';
 import { extractStoryExtras } from './story-extras';
 
-// Instagram web app id — required by the private web API.
-const APP_ID = '936619743392459';
+// Calls that pass `offline` only use what Instagram's page already loaded: things that run on their
+// own (hover, badges) never send a request Instagram's client wouldn't have sent. Clicks may.
 
 export class ApiError extends Error {
   constructor(
@@ -15,6 +17,17 @@ export class ApiError extends Error {
     public rateLimited = false,
   ) {
     super(message);
+  }
+}
+
+const pageId = randomPageId();
+
+/** Content scripts share the page's storage, but Instagram can't see us read it. */
+function stored(area: () => Storage, key: string): string | null {
+  try {
+    return area().getItem(key);
+  } catch {
+    return null;
   }
 }
 
@@ -71,12 +84,14 @@ export async function igGet<T>(path: string): Promise<T> {
   await assertNotCoolingDown();
   const res = await fetch(path, {
     credentials: 'include',
-    headers: {
-      'X-IG-App-ID': APP_ID,
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-CSRFToken': cookie('csrftoken') ?? '',
-      Accept: 'application/json',
-    },
+    headers: restHeaders({
+      csrf: cookie('csrftoken'),
+      claim: stored(() => sessionStorage, 'www-claim-v2'),
+      session: stored(() => localStorage, 'Session'),
+      tab: stored(() => sessionStorage, 'TabId'),
+      pageId,
+      maxTouchPoints: navigator.maxTouchPoints ?? 0,
+    }),
   });
   if (res.status === 429) {
     startCooldown();
@@ -113,20 +128,36 @@ function cached<T>(map: Map<string, Promise<T>>, key: string, load: () => Promis
   return p;
 }
 
+class NotLoaded extends ApiError {
+  constructor() {
+    super('Not loaded by Instagram yet', 0);
+  }
+}
+
 // ---------- posts / reels ----------
-export function getPostByShortcode(shortcode: string): Promise<ResolvedPost> {
+const hasMedia = (m: ApiMedia | null): m is ApiMedia => !!(m?.image_versions2 || m?.carousel_media || m?.video_versions);
+
+function toPost(raw: ApiMedia, shortcode: string): ResolvedPost {
+  const post = normalizeMedia(raw);
+  post.shortcode ||= shortcode;
+  return post;
+}
+
+export async function getPostByShortcode(shortcode: string, offline = false): Promise<ResolvedPost> {
+  if (offline && !postCache.has(shortcode)) {
+    const known = await bridgeSafe<ApiMedia | null>('getMedia', { code: shortcode }, null);
+    if (!hasMedia(known)) throw new NotLoaded();
+    postCache.set(shortcode, Promise.resolve(toPost(known, shortcode)));
+  }
   return cached(postCache, shortcode, async () => {
     // Fast path: Instagram already loaded this media (feed, profile grid, post page).
-    const sniffed = await bridgeSafe<ApiMedia | null>('getMedia', { code: shortcode }, null);
-    let raw = sniffed;
-    if (!raw?.image_versions2 && !raw?.carousel_media && !raw?.video_versions) {
+    let raw = await bridgeSafe<ApiMedia | null>('getMedia', { code: shortcode }, null);
+    if (!hasMedia(raw)) {
       const data = await igGet<{ items: ApiMedia[] }>(`/api/v1/media/${shortcodeToPk(shortcode)}/info/`);
       raw = data.items?.[0] ?? null;
     }
     if (!raw) throw new ApiError('Post not found', 404);
-    const post = normalizeMedia(raw);
-    post.shortcode ||= shortcode;
-    return post;
+    return toPost(raw, shortcode);
   });
 }
 
@@ -138,10 +169,9 @@ export interface Friendship {
   followed_by: boolean;
 }
 
-interface BridgeUser {
-  id: string;
-  hd?: HdPic;
-  fs?: Friendship;
+/** What Instagram's page data says about `username` (id, HD picture, relationship); never sends a request. */
+export function knownUser(username: string): Promise<KnownUser | null> {
+  return bridgeSafe<KnownUser | null>('getUser', { username }, null);
 }
 
 export interface ProfileSummary {
@@ -152,9 +182,15 @@ export interface ProfileSummary {
   hd?: HdPic;
 }
 
-export function getUserId(username: string): Promise<string> {
-  return cached(userIdCache, username.toLowerCase(), async () => {
-    const known = await bridgeSafe<BridgeUser | null>('getUser', { username }, null);
+export async function getUserId(username: string, offline = false): Promise<string> {
+  const key = username.toLowerCase();
+  if (offline && !userIdCache.has(key)) {
+    const known = await knownUser(username);
+    if (!known?.id) throw new NotLoaded();
+    userIdCache.set(key, Promise.resolve(known.id));
+  }
+  return cached(userIdCache, key, async () => {
+    const known = await knownUser(username);
     if (known?.id) return known.id;
     try {
       const data = await igGet<{ users?: { user: { pk?: string | number; pk_id?: string; username: string } }[] }>(
@@ -171,16 +207,8 @@ export function getUserId(username: string): Promise<string> {
   });
 }
 
-/** Relationship between the logged-in user and `username`. `fresh` skips the page cache. */
-export async function getFriendship(username: string, fresh = false): Promise<Friendship> {
-  if (!fresh) {
-    // Instagram's own profile query carries the relationship; it may land a moment after navigation.
-    for (const wait of [0, 1200]) {
-      if (wait) await sleep(wait);
-      const known = await bridgeSafe<BridgeUser | null>('getUser', { username }, null);
-      if (known?.fs) return known.fs;
-    }
-  }
+/** Relationship between the logged-in user and `username`, asked from Instagram (knownUser has the free one). */
+export async function getFriendship(username: string): Promise<Friendship> {
   const id = await getUserId(username);
   const r = await igGet<{ following?: boolean; followed_by?: boolean }>(`/api/v1/friendships/show/${id}/`);
   return { following: !!r.following, followed_by: !!r.followed_by };
@@ -233,7 +261,7 @@ function headerAvatarUrl(): string | undefined {
 
 /** Best available profile picture URL (usually 1080px). */
 export async function getHdProfilePic(username: string): Promise<HdPic & { userId: string }> {
-  const known = await bridgeSafe<BridgeUser | null>('getUser', { username }, null);
+  const known = await knownUser(username);
   if (known?.hd?.url) return { ...known.hd, userId: known.id };
   const userId = await getUserId(username);
   try {
@@ -253,10 +281,44 @@ interface ReelsMediaResponse {
   reels_media?: { id: string; items?: ApiMedia[]; user?: { username?: string } }[];
 }
 
-/** reelId = user id for a user's stories, or `highlight:<id>` for a highlight. */
-export async function getReelItems(reelId: string): Promise<ResolvedPost[]> {
+type Reel = { items?: ApiMedia[]; user?: { username?: string } };
+
+// Story trays rarely change while one is open; hovering it again shouldn't fetch it again.
+const REEL_TTL = 2 * 60 * 1000;
+const reelCache = new Map<string, { at: number; items: Promise<ResolvedPost[]>; full: boolean }>();
+
+/**
+ * reelId = user id for a user's stories, or `highlight:<id>` for a highlight.
+ * `full`: as Instagram's API returns it. Its page data leaves out the mentioned accounts' pictures.
+ */
+export function getReelItems(reelId: string, offline = false, full = false): Promise<ResolvedPost[]> {
+  const hit = reelCache.get(reelId);
+  if (hit && Date.now() - hit.at < REEL_TTL && (hit.full || !full)) return hit.items;
+  const items = full ? fetchReel(reelId) : loadReel(reelId, offline);
+  const remember = () => void reelCache.set(reelId, { at: Date.now(), items, full });
+  // An offline miss must not answer a click that comes while it is still pending.
+  if (offline) items.then(remember, () => {});
+  else {
+    remember();
+    items.catch(() => reelCache.delete(reelId));
+  }
+  return items;
+}
+
+async function loadReel(reelId: string, offline: boolean): Promise<ResolvedPost[]> {
+  // The tray Instagram loaded to show it; the request only when it isn't there.
+  const known = await bridgeSafe<Reel | null>('getReel', { id: reelId }, null);
+  if (known?.items?.length) return reelPosts(known);
+  if (offline) throw new NotLoaded();
+  return fetchReel(reelId);
+}
+
+async function fetchReel(reelId: string): Promise<ResolvedPost[]> {
   const data = await igGet<ReelsMediaResponse>(`/api/v1/feed/reels_media/?reel_ids=${encodeURIComponent(reelId)}`);
-  const reel = data.reels?.[reelId] ?? data.reels_media?.find((r) => r.id === reelId) ?? data.reels_media?.[0];
+  return reelPosts(data.reels?.[reelId] ?? data.reels_media?.find((r) => r.id === reelId) ?? data.reels_media?.[0]);
+}
+
+function reelPosts(reel: Reel | undefined): ResolvedPost[] {
   const owner = reel?.user?.username;
   return (reel?.items ?? []).map((m) => {
     const p = normalizeMedia(m);

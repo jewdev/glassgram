@@ -1,6 +1,6 @@
 import { toast, copyText } from '../ui/toast';
 import { openZoom } from '../ui/zoom';
-import { getHdProfilePic } from './api';
+import { getHdProfilePic, getReelItems } from './api';
 import { dispatch, downloadPost, jobsForPost, profilePicFilename } from './download';
 import { extFromUrl } from './media';
 import { resolveTarget, type MediaContext } from './resolve';
@@ -51,12 +51,25 @@ export const zoomMedia = (ctx: MediaContext) =>
     });
   });
 
-export const showStoryDetails =(ctx: MediaContext) => withTarget(ctx, (t) => openStoryDetails(t.post));
+export const showStoryDetails = (ctx: MediaContext) =>
+  withTarget(ctx, async (t) => {
+    let post = t.post;
+    // Instagram's page data has no pictures of the mentioned accounts; this click may ask for them.
+    if (ctx.kind === 'story' && post.extras?.mentions.some((m) => !m.picUrl)) {
+      try {
+        const tray = await getReelItems(await ctx.reelId(), false, true);
+        post = tray.find((p) => p.id === post.id) ?? post;
+      } catch {
+        /* show it without the pictures */
+      }
+    }
+    openStoryDetails(post);
+  });
 
-/** True when the target has more than one item (carousel or story tray). */
-export async function hasMultiple(ctx: MediaContext): Promise<boolean> {
+/** True when the target has more than one item (carousel or story tray). `offline`: see api.ts. */
+export async function hasMultiple(ctx: MediaContext, offline = false): Promise<boolean> {
   try {
-    const t = await resolveTarget(ctx);
+    const t = await resolveTarget(ctx, offline);
     return (t.tray?.length ?? t.post.items.length) > 1;
   } catch {
     return false;

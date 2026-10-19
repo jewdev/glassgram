@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [
     crx({
       manifest,
-      contentScripts: { standaloneFiles: ['src/inject/main-world.ts'] },
+      // Self-contained IIFEs: no loader that import()s chunks, so no web_accessible_resources a page
+      // could probe for.
+      contentScripts: { standaloneFiles: ['src/inject/main-world.ts', 'src/content/index.ts'] },
     }),
   ],
   build: {

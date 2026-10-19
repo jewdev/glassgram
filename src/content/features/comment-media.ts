@@ -8,8 +8,9 @@ import { toast } from '../ui/toast';
 import { actionLineItem, makeCommentAction } from './copy-comment';
 import type { Feature } from './types';
 
-const MARK = 'data-ige-cm';
-const BTN_CLASS = 'ige-save-comment-media';
+/** GIFs that already have a "Save GIF" item. */
+let done = new WeakSet<Element>();
+const buttons = new Set<HTMLElement>();
 
 /**
  * Smallest ancestor holding the whole comment: the commenter's avatar link and the
@@ -48,17 +49,17 @@ async function save(img: HTMLImageElement, row: Element) {
 }
 
 function scan() {
-  for (const img of document.querySelectorAll<HTMLImageElement>(`img:not([${MARK}])`)) {
-    if (!isCommentGif(img)) continue;
+  for (const img of document.querySelectorAll<HTMLImageElement>('img')) {
+    if (done.has(img) || !isCommentGif(img)) continue;
     const row = commentRow(img);
     const template = row && actionLineItem(row);
     if (!row || !template) continue; // action line not rendered yet — retry on next scan
-    img.setAttribute(MARK, '');
-    template.insertAdjacentElement(
-      'afterend',
-      makeCommentAction(template, { text: 'Save GIF', label: 'Save GIF', className: BTN_CLASS, onActivate: () => save(img, row) }),
-    );
+    done.add(img);
+    const btn = makeCommentAction(template, { text: 'Save GIF', label: 'Save GIF', onActivate: () => save(img, row) });
+    buttons.add(btn);
+    template.insertAdjacentElement('afterend', btn);
   }
+  for (const b of buttons) if (!b.isConnected) buttons.delete(b);
 }
 
 /** A "Save GIF" item under comments that are a GIF. */
@@ -69,8 +70,9 @@ export const commentMedia: Feature = {
     const off = onDomChange(scan);
     return () => {
       off();
-      document.querySelectorAll(`.${BTN_CLASS}`).forEach((b) => b.remove());
-      document.querySelectorAll(`[${MARK}]`).forEach((m) => m.removeAttribute(MARK));
+      buttons.forEach((b) => b.remove());
+      buttons.clear();
+      done = new WeakSet();
     };
   },
 };

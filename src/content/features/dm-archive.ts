@@ -1,18 +1,18 @@
 import { send, type DownloadResult } from '../../shared/messages';
 import type { DmEvent, DmMessage } from '../../shared/slide';
 import { myUserId } from '../core/api';
+import { onFound, onPage, requestScan } from '../core/bridge';
 import { inRootFolder } from '../core/download';
 import { renderFilename } from '../core/filename';
 import { onDomChange } from '../core/observer';
 import { getSettings } from '../core/state';
-import { h, icon } from '../ui/dom';
+import { h, icon, shadowHost } from '../ui/dom';
 import { openModal } from '../ui/modal';
 import { toast } from '../ui/toast';
 import type { Feature } from './types';
 
-// The MAIN-world script forwards decoded DM events while this attribute is set, and tags chat rows
-// (data-ige-mid / data-ige-ts / data-ige-thread) inside lists marked data-ige-dmlist.
-const ATTR = 'data-ige-dmkeep';
+// While dm.keepUnsent is on, the page script forwards decoded DM events, and points us at chat
+// lists and their rows (message id, time, chat) when we ask it to scan.
 
 // Storage layout (chrome.storage.local, private to the extension):
 //   ige.dm.u.<id>       one unsent message, kept until you clear them
@@ -200,13 +200,23 @@ export async function handle(events: DmEvent[]) {
 
 // ---------------- in-chat overlay ----------------
 
-const GHOST = 'data-ige-ghost';
 const UNSENT_ICON = '<path d="M3 7h18"/><path d="M8 7V4h8v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>';
+
+/** Chat message lists the page script found. */
+const lists = new Set<Element>();
+/** Instagram's message rows → what the page script read from them. */
+const rowInfo = new WeakMap<Element, { mid: string; ts: number; thread: string }>();
+/** Our ghost rows → the unsent message they show. */
+const ghostInfo = new WeakMap<Element, { id: string; ts: number }>();
+const ghosts = new Set<HTMLElement>();
+
+const rowsOf = (list: Element) => [...list.children].filter((c) => rowInfo.has(c));
+const tsOf = (el: Element) => rowInfo.get(el)?.ts ?? ghostInfo.get(el)?.ts ?? NaN;
 
 /** Left edge of incoming bubbles in this list (they sit after the avatar column). */
 function incomingInset(list: Element): number {
   const lr = list.getBoundingClientRect();
-  for (const row of list.querySelectorAll(':scope > [data-ige-mid]')) {
+  for (const row of rowsOf(list)) {
     for (const d of row.querySelectorAll('div')) {
       const s = getComputedStyle(d);
       if (s.backgroundColor === 'rgba(0, 0, 0, 0)' || parseFloat(s.borderRadius) < 10) continue;
@@ -219,9 +229,16 @@ function incomingInset(list: Element): number {
 }
 
 function ghostFor(m: ArchivedMessage, inset: number): HTMLElement {
+  const host = shadowHost('div', ghostContent(m, inset));
+  ghostInfo.set(host, { id: m.id, ts: m.ts });
+  ghosts.add(host);
+  return host;
+}
+
+function ghostContent(m: ArchivedMessage, inset: number): HTMLElement {
   return h(
     'div',
-    { class: 'ige-root ige-ghost', [GHOST]: m.id, 'data-ige-ts': String(m.ts), style: { paddingLeft: `${inset}px` } },
+    { class: 'ige-root ige-ghost', style: { paddingLeft: `${inset}px` } },
     h(
       'div',
       { class: 'ige-ghost__bubble', title: `Unsent by ${who(m)}\nSent ${fmt(m.ts)}\nUnsent ${fmt(m.unsentAt!)}` },
@@ -237,26 +254,32 @@ function renderGhosts() {
   const byThread = new Map<string, ArchivedMessage[]>();
   for (const m of Object.values(unsent)) byThread.set(m.thread, [...(byThread.get(m.thread) ?? []), m]);
 
-  for (const list of document.querySelectorAll('[data-ige-dmlist]')) {
-    const rows = [...list.querySelectorAll<HTMLElement>(':scope > [data-ige-mid]')];
-    const thread = rows[0]?.getAttribute('data-ige-thread');
+  for (const g of ghosts) if (!g.isConnected) ghosts.delete(g);
+  for (const list of lists) {
+    if (!list.isConnected) {
+      lists.delete(list);
+      continue;
+    }
+    const rows = rowsOf(list);
+    const thread = rows[0] && rowInfo.get(rows[0])?.thread;
     const wanted = (thread && byThread.get(thread)) || [];
+    const listGhosts = [...list.children].filter((c) => ghostInfo.has(c));
     // Drop ghosts that no longer belong here (other chat now shown, or cleared).
-    for (const g of list.querySelectorAll<HTMLElement>(`:scope > [${GHOST}]`)) {
-      if (!wanted.some((m) => m.id === g.getAttribute(GHOST))) g.remove();
+    for (const g of listGhosts) {
+      if (!wanted.some((m) => m.id === ghostInfo.get(g)!.id)) g.remove();
     }
     if (!wanted.length) continue;
-    const firstTs = Number(rows[0].getAttribute('data-ige-ts'));
+    const firstTs = tsOf(rows[0]);
     let inset: number | undefined;
     for (const m of wanted.sort((a, b) => a.ts - b.ts)) {
       if (m.ts < firstTs) continue; // older than the loaded history — appears once you scroll up
-      if (list.querySelector(`:scope > [data-ige-mid="${CSS.escape(m.id)}"]`)) continue; // Instagram still shows it
-      const existing = list.querySelector<HTMLElement>(`:scope > [${GHOST}="${CSS.escape(m.id)}"]`);
+      if (rows.some((r) => rowInfo.get(r)!.mid === m.id)) continue; // Instagram still shows it
+      const existing = listGhosts.find((g) => g.isConnected && ghostInfo.get(g)!.id === m.id);
       // Insert after the last message (or ghost) that is not newer than this one.
       let after: Element | null = null;
       for (const child of list.children) {
         if (child === existing) continue;
-        const ts = Number(child.getAttribute('data-ige-ts'));
+        const ts = tsOf(child);
         if (Number.isFinite(ts) && ts > 0 && ts <= m.ts) after = child;
       }
       if (!after) continue;
@@ -365,19 +388,22 @@ export const dmArchive: Feature = {
   id: 'dm-archive',
   isEnabled: (s) => s['dm.keepUnsent'],
   start() {
-    const onMessage = (e: MessageEvent) => {
-      if (e.source !== window || e.data?.__ige !== 'dm-events' || !Array.isArray(e.data.events)) return;
-      handle(e.data.events as DmEvent[]).catch((err) => console.debug('[IGE] DM archive', err));
-    };
-    window.addEventListener('message', onMessage);
-    document.documentElement.setAttribute(ATTR, '1');
+    const offs = [
+      onPage('dm-events', (m) => {
+        if (Array.isArray(m.events)) handle(m.events).catch((err) => console.debug('[IGE] DM archive', err));
+      }),
+      onFound('dm-list', (list) => lists.add(list)),
+      onFound('dm-row', (row, f) => rowInfo.set(row, { mid: f.mid, ts: f.ts, thread: f.thread })),
+      onPage('scanned', renderGhosts),
+      // Instagram changed the DOM: ask the page script to look at the chat again, then draw.
+      onDomChange(requestScan),
+    ];
     loadUnsent().then(renderGhosts);
-    const offDom = onDomChange(renderGhosts);
     return () => {
-      offDom();
-      window.removeEventListener('message', onMessage);
-      document.documentElement.removeAttribute(ATTR);
-      document.querySelectorAll(`[${GHOST}]`).forEach((g) => g.remove());
+      offs.forEach((off) => off());
+      ghosts.forEach((g) => g.remove());
+      ghosts.clear();
+      lists.clear();
       // Turning the feature off forgets the recent-message buffer; unsent ones stay until cleared.
       dirtyThreads.clear();
       shards.clear();

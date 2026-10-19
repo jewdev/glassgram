@@ -156,3 +156,33 @@ describe('download URLs', () => {
     expect(res).toEqual({ ok: false, error: 'Glassgram only downloads from Instagram.' });
   });
 });
+
+describe('network rules', () => {
+  /** Every rule the worker added, by id, after it applied the stored settings. */
+  async function rulesFor(settings: Record<string, unknown>) {
+    const c = fakeChrome();
+    c.storage.sync.data.settings = settings;
+    await startWorker(c);
+    await Promise.all(c.runtime.onStartup.fire());
+    await flush();
+    const added = c.declarativeNetRequest.updateSessionRules.mock.calls.flatMap(([u]: any[]) => u.addRules ?? []);
+    return new Map<number, chrome.declarativeNetRequest.Rule>(added.map((r: chrome.declarativeNetRequest.Rule) => [r.id, r]));
+  }
+
+  it('does not block analytics unless asked to', async () => {
+    const rules = await rulesFor({});
+    expect(rules.has(2)).toBe(false);
+    expect(rules.has(3)).toBe(false);
+    const on = await rulesFor({ 'privacy.blockAnalytics': true });
+    expect(on.has(2) && on.has(3)).toBe(true);
+  });
+
+  it('makes extension downloads from the CDN look like the page fetching them', async () => {
+    const rule = (await rulesFor({})).get(4)!;
+    expect(rule.condition).toMatchObject({ tabIds: [-1], requestDomains: ['cdninstagram.com', 'fbcdn.net'] });
+    expect(rule.action.requestHeaders).toEqual([
+      { header: 'origin', operation: 'remove' },
+      { header: 'referer', operation: 'set', value: 'https://www.instagram.com/' },
+    ]);
+  });
+});

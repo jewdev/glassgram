@@ -265,7 +265,28 @@ function analyticsRules(): chrome.declarativeNetRequest.Rule[] {
   ];
 }
 
+// ---------------- downloads: look like the page fetching its own media ----------------
+// Media we download (offscreen fetch, chrome.downloads) leaves from the extension, not from a tab:
+// without this the CDN sees `Origin: chrome-extension://<id>` and no Referer.
+const CDN_RULE_ID = 4;
+const NO_TAB = -1; // chrome.tabs.TAB_ID_NONE
+
+const cdnRule = (): chrome.declarativeNetRequest.Rule => ({
+  id: CDN_RULE_ID,
+  priority: 1,
+  action: {
+    type: RuleActionType.MODIFY_HEADERS,
+    requestHeaders: [
+      { header: 'origin', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
+      { header: 'referer', operation: chrome.declarativeNetRequest.HeaderOperation.SET, value: 'https://www.instagram.com/' },
+    ],
+  },
+  condition: { tabIds: [NO_TAB], requestDomains: ['cdninstagram.com', 'fbcdn.net'], resourceTypes: [ResourceType.XMLHTTPREQUEST, ResourceType.OTHER] },
+});
+
 async function syncDnr(s: Settings) {
+  // On its own: a browser that refuses it must not lose the rules below.
+  await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [CDN_RULE_ID], addRules: [cdnRule()] }).catch((e) => console.warn('[IGE] CDN rule', e));
   await chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: ANALYTICS_RULE_IDS,
     addRules: s['privacy.blockAnalytics'] ? analyticsRules() : [],

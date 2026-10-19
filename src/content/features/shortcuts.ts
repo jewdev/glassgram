@@ -2,7 +2,7 @@ import { copyMediaUrl, downloadAll, downloadCurrent, zoomAvatar, zoomMedia } fro
 import { getHovered, type MediaEl } from '../core/hover';
 import { contextFor, type MediaContext } from '../core/resolve';
 import { currentRoute } from '../core/router';
-import { isOnTopLayer } from '../core/selectors';
+import { isOnTopLayer, isOwnUi } from '../core/selectors';
 import { getSettings } from '../core/state';
 import { toast } from '../ui/toast';
 import { comboFromEvent } from '../../shared/keys';
@@ -10,7 +10,8 @@ import type { Feature } from './types';
 
 function isTyping(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null;
-  return !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || !!t.closest('[contenteditable="true"], [role="textbox"]'));
+  // Keys typed into our own panels (search, inputs) reach the document retargeted to their host.
+  return !!t && (isOwnUi(t) || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || !!t.closest('[contenteditable="true"], [role="textbox"]'));
 }
 
 /** Media under the mouse, otherwise the largest visible media in the viewport. */
@@ -22,7 +23,7 @@ function currentContext(): MediaContext | null {
   let best: MediaEl | null = null;
   let bestArea = 0;
   for (const el of document.querySelectorAll<MediaEl>('article img, article video, main img, main video, section img, section video, div[role="dialog"] img, div[role="dialog"] video')) {
-    if (el.closest('.ige-root') || !isOnTopLayer(el)) continue;
+    if (isOwnUi(el) || !isOnTopLayer(el)) continue;
     const r = el.getBoundingClientRect();
     const w = Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0));
     const h = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));

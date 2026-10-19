@@ -3,10 +3,8 @@ import { onDomChange } from '../core/observer';
 import { getSettings } from '../core/state';
 import type { Feature } from './types';
 
-// The MAIN-world script reads these attributes for clipboard.writeText and window.open.
-const ATTR_CLEAN = 'data-ige-cleanlinks';
-const ATTR_DOMAIN = 'data-ige-sharedomain';
-const ATTR_DIRECT = 'data-ige-directlinks';
+// The page script cleans links Instagram copies with clipboard.writeText and unwraps its window.open
+// calls; it gets these settings over the bridge (see content/index.ts).
 
 function copiedText(): string {
   const el = document.activeElement;
@@ -22,13 +20,6 @@ export const cleanLinks: Feature = {
   id: 'clean-links',
   isEnabled: (s) => s['links.clean'],
   start() {
-    const html = document.documentElement;
-    const sync = () => {
-      html.setAttribute(ATTR_CLEAN, '1');
-      html.setAttribute(ATTR_DOMAIN, getSettings()['links.shareDomain'].trim());
-    };
-    sync();
-
     // Instagram's "Copy link" uses a hidden textarea + execCommand('copy'), which fires this event.
     const onCopy = (e: ClipboardEvent) => {
       const text = copiedText();
@@ -41,11 +32,8 @@ export const cleanLinks: Feature = {
     document.addEventListener('copy', onCopy, true);
     return () => {
       document.removeEventListener('copy', onCopy, true);
-      html.removeAttribute(ATTR_CLEAN);
-      html.removeAttribute(ATTR_DOMAIN);
     };
   },
-  onSettings: (s) => document.documentElement.setAttribute(ATTR_DOMAIN, s['links.shareDomain'].trim()),
 };
 
 /** Open links directly: skip the l.instagram.com redirect page. */
@@ -53,8 +41,6 @@ export const directLinks: Feature = {
   id: 'direct-links',
   isEnabled: (s) => s['links.direct'],
   start() {
-    document.documentElement.setAttribute(ATTR_DIRECT, '1');
-
     const rewrite = () => {
       for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href*="l.instagram.com/"], a[href*="l.facebook.com/"]')) {
         const target = unwrapLinkShim(a.href);
@@ -79,7 +65,6 @@ export const directLinks: Feature = {
       off();
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('auxclick', onClick, true);
-      document.documentElement.removeAttribute(ATTR_DIRECT);
     };
   },
 };

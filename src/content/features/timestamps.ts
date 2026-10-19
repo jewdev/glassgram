@@ -3,7 +3,8 @@ import { SEL } from '../core/selectors';
 import { getSettings } from '../core/state';
 import type { Feature } from './types';
 
-const ORIGINAL = 'igeOriginal';
+/** <time> elements we rewrote → the text Instagram rendered last. Kept here, not on the element. */
+const originals = new Map<HTMLTimeElement, string>();
 
 function format(d: Date): string {
   const f = getSettings()['info.timestampFormat'];
@@ -19,21 +20,23 @@ function apply(t: HTMLTimeElement) {
   const text = format(d);
   if (t.textContent === text) return;
   // React may re-render the relative text; remember whatever it wrote last.
-  t.dataset[ORIGINAL] = t.textContent ?? '';
-  t.title = t.dataset[ORIGINAL] || t.title;
+  const original = t.textContent ?? '';
+  originals.set(t, original);
+  t.title = original || t.title;
   t.textContent = text;
-  t.classList.add('ige-time');
+  t.style.whiteSpace = 'nowrap';
 }
 
 function restoreAll() {
-  document.querySelectorAll<HTMLTimeElement>('time.ige-time').forEach((t) => {
-    if (t.dataset[ORIGINAL] != null) t.textContent = t.dataset[ORIGINAL]!;
-    t.classList.remove('ige-time');
-    delete t.dataset[ORIGINAL];
-  });
+  for (const [t, original] of originals) {
+    t.textContent = original;
+    t.style.removeProperty('white-space');
+  }
+  originals.clear();
 }
 
 function scan() {
+  for (const t of originals.keys()) if (!t.isConnected) originals.delete(t);
   document.querySelectorAll<HTMLTimeElement>(SEL.time).forEach(apply);
 }
 

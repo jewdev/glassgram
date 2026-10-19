@@ -116,7 +116,7 @@ press reload on the extension's card.
 ### 🔒 Privacy and links
 
 - **Clean share links** without tracking parameters, with an optional domain swap (e.g. `kkinstagram.com`).
-- **Direct links** that skip `l.instagram.com` (off by default: it also skips Instagram's harmful-link warnings), and **analytics blocking**.
+- **Direct links** that skip `l.instagram.com` (off by default: it also skips Instagram's harmful-link warnings), and **analytics blocking** (off by default: Instagram can tell its logs never arrive).
 - **Anonymous story viewing**, **hidden typing indicator and "Seen"** in DMs. Off by default.
 
 ### ✨ Small extras

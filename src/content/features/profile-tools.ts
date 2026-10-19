@@ -23,8 +23,11 @@ export const profileTools: Feature = {
       e.stopPropagation();
       toggle();
     });
-    const onDocClick = (e: MouseEvent) => !root.contains(e.target as Node) && toggle(false);
-    document.addEventListener('click', onDocClick, true);
+    // Clicks inside our shadow root reach the document retargeted to its host, so stop them here
+    // and let any click that does reach the document close the menu.
+    root.addEventListener('click', (e) => e.stopPropagation());
+    const onDocClick = () => toggle(false);
+    document.addEventListener('click', onDocClick);
 
     let token = 0;
     const update = async (r: Route) => {
@@ -39,7 +42,10 @@ export const profileTools: Feature = {
         items.push(h('button', { class: 'ige-menuitem', type: 'button', role: 'menuitem', onClick: () => (toggle(false), openBulkDownload(username)), html: `${icon(ICONS.grid, 16)}<span>Download all posts</span>` }));
       }
       if (s['account.unfollowers']) {
-        const own = await getUserId(username).then((id) => id === myUserId()).catch(() => false);
+        // Only from Instagram's page data: no lookup request just to decide whether to show a menu item.
+        // Its profile query may land a moment after navigation, so look twice.
+        const mine = () => getUserId(username, true).then((id) => id === myUserId());
+        const own = await mine().catch(() => new Promise<boolean>((r) => setTimeout(() => mine().then(r, () => r(false)), 1500)));
         if (my !== token) return;
         if (own) items.push(h('button', { class: 'ige-menuitem', type: 'button', role: 'menuitem', onClick: () => (toggle(false), openUnfollowers()), html: `${icon(ICONS.users, 16)}<span>Unfollowers checker</span>` }));
       }
@@ -53,7 +59,7 @@ export const profileTools: Feature = {
     return () => {
       refresh = undefined;
       off();
-      document.removeEventListener('click', onDocClick, true);
+      document.removeEventListener('click', onDocClick);
       root.remove();
     };
   },

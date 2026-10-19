@@ -4,10 +4,11 @@ import type { Feature } from './types';
 
 // A comment's timestamp links to /p/<code>/c/<comment id>/ — captions don't have the /c/ part.
 const COMMENT_TIME = 'a[href*="/c/"] time[datetime]';
-const MARK = 'data-ige-cc';
-const BTN_CLASS = 'ige-copy-comment';
+/** Comment links that already have a "Copy" item. */
+let done = new WeakSet<Element>();
+const buttons = new Set<HTMLElement>();
 /** Every item we add to a comment's action line, so we never clone or count our own. */
-export const COMMENT_ACTION_CLASS = 'ige-comment-action';
+const ownActions = new WeakSet<Element>();
 
 /** Smallest ancestor that holds this comment (avatar + one timestamp). */
 function commentRow(time: Element): Element | null {
@@ -39,7 +40,7 @@ function commentText(row: Element, time: Element): string {
  */
 export function actionLineItem(row: Element): HTMLElement | null {
   const buttons = [...row.querySelectorAll<HTMLElement>('[role="button"], button')].filter(
-    (b) => !b.classList.contains(COMMENT_ACTION_CLASS) && !b.querySelector('svg, img') && b.textContent?.trim(),
+    (b) => !ownActions.has(b) && !b.querySelector('svg, img') && b.textContent?.trim(),
   );
   const byParent = new Map<Element, HTMLElement[]>();
   for (const b of buttons) {
@@ -51,10 +52,10 @@ export function actionLineItem(row: Element): HTMLElement | null {
   return best.at(-1) ?? null;
 }
 
-/** Clone of an Instagram action-line item ("Reply") relabelled, so it matches the native style. */
-export function makeCommentAction(template: HTMLElement, opts: { text: string; label: string; className: string; onActivate: () => void }): HTMLElement {
+/** Clone of an Instagram action-line item ("Reply") relabelled, so it matches the native style (and carries no marks of ours). */
+export function makeCommentAction(template: HTMLElement, opts: { text: string; label: string; onActivate: () => void }): HTMLElement {
   const btn = template.cloneNode(true) as HTMLElement;
-  btn.classList.add(COMMENT_ACTION_CLASS, opts.className);
+  ownActions.add(btn);
   btn.removeAttribute('aria-describedby');
   btn.setAttribute('role', 'button');
   btn.setAttribute('tabindex', '0');
@@ -77,24 +78,23 @@ export function makeCommentAction(template: HTMLElement, opts: { text: string; l
 function scan() {
   for (const time of document.querySelectorAll(COMMENT_TIME)) {
     const link = time.closest('a')!;
-    if (link.hasAttribute(MARK) || !/\/c\/\d+/.test(link.getAttribute('href') ?? '')) continue;
+    if (done.has(link) || !/\/c\/\d+/.test(link.getAttribute('href') ?? '')) continue;
     const row = commentRow(time);
     const template = row && actionLineItem(row);
     if (!row || !template) continue; // action line not rendered yet — retry on next scan
-    link.setAttribute(MARK, '');
-    template.insertAdjacentElement(
-      'afterend',
-      makeCommentAction(template, {
-        text: 'Copy',
-        label: 'Copy comment',
-        className: BTN_CLASS,
-        onActivate: () => {
-          const text = commentText(row, time);
-          if (text) copyText(text, 'Comment copied');
-        },
-      }),
-    );
+    done.add(link);
+    const btn = makeCommentAction(template, {
+      text: 'Copy',
+      label: 'Copy comment',
+      onActivate: () => {
+        const text = commentText(row, time);
+        if (text) copyText(text, 'Comment copied');
+      },
+    });
+    buttons.add(btn);
+    template.insertAdjacentElement('afterend', btn);
   }
+  for (const b of buttons) if (!b.isConnected) buttons.delete(b);
 }
 
 export const copyComment: Feature = {
@@ -104,8 +104,10 @@ export const copyComment: Feature = {
     const off = onDomChange(scan);
     return () => {
       off();
-      document.querySelectorAll(`.${BTN_CLASS}`).forEach((b) => b.remove());
-      document.querySelectorAll(`[${MARK}]`).forEach((l) => l.removeAttribute(MARK));
+      buttons.forEach((b) => b.remove());
+      buttons.clear();
+      // Comments that are still there get their item back if the feature is turned on again.
+      done = new WeakSet();
     };
   },
 };

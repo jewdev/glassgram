@@ -22,7 +22,7 @@ export function openStoryDetails(post: ResolvedPost) {
       ...(hiddenCount ? [h('p', { class: 'ige-muted ige-sd__note' }, `${hiddenCount} hidden (tiny, flagged hidden, or outside the frame).`)] : []),
       ...e.mentions.map((u) =>
         h('a', { class: 'ige-user', href: `/${u.username}/`, target: '_blank', rel: 'noopener' },
-          h('img', { src: u.picUrl, alt: '', loading: 'lazy' }),
+          u.picUrl ? h('img', { src: u.picUrl, alt: '', loading: 'lazy' }) : h('span', { class: 'ige-user__initial', 'aria-hidden': 'true' }, u.username.charAt(0).toUpperCase()),
           h('span', { class: 'ige-user__names' }, h('strong', {}, `@${u.username}`), h('span', {}, u.fullName)),
           u.hidden ? h('span', { class: 'ige-pill', title: 'Not visible on the story' }, 'hidden') : null,
         ),

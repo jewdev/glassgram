@@ -1,4 +1,7 @@
-type Props = Record<string, unknown> & { class?: string; style?: Partial<CSSStyleDeclaration> | string };
+import css from './styles.css?inline';
+import { addHost } from './hosts';
+
+type Props =Record<string, unknown> & { class?: string; style?: Partial<CSSStyleDeclaration> | string };
 type Child = Node | string | null | undefined | false;
 
 /** Tiny hyperscript helper. `onX` props become event listeners. */
@@ -17,13 +20,66 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props = 
   return el;
 }
 
+// ---------------- shadow hosts ----------------
+// Instagram sees our UI only as a bare element; classes, styles and the theme live in a closed
+// shadow root it can't look into. Manifest CSS would need marks on Instagram's DOM to hook onto.
+
+const sheets = new Map<string, CSSStyleSheet>();
+function sheet(text: string): CSSStyleSheet {
+  let s = sheets.get(text);
+  if (!s) {
+    s = new CSSStyleSheet();
+    s.replaceSync(text);
+    sheets.set(text, s);
+  }
+  return s;
+}
+
+function addStyles(root: ShadowRoot, hostCss: string) {
+  try {
+    root.adoptedStyleSheets = [sheet(css), ...(hostCss ? [sheet(hostCss)] : [])];
+    return;
+  } catch {
+    /* constructed sheets refused: fall back to a <style> inside the shadow root */
+  }
+  const style = document.createElement('style');
+  style.textContent = css + hostCss;
+  root.append(style);
+}
+
+let theme = 'system';
+/** Top elements of our shadow roots; they carry the theme. */
+const themed = new Set<HTMLElement>();
+
+/** Our floating UI follows the extension's Appearance setting, not Instagram's own theme. */
+export function setTheme(next: string) {
+  theme = next;
+  for (const el of themed) {
+    if (el.isConnected) el.setAttribute('data-theme', theme);
+    else themed.delete(el);
+  }
+}
+
+/** A bare `tag` element showing `top` in a closed shadow root. `hostCss` styles the host (`:host { … }`). */
+export function shadowHost<K extends keyof HTMLElementTagNameMap>(tag: K, top: HTMLElement, hostCss = ''): HTMLElementTagNameMap[K] {
+  const host = document.createElement(tag);
+  const root = host.attachShadow({ mode: 'closed' });
+  addStyles(root, hostCss);
+  top.setAttribute('data-theme', theme);
+  themed.add(top);
+  root.append(top);
+  addHost(host);
+  return host;
+}
+
 let layer: HTMLElement | undefined;
 
 /** Fixed full-viewport layer that hosts all our floating UI. */
 export function uiLayer(): HTMLElement {
   if (layer?.isConnected) return layer;
-  layer = h('div', { class: 'ige-root ige-layer', id: 'ige-layer' });
-  (document.body ?? document.documentElement).append(layer);
+  layer = h('div', { class: 'ige-root ige-layer' });
+  // A real (empty) box, so hit tests on our UI find the host (see isOwnUi), above Instagram's layers.
+  (document.body ?? document.documentElement).append(shadowHost('div', layer, ':host { position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 2147483000; }'));
   return layer;
 }
 

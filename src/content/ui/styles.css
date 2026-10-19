@@ -1,4 +1,4 @@
-/* Glassgram — all selectors are prefixed with .ige- to avoid clashing with Instagram. */
+/* Glassgram — loaded into the closed shadow roots of our UI hosts (see dom.ts), never into Instagram's page. */
 
 .ige-layer {
   --ige-bg: #ffffff;
@@ -26,8 +26,8 @@
   font: 14px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: var(--ige-fg);
 }
-/* Theme follows the extension setting (data-ige-theme on <html>); "system" follows the OS. */
-html[data-ige-theme='dark'] .ige-layer {
+/* Theme follows the extension setting (data-theme on the layer); "system" follows the OS. */
+.ige-layer[data-theme='dark'] {
   --ige-bg: #1c1c1e;
   --ige-fg: #f5f5f5;
   --ige-muted: #a8a8a8;
@@ -43,7 +43,7 @@ html[data-ige-theme='dark'] .ige-layer {
   --ige-hover: rgb(255 255 255 / 0.12);
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-ige-theme='light']):not([data-ige-theme='dark']) .ige-layer {
+  .ige-layer:not([data-theme='light']):not([data-theme='dark']) {
     --ige-bg: #1c1c1e;
     --ige-fg: #f5f5f5;
     --ige-muted: #a8a8a8;
@@ -270,9 +270,9 @@ html[data-ige-theme='dark'] .ige-layer {
 .ige-sd__row { display: flex; flex-direction: column; gap: 1px; padding: 7px 8px; margin: 0 -8px; border-radius: 9px; color: inherit; text-decoration: none; }
 a.ige-sd__row:hover { background: var(--ige-soft); }
 .ige-sd__link { color: var(--ige-accent); font-weight: 600; word-break: break-all; }
-html[data-ige-theme='dark'] .ige-sd__link { color: #6cb6ff; }
+.ige-layer[data-theme='dark'] .ige-sd__link { color: #6cb6ff; }
 @media (prefers-color-scheme: dark) {
-  html:not([data-ige-theme='light']):not([data-ige-theme='dark']) .ige-sd__link { color: #6cb6ff; }
+  .ige-layer:not([data-theme='light']):not([data-theme='dark']) .ige-sd__link { color: #6cb6ff; }
 }
 /* unsent message put back into a chat */
 .ige-ghost { display: flex; align-items: center; gap: 6px; padding: 2px 12px 2px 52px; }
@@ -324,6 +324,7 @@ html[data-ige-theme='dark'] .ige-sd__link { color: #6cb6ff; }
 .ige-user { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 10px; color: inherit; text-decoration: none; }
 .ige-user:hover { background: var(--ige-soft); }
 .ige-user img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--ige-soft); }
+.ige-user__initial { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--ige-soft); color: var(--ige-muted); font-weight: 600; }
 .ige-user__names { display: flex; flex-direction: column; min-width: 0; }
 .ige-user__names span { color: var(--ige-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ige-empty { padding: 24px 8px; text-align: center; }
@@ -362,8 +363,6 @@ html[data-ige-theme='dark'] .ige-sd__link { color: #6cb6ff; }
 .ige-voice-dl {
   display: grid;
   place-items: center;
-  flex: none;
-  align-self: center;
   width: 28px;
   height: 28px;
   margin: 0 8px 0 2px;
@@ -428,8 +427,6 @@ html[data-ige-theme='dark'] .ige-sd__link { color: #6cb6ff; }
 .ige-follow-badge {
   display: inline-flex;
   align-items: center;
-  align-self: center;
-  flex: none;
   height: 22px;
   margin: 0 8px;
   padding: 0 9px;
@@ -447,26 +444,11 @@ html[data-ige-theme='dark'] .ige-sd__link { color: #6cb6ff; }
 .ige-follow-badge[role='button'] { cursor: pointer; }
 .ige-follow-badge[role='button']:hover { filter: brightness(0.95); }
 .ige-follow-badge[role='button']:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-html.__fb-dark-mode .ige-follow-badge[role='button']:hover { filter: brightness(1.2); }
-html.__fb-dark-mode .ige-follow-badge { background: #2a2d32; color: #c9ced6; }
-html.__fb-dark-mode .ige-follow-badge--mutual { background: #123d25; color: #8de0ad; }
-html.__fb-dark-mode .ige-follow-badge--follower { background: #10304f; color: #9cc9ff; }
-html.__fb-dark-mode .ige-follow-badge--notback { background: #45250f; color: #ffbf8f; }
-
-/* ---------- timestamps ---------- */
-time.ige-time { white-space: nowrap; }
-
-/* ---------- declutter (classes toggled on <html>) ---------- */
-html.ige-hide-ads article[data-ige-flag='ad'],
-html.ige-hide-suggested article[data-ige-flag='suggested'],
-html.ige-hide-sidebar [data-ige-sidebar],
-html.ige-hide-stories [data-ige-stories],
-html.ige-hide-reels [data-ige-nav='reels'],
-html.ige-hide-explore [data-ige-nav='explore'],
-html.ige-hide-threads a[href*='threads.net'],
-html.ige-hide-threads a[href*='threads.com'] {
-  display: none !important;
-}
+:host-context(html.__fb-dark-mode) .ige-follow-badge[role='button']:hover { filter: brightness(1.2); }
+:host-context(html.__fb-dark-mode) .ige-follow-badge { background: #2a2d32; color: #c9ced6; }
+:host-context(html.__fb-dark-mode) .ige-follow-badge--mutual { background: #123d25; color: #8de0ad; }
+:host-context(html.__fb-dark-mode) .ige-follow-badge--follower { background: #10304f; color: #9cc9ff; }
+:host-context(html.__fb-dark-mode) .ige-follow-badge--notback { background: #45250f; color: #ffbf8f; }
 
 @media (prefers-reduced-motion: reduce) {
   .ige-layer * { transition: none !important; }

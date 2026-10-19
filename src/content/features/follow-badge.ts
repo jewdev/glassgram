@@ -1,18 +1,24 @@
-import { getFriendship, getFriendshipDetails, getUserId, myUserId, type Friendship, type FriendshipDetails } from '../core/api';
+import { getFriendship, getFriendshipDetails, getUserId, knownUser, myUserId, type Friendship, type FriendshipDetails } from '../core/api';
 import { onDomChange } from '../core/observer';
 import { currentRoute, onRouteChange } from '../core/router';
 import { isOwnUi, SEL } from '../core/selectors';
-import { h } from '../ui/dom';
+import { h, shadowHost } from '../ui/dom';
 import { openModal } from '../ui/modal';
 import type { Feature } from './types';
 
-type State = Friendship | 'own' | 'loading' | 'error';
+/** `unknown`: Instagram's page data had no relationship; a click asks Instagram. */
+type State = Friendship | 'own' | 'loading' | 'unknown' | 'error';
 
 const BADGE_CLASS = 'ige-follow-badge';
+/** The host is the flex item in Instagram's header row. */
+const BADGE_HOST_CSS = ':host { display: inline-flex; align-self: center; flex: none; vertical-align: middle; }';
+/** Instagram's profile query, which carries the relationship, may land a moment after navigation. */
+const PAGE_DATA_WAITS = [0, 1200, 3000];
 
 function describe(s: State): { text: string; kind: string; title: string } | null {
   if (s === 'own' || s === 'error') return null;
   if (s === 'loading') return { text: '…', kind: 'loading', title: 'Checking follow status' };
+  if (s === 'unknown') return { text: 'Follow status?', kind: 'unknown', title: 'Click to check whether this account follows you' };
   if (s.following && s.followed_by) return { text: 'Follow each other', kind: 'mutual', title: 'You follow each other' };
   if (s.followed_by) return { text: 'Follows you', kind: 'follower', title: 'This account follows you' };
   if (s.following) return { text: "Doesn't follow you back", kind: 'notback', title: "You follow this account, but it doesn't follow you" };
@@ -93,13 +99,40 @@ export const followBadge: Feature = {
   start() {
     const states = new Map<string, State>();
     let refreshTimer: number | undefined;
+    let badge: { host: HTMLElement; key: string; kind: string } | undefined;
 
-    const load = async (username: string, fresh = false) => {
+    const removeBadge = () => {
+      badge?.host.remove();
+      badge = undefined;
+    };
+
+    /** From Instagram's page data only: visiting a profile sends no request of ours. */
+    const load = async (username: string, waits = PAGE_DATA_WAITS) => {
       const key = username.toLowerCase();
-      if (!fresh) states.set(key, 'loading');
+      const prev = states.get(key);
+      if (!prev) states.set(key, 'loading');
+      render();
+      // A re-check that finds nothing keeps what we knew.
+      let state: State = prev && prev !== 'loading' ? prev : 'unknown';
+      for (const wait of waits) {
+        if (wait) await new Promise((r) => setTimeout(r, wait));
+        const known = await knownUser(username);
+        if (known && known.id === myUserId()) state = 'own';
+        else if (known?.fs) state = known.fs;
+        else continue;
+        break;
+      }
+      states.set(key, state);
+      render();
+    };
+
+    /** Asks Instagram, on a click on "Follow status?". */
+    const lookUp = async (username: string) => {
+      const key = username.toLowerCase();
+      states.set(key, 'loading');
       render();
       try {
-        const [id, rel] = await Promise.all([getUserId(username), getFriendship(username, fresh)]);
+        const [id, rel] = await Promise.all([getUserId(username), getFriendship(username)]);
         states.set(key, id === myUserId() ? 'own' : rel);
       } catch (e) {
         console.debug('[IGE] follow status failed', e);
@@ -110,9 +143,7 @@ export const followBadge: Feature = {
 
     function render() {
       const r = currentRoute();
-      document.querySelectorAll(`.${BADGE_CLASS}`).forEach((b) => {
-        if (!r.username || b.getAttribute('data-user') !== r.username.toLowerCase()) b.remove();
-      });
+      if (badge && (!r.username || badge.key !== r.username.toLowerCase())) removeBadge();
       if (r.kind !== 'profile' || !r.username) return;
       const key = r.username.toLowerCase();
       const state = states.get(key);
@@ -121,39 +152,39 @@ export const followBadge: Feature = {
         return;
       }
       const info = describe(state);
-      const existing = document.querySelector<HTMLElement>(`.${BADGE_CLASS}[data-user="${CSS.escape(key)}"]`);
       if (!info) {
-        existing?.remove();
+        removeBadge();
         return;
       }
-      if (existing?.isConnected && existing.dataset.kind === info.kind) return;
+      if (badge?.host.isConnected && badge.kind === info.kind) return;
       const anchor = usernameAnchor(r.username);
       if (!anchor) return;
-      existing?.remove();
+      removeBadge();
       const username = r.username;
       const open = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
-        openDetails(username);
+        if (states.get(key) === 'unknown') lookUp(username);
+        else openDetails(username);
       };
-      const badge = h(
+      const inner = h(
         'span',
         {
           class: `ige-root ${BADGE_CLASS} ${BADGE_CLASS}--${info.kind}`,
-          title: `${info.title}. Click for details.`,
+          title: state === 'unknown' ? info.title : `${info.title}. Click for details.`,
           role: 'button',
           tabindex: '0',
-          'data-user': key,
-          'data-kind': info.kind,
           onClick: open,
           onKeydown: (e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && open(e),
         },
         info.text,
       );
-      anchor.insertAdjacentElement('afterend', badge);
+      badge = { host: shadowHost('span', inner, BADGE_HOST_CSS), key, kind: info.kind };
+      anchor.insertAdjacentElement('afterend', badge.host);
     }
 
-    // Follow / unfollow clicks in the header change the relationship → re-check shortly after.
+    // Follow / unfollow clicks in the header change the relationship; Instagram's own response
+    // updates its page data, so re-read that shortly after.
     const onClick = (e: MouseEvent) => {
       const r = currentRoute();
       if (r.kind !== 'profile' || !r.username) return;
@@ -161,7 +192,7 @@ export const followBadge: Feature = {
       if (isOwnUi(target) || !target?.closest?.('header button, header [role="button"]')) return;
       clearTimeout(refreshTimer);
       const username = r.username;
-      refreshTimer = window.setTimeout(() => load(username, true), 1500);
+      refreshTimer = window.setTimeout(() => load(username, [0, 1500]), 1500);
     };
     document.addEventListener('click', onClick, true);
 
@@ -172,7 +203,7 @@ export const followBadge: Feature = {
       offRoute();
       clearTimeout(refreshTimer);
       document.removeEventListener('click', onClick, true);
-      document.querySelectorAll(`.${BADGE_CLASS}`).forEach((b) => b.remove());
+      removeBadge();
     };
   },
 };

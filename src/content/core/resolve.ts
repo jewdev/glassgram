@@ -7,7 +7,7 @@ import { SEL, shortcodeFromHref, shortcodeInRoot } from './selectors';
 
 export type MediaContext =
   | { kind: 'post'; el: MediaEl; shortcode: string }
-  | { kind: 'story'; el: MediaEl; reelId: () => Promise<string>; storyId?: string }
+  | { kind: 'story'; el: MediaEl; reelId: (offline?: boolean) => Promise<string>; storyId?: string }
   | { kind: 'avatar'; el: MediaEl; username: string };
 
 export interface Target {
@@ -35,7 +35,7 @@ export function contextFor(el: MediaEl): MediaContext | null {
 
   if (route.kind === 'stories' && route.username) {
     const username = route.username;
-    return { kind: 'story', el, reelId: () => getUserId(username), storyId: route.storyId };
+    return { kind: 'story', el, reelId: (offline) => getUserId(username, offline), storyId: route.storyId };
   }
   if (route.kind === 'highlight' && route.highlightId) {
     const id = `highlight:${route.highlightId}`;
@@ -93,13 +93,14 @@ export function matchIndex(items: MediaItem[], el: MediaEl): number {
   return videos[0]?.i ?? -1;
 }
 
-export async function resolveTarget(ctx: MediaContext): Promise<Target> {
+/** `offline`: only what Instagram's page already loaded (see api.ts). */
+export async function resolveTarget(ctx: MediaContext, offline = false): Promise<Target> {
   if (ctx.kind === 'post') {
-    const post = await getPostByShortcode(ctx.shortcode);
+    const post = await getPostByShortcode(ctx.shortcode, offline);
     return { post, index: Math.max(0, matchIndex(post.items, ctx.el)) };
   }
   if (ctx.kind === 'story') {
-    const tray = await getReelItems(await ctx.reelId());
+    const tray = await getReelItems(await ctx.reelId(offline), offline);
     if (!tray.length) throw new Error('No stories found');
     let i = ctx.storyId ? tray.findIndex((p) => p.id === ctx.storyId) : -1;
     if (i < 0) {

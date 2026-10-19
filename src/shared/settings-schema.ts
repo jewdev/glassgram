@@ -71,7 +71,7 @@ export const DEFAULTS = {
   // Privacy
   'privacy.anonStories': false,
   'privacy.anonLive': false,
-  'privacy.blockAnalytics': true,
+  'privacy.blockAnalytics': false,
 
   // Direct messages
   'dm.voiceDownload': true,
@@ -333,6 +333,7 @@ export const SECTIONS: Section[] = [
         key: 'privacy.dmHideTyping',
         label: 'Hide typing indicator',
         desc: 'The other person won\'t see "typing…" while you write.',
+        warning: 'Instagram can see your messages arrive without any typing before them. Low risk, but not invisible.',
       },
       {
         type: 'toggle',
@@ -347,6 +348,8 @@ export const SECTIONS: Section[] = [
         key: 'privacy.blockAnalytics',
         label: 'Block analytics',
         desc: "Blocks Instagram's event-logging requests. Some analytics travel over its live connection and can't be blocked.",
+        badge: 'account',
+        warning: "Instagram can see that your browser never sends its usage logs, which makes your session look unlike a normal one. Leave this off to stay out of sight.",
       },
     ],
   },
@@ -373,7 +376,7 @@ export const SECTIONS: Section[] = [
         label: 'Unfollowers checker',
         desc: "Who doesn't follow you back, plus CSV export. Open it from the popup or your profile.",
         badge: 'risky',
-        warning: "Reads your full follower lists slowly. Large accounts take a while; don't lower the delays too much.",
+        warning: "Reads your full follower lists page by page, the pattern of unfollower apps that Instagram watches for and rate-limits. Large accounts take a while; don't lower the delays.",
       },
       { type: 'number', key: 'account.delayMin', label: 'Shortest wait between requests', min: 1, max: 30, step: 0.5, unit: 's', dependsOn: 'account.unfollowers' },
       { type: 'number', key: 'account.delayMax', label: 'Longest wait between requests', min: 1.5, max: 60, step: 0.5, unit: 's', dependsOn: 'account.unfollowers' },

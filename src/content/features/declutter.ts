@@ -2,20 +2,35 @@ import type { Settings } from '../../shared/settings-schema';
 import { onDomChange } from '../core/observer';
 import { currentRoute } from '../core/router';
 import { SEL, SPONSORED_WORDS, SUGGESTED_WORDS } from '../core/selectors';
+import { getSettings } from '../core/state';
 import type { Feature } from './types';
 
-// Each toggle maps to a class on <html>; styles.css hides elements we tag with data-ige-* attributes.
-const CLASS_FOR: Partial<Record<keyof Settings, string>> = {
-  'declutter.ads': 'ige-hide-ads',
-  'declutter.suggested': 'ige-hide-suggested',
-  'declutter.sidebarSuggestions': 'ige-hide-sidebar',
-  'declutter.reelsTab': 'ige-hide-reels',
-  'declutter.exploreTab': 'ige-hide-explore',
-  'declutter.threads': 'ige-hide-threads',
-  'declutter.storiesTray': 'ige-hide-stories',
+// We remember what each element is here, not on the element, and hide only what a toggle asks for
+// with an inline display:none. Nothing else is written to Instagram's DOM.
+type Kind = 'ad' | 'suggested' | 'sidebar' | 'stories' | 'reels' | 'explore' | 'threads';
+
+const SETTING_FOR: Record<Kind, keyof Settings> = {
+  ad: 'declutter.ads',
+  suggested: 'declutter.suggested',
+  sidebar: 'declutter.sidebarSuggestions',
+  reels: 'declutter.reelsTab',
+  explore: 'declutter.exploreTab',
+  threads: 'declutter.threads',
+  stories: 'declutter.storiesTray',
 };
 
 const MAX_CHECKS = 6;
+
+/** Elements we recognized. */
+const kinds = new Map<Element, Kind>();
+/** Hidden elements → their own inline display, to put back. */
+const hidden = new Map<HTMLElement, [value: string, priority: string]>();
+/** Articles looked at, and how often (labels may render late). */
+let checks = new WeakMap<Element, number>();
+/** Nav links / sidebar anchors already handled. */
+let seen = new WeakSet<Element>();
+
+const has = (kind: Kind) => [...kinds].some(([el, k]) => k === kind && el.isConnected);
 
 function hasExactLabel(root: Element, words: string[]): boolean {
   for (const el of root.querySelectorAll('span, a')) {
@@ -36,12 +51,13 @@ function soleWrapper(el: Element): Element {
 }
 
 function tagFeed() {
-  for (const art of document.querySelectorAll<HTMLElement>(`${SEL.article}:not([data-ige-flag])`)) {
-    const n = Number(art.dataset.igeChecks ?? 0);
+  for (const art of document.querySelectorAll<HTMLElement>(SEL.article)) {
+    if (kinds.has(art)) continue;
+    const n = checks.get(art) ?? 0;
     if (n >= MAX_CHECKS) continue;
-    art.dataset.igeChecks = String(n + 1);
-    if (hasExactLabel(art, SPONSORED_WORDS)) art.dataset.igeFlag = 'ad';
-    else if (hasExactLabel(art, SUGGESTED_WORDS)) art.dataset.igeFlag = 'suggested';
+    checks.set(art, n + 1);
+    if (hasExactLabel(art, SPONSORED_WORDS)) kinds.set(art, 'ad');
+    else if (hasExactLabel(art, SUGGESTED_WORDS)) kinds.set(art, 'suggested');
   }
 }
 
@@ -50,65 +66,91 @@ function tagNav() {
     [SEL.reelsNav, 'reels'],
     [SEL.exploreNav, 'explore'],
   ] as const) {
-    for (const a of document.querySelectorAll(`${sel}:not([data-ige-seen])`)) {
-      a.setAttribute('data-ige-seen', '');
+    for (const a of document.querySelectorAll(sel)) {
+      if (seen.has(a)) continue;
+      seen.add(a);
       if (a.closest(SEL.article)) continue;
-      soleWrapper(a).setAttribute('data-ige-nav', name);
+      kinds.set(soleWrapper(a), name);
     }
   }
+  for (const a of document.querySelectorAll(SEL.threadsLink)) if (!kinds.has(a)) kinds.set(a, 'threads');
 }
 
 function tagHome() {
   if (currentRoute().kind !== 'home') return;
   // Suggested accounts sidebar: climb from the "See all" link (older layout) or the
   // "Suggested for you" header (newer fixed right column) while the column stays narrow.
-  if (!document.querySelector('[data-ige-sidebar]')) {
+  if (!has('sidebar')) {
     const anchor =
-      document.querySelector(`${SEL.sidebarSuggestionsLink}:not([data-ige-seen])`) ??
-      [...document.querySelectorAll(`${SEL.main} span:not([data-ige-seen])`)].find(
-        (el) => el.childElementCount === 0 && SUGGESTED_WORDS.includes(el.textContent?.trim() ?? '') && !el.closest(SEL.article),
+      [...document.querySelectorAll(SEL.sidebarSuggestionsLink)].find((el) => !seen.has(el)) ??
+      [...document.querySelectorAll(`${SEL.main} span`)].find(
+        (el) => !seen.has(el) && el.childElementCount === 0 && SUGGESTED_WORDS.includes(el.textContent?.trim() ?? '') && !el.closest(SEL.article),
       );
     if (anchor && !anchor.closest(SEL.article)) {
-      anchor.setAttribute('data-ige-seen', '');
+      seen.add(anchor);
       let col: Element = anchor;
       while (col.parentElement && col.parentElement.getBoundingClientRect().width < 420 && col.parentElement !== document.body) col = col.parentElement;
       // Must be a real side column, not a narrow heading inside the feed.
-      if (col !== anchor && col.getBoundingClientRect().left > window.innerWidth / 2) col.setAttribute('data-ige-sidebar', '');
+      if (col !== anchor && col.getBoundingClientRect().left > window.innerWidth / 2) kinds.set(col, 'sidebar');
     }
   }
   // Stories tray: a list whose items contain story-ring canvases, near the top of <main>.
   const main = document.querySelector(SEL.main);
-  if (main && !main.querySelector('[data-ige-stories]')) {
+  if (main && ![...kinds].some(([el, k]) => k === 'stories' && main.contains(el))) {
     for (const ul of main.querySelectorAll('ul')) {
       if (ul.closest(SEL.article)) continue;
       if (ul.querySelectorAll('li canvas').length >= 2) {
         // Tray = <ul> inside a [role=presentation] scroller; its parent also holds the arrow buttons.
-        (ul.closest('[role="presentation"]')?.parentElement ?? ul.parentElement ?? ul).setAttribute('data-ige-stories', '');
+        kinds.set(ul.closest('[role="presentation"]')?.parentElement ?? ul.parentElement ?? ul, 'stories');
         break;
       }
     }
   }
 }
 
-function applyClasses(s: Settings) {
-  for (const [key, cls] of Object.entries(CLASS_FOR)) {
-    document.documentElement.classList.toggle(cls!, !!s[key as keyof Settings]);
+function hide(el: HTMLElement) {
+  if (hidden.has(el)) return;
+  hidden.set(el, [el.style.getPropertyValue('display'), el.style.getPropertyPriority('display')]);
+  el.style.setProperty('display', 'none', 'important');
+}
+
+function show(el: HTMLElement) {
+  const prev = hidden.get(el);
+  if (!prev) return;
+  hidden.delete(el);
+  if (prev[0]) el.style.setProperty('display', prev[0], prev[1]);
+  else el.style.removeProperty('display');
+}
+
+function apply(s: Settings) {
+  for (const [el, kind] of kinds) {
+    if (!el.isConnected) {
+      kinds.delete(el);
+      hidden.delete(el as HTMLElement);
+    } else if (el instanceof HTMLElement) {
+      if (s[SETTING_FOR[kind]]) hide(el);
+      else show(el);
+    }
   }
 }
 
 export const declutter: Feature = {
   id: 'declutter',
-  isEnabled: () => true, // individual toggles are applied via classes
+  isEnabled: (s) => Object.values(SETTING_FOR).some((k) => s[k]),
   start() {
     const off = onDomChange(() => {
       tagFeed();
       tagNav();
       tagHome();
+      apply(getSettings());
     });
     return () => {
       off();
-      Object.values(CLASS_FOR).forEach((c) => document.documentElement.classList.remove(c!));
+      for (const el of [...hidden.keys()]) show(el);
+      kinds.clear();
+      checks = new WeakMap();
+      seen = new WeakSet();
     };
   },
-  onSettings: applyClasses,
+  onSettings: apply,
 };
