@@ -74,7 +74,7 @@ export const DEFAULTS = {
   'privacy.blockAnalytics': false,
 
   // Direct messages
-  'dm.voiceDownload': true,
+  'dm.voiceDownload': false,
   'privacy.dmHideTyping': false,
   'privacy.dmHideSeen': false,
   'dm.keepUnsent': false,

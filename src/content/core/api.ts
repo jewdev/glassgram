@@ -1,7 +1,7 @@
 import type { KnownUser } from '../../shared/relay';
 import type { ResolvedPost } from '../../shared/types';
 import { normalizeMedia, type ApiMedia } from './media';
-import { bridge, bridgeSafe } from './bridge';
+import { bridge, bridgeSafe, onPage } from './bridge';
 import { randomPageId, restHeaders } from './headers';
 import { isRateLimited } from './rate-limit';
 import { shortcodeToPk } from './shortcode';
@@ -21,6 +21,9 @@ export class ApiError extends Error {
 }
 
 const pageId = randomPageId();
+/** Instagram's current X-ASBD-ID, once the page script has seen it in one of Instagram's requests. */
+let asbd: string | undefined;
+onPage('asbd', (m) => (asbd = m.value));
 
 /** Content scripts share the page's storage, but Instagram can't see us read it. */
 function stored(area: () => Storage, key: string): string | null {
@@ -91,6 +94,7 @@ export async function igGet<T>(path: string): Promise<T> {
       tab: stored(() => sessionStorage, 'TabId'),
       pageId,
       maxTouchPoints: navigator.maxTouchPoints ?? 0,
+      asbd,
     }),
   });
   if (res.status === 429) {

@@ -3,7 +3,10 @@
 
 /** Instagram web app id. */
 export const APP_ID = '936619743392459';
-/** Sent with every request by Instagram's current web build. Update when Instagram changes it. */
+/**
+ * Sent with every request by Instagram's web build. Only a fallback: the page script passes on the
+ * value Instagram itself sends once it has seen one of its requests.
+ */
 export const ASBD_ID = '359341';
 
 export interface HeaderSource {
@@ -17,6 +20,8 @@ export interface HeaderSource {
   /** Third X-Web-Session-ID part, made up once per page load. */
   pageId: string;
   maxTouchPoints: number;
+  /** X-ASBD-ID from Instagram's own latest request, when the page script has seen one. */
+  asbd?: string;
 }
 
 const ID_RE = /^[a-z0-9]+$/i;
@@ -25,7 +30,7 @@ export function restHeaders(src: HeaderSource): Record<string, string> {
   const h: Record<string, string> = {
     'X-CSRFToken': src.csrf ?? '',
     'X-IG-App-ID': APP_ID,
-    'X-ASBD-ID': ASBD_ID,
+    'X-ASBD-ID': src.asbd || ASBD_ID,
     'X-IG-WWW-Claim': src.claim || '0',
   };
   const session = src.session?.split(':')[0];

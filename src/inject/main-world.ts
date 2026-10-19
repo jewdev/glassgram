@@ -96,8 +96,17 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
   // carry stale ones from when its template was captured.
   const tokens: Record<string, string> = {};
   let lastReq = 0;
+  let asbd = '';
 
   function rememberRequest(url: string, body: string, headers: Record<string, string>) {
+    // Our own REST calls send the same value (content/core/headers.ts), so they keep matching when
+    // Instagram changes it. Only read from requests a hook already sees: nothing is patched for this.
+    for (const [k, v] of Object.entries(headers)) {
+      if (/^x-asbd-id$/i.test(k) && /^\d{1,12}$/.test(v) && v !== asbd) {
+        asbd = v;
+        send({ t: 'asbd', value: v });
+      }
+    }
     const p = new URLSearchParams(body);
     for (const k of ['fb_dtsg', 'lsd', 'jazoest']) {
       const v = p.get(k);
@@ -448,13 +457,30 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
     return fiberKey ? (el as unknown as Record<string, Fiber>)[fiberKey] : undefined;
   };
 
+  /** The Relay store the nearest environment provider above `el` holds. */
+  function sourceAbove(el: Element): RelaySource | undefined {
+    let f = fiberOf(el);
+    for (let i = 0; i < 2000 && f; i++, f = f.return) {
+      const env = f.memoizedProps?.environment ?? f.memoizedProps?.value?.environment;
+      if (env && typeof env.getStore === 'function') return env.getStore().getSource();
+    }
+    return undefined;
+  }
+
+  // The environment is provided near the React root, so walking up from one rendered element finds
+  // it: an element in the main content first, then a few others in case that one isn't React's.
+  const MAX_TRIES = 20;
   function findRelaySource(): RelaySource | undefined {
-    for (const el of document.querySelectorAll('main div, div[role="main"] div, div')) {
-      let f = fiberOf(el);
-      for (let i = 0; i < 80 && f; i++, f = f.return) {
-        const env = f.memoizedProps?.environment ?? f.memoizedProps?.value?.environment;
-        if (env && typeof env.getStore === 'function') return env.getStore().getSource();
-      }
+    for (const sel of ['main div', 'div[role="main"] div']) {
+      const el = document.querySelector(sel);
+      const src = el && sourceAbove(el);
+      if (src) return src;
+    }
+    let tries = 0;
+    for (const el of document.querySelectorAll('div')) {
+      if (!fiberOf(el)) continue;
+      const src = sourceAbove(el);
+      if (src || ++tries >= MAX_TRIES) return src;
     }
     return undefined;
   }
@@ -489,6 +515,8 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
   // download button.
   const voiceBubbles = new Map<string, Element>();
   const voiceInfo = new WeakMap<Element, Found>();
+  /** Divs already looked at that aren't voice bubbles, so each scan only looks at new ones. */
+  const notVoice = new WeakSet<Element>();
 
   function insideVoiceBubble(el: Element): boolean {
     for (let a = el.parentElement; a; a = a.parentElement) if (voiceInfo.has(a)) return true;
@@ -498,11 +526,13 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
   function findVoiceBubbles(src: RelaySource) {
     for (const [id, el] of voiceBubbles) if (!el.isConnected) voiceBubbles.delete(id);
     for (const el of document.querySelectorAll('div')) {
-      if (voiceInfo.has(el)) continue;
+      if (voiceInfo.has(el) || notVoice.has(el)) continue;
+      let ref = false;
       let f = fiberOf(el);
       for (let i = 0; i < 4 && f; i++, f = f.return) {
         const id: string | undefined = f.memoizedProps?.audioAttachmentRef?.__id;
         if (!id) continue;
+        ref = true;
         if (!voiceBubbles.has(id) && !insideVoiceBubble(el)) {
           const rec = src.get(id);
           if (rec?.attachment_cdn_url) {
@@ -512,6 +542,8 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
         }
         break;
       }
+      // A bubble whose record hasn't loaded yet is looked at again next time.
+      if (!ref) notVoice.add(el);
     }
     for (const el of voiceBubbles.values()) report(el, voiceInfo.get(el)!);
   }

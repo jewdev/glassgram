@@ -87,7 +87,9 @@ export type FromPage =
   | { t: 'rpc-reply'; id: number; ok: true; result: unknown }
   | { t: 'rpc-reply'; id: number; ok: false; error: string }
   | { t: 'dm-events'; events: DmEvent[] }
-  | { t: 'scanned' };
+  | { t: 'scanned' }
+  /** X-ASBD-ID Instagram sends now, read from a request a hook was already looking at. */
+  | { t: 'asbd'; value: string };
 
 /** What the page script says about an element it points at. */
 export type Found =

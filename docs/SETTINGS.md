@@ -81,7 +81,7 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | Anonymous story viewing | Off | Blocks the story "seen" request |
 | Anonymous live viewing | Off | Not tested yet |
 | Block analytics | Off | Blocks `/ajax/bz`, `/ajax/qm`, `/logging`. Instagram can tell its logs never arrive |
-| Download voice messages | On | A download button on each voice message |
+| Download voice messages | Off | A download button on each voice message |
 | Hide typing indicator | Off | |
 | Hide "Seen" | Off | Opening a chat doesn't mark it as read |
 | Keep unsent messages | Off | Shown in the chat with an unsent mark, and listed in the popup |

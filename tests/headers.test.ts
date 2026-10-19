@@ -34,3 +34,10 @@ describe('randomPageId', () => {
     expect(randomPageId(() => 0.999)).toBe('zzzzzz');
   });
 });
+
+describe('X-ASBD-ID', () => {
+  it("sends Instagram's current value once the page script has seen it, the built-in one until then", () => {
+    expect(restHeaders({ ...base, asbd: '123456' })['X-ASBD-ID']).toBe('123456');
+    expect(restHeaders({ ...base, asbd: undefined })['X-ASBD-ID']).toBe('359341');
+  });
+});
