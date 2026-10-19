@@ -126,8 +126,35 @@ async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: numb
 }
 
 // ---------------- messages ----------------
+// Job URLs come from content scripts, and some from attributes any script on the page can set
+// (data-ige-voice-url). Only Instagram's media hosts get fetched or downloaded, plus the JSON the
+// unsent-messages export builds itself.
+const MEDIA_HOSTS = ['cdninstagram.com', 'fbcdn.net', 'fbsbx.com'];
+
+function allowedUrl(url: string, allowJson: boolean): boolean {
+  if (allowJson && url.startsWith('data:application/json')) return true;
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && MEDIA_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
+function blockedJob(jobs: DownloadJob[], allowJson: boolean): DownloadJob | undefined {
+  return jobs.find((j) => !allowedUrl(j.url, allowJson));
+}
+
+const BLOCKED: DownloadResult = { ok: false, error: 'Glassgram only downloads from Instagram.' };
+
 chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
   if ('target' in msg) return false; // meant for the offscreen document
+  const blocked = (msg.type === 'download' || msg.type === 'zip') && blockedJob(msg.jobs, msg.type === 'download');
+  if (blocked) {
+    console.warn('[IGE] blocked download from', blocked.url.slice(0, 100));
+    reply(BLOCKED);
+    return false;
+  }
   if (msg.type === 'download') {
     // After the restore, so these jobs are added to the saved queue rather than racing it.
     ready.then(() => {

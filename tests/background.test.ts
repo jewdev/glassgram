@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeChrome, type FakeChrome } from './helpers/fake-chrome';
 
-const job = (n: number) => ({ url: `https://cdn.example/${n}.jpg`, filename: `Glassgram/u/${n}.jpg` });
+const job = (n: number) => ({ url: `https://scontent.cdninstagram.com/${n}.jpg`, filename: `Glassgram/u/${n}.jpg` });
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 let chrome: FakeChrome;
@@ -126,5 +126,33 @@ describe('ZIP', () => {
     const res = await chrome.runtime.deliver({ type: 'zip', jobs: [job(1)], zipName: 'x.zip' }, { tab: { id: 1 } });
     expect(res).toEqual({ ok: false, error: 'Invalid filename' });
     expect(revoked()).toEqual(['blob:1', 'blob:2']);
+  });
+});
+
+describe('download URLs', () => {
+  const at = (url: string) => ({ url, filename: 'Glassgram/x' });
+
+  it('downloads from Instagram media hosts and the unsent-messages export', async () => {
+    await startWorker(fakeChrome());
+    const urls = ['https://scontent-ams2-1.cdninstagram.com/a.jpg', 'https://video.xx.fbcdn.net/b.mp4', 'https://lookaside.fbsbx.com/c.gif', 'data:application/json;charset=utf-8,%7B%7D'];
+    expect(await chrome.runtime.deliver({ type: 'download', jobs: urls.map(at) })).toEqual({ ok: true, count: 4 });
+    await flush();
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(3); // the fourth waits for a free slot
+  });
+
+  it('refuses anything else, without downloading any of the batch', async () => {
+    await startWorker(fakeChrome());
+    for (const bad of ['https://evil.test/x.jpg', 'https://cdninstagram.com.evil.test/x.jpg', 'https://evilfbcdn.net/x.jpg', 'http://scontent.cdninstagram.com/x.jpg', 'data:text/html,<script>', 'javascript:alert(1)', 'not a url']) {
+      const res = await chrome.runtime.deliver({ type: 'download', jobs: [job(1), at(bad)] });
+      expect(res).toEqual({ ok: false, error: 'Glassgram only downloads from Instagram.' });
+    }
+    await flush();
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+  });
+
+  it('never fetches a data URL into a ZIP', async () => {
+    await startWorker(fakeChrome());
+    const res = await chrome.runtime.deliver({ type: 'zip', jobs: [at('data:application/json,{}')], zipName: 'x.zip' }, { tab: { id: 1 } });
+    expect(res).toEqual({ ok: false, error: 'Glassgram only downloads from Instagram.' });
   });
 });
