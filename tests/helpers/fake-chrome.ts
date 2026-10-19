@@ -81,7 +81,7 @@ export function fakeChrome(opts: { downloads?: FakeDownload[]; session?: Record<
         });
       },
     },
-    offscreen: { createDocument: vi.fn(async () => {}), Reason: { BLOBS: 'BLOBS' } },
+    offscreen: { createDocument: vi.fn(async () => {}), closeDocument: vi.fn(async () => {}), Reason: { BLOBS: 'BLOBS' } },
     tabs: { sendMessage: vi.fn(async (..._args: any[]) => {}) },
     action: { setBadgeText: vi.fn(), setTitle: vi.fn(), setBadgeBackgroundColor: vi.fn(), setBadgeTextColor: vi.fn() },
     alarms: { get: vi.fn(async () => undefined), create: vi.fn(), clear: vi.fn(async () => true), onAlarm: event() },

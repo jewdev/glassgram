@@ -64,6 +64,16 @@ describe('buildZip', () => {
     expect(sent.at(-1)).toEqual({ type: 'zipProgress', jobId: 'job-7', done: 2, total: 2 });
   });
 
+  it('stops fetching and builds nothing once cancelled', async () => {
+    const { buildZip, cancelZip } = await import('../src/offscreen/offscreen');
+    const zip = buildZip(jobsFor([1, 2, 3, 4, 5, 6, 7, 8]), 'job-c');
+    cancelZip('job-c');
+    await expect(zip).rejects.toThrow('Cancelled');
+    expect(fetch).toHaveBeenCalledTimes(4); // only the ones already in flight
+    expect(vi.mocked(fetch).mock.calls.every(([, init]) => (init as RequestInit).signal?.aborted)).toBe(true);
+    expect(blobs.size).toBe(0);
+  });
+
   it('fails when nothing could be fetched', async () => {
     const { buildZip } = await import('../src/offscreen/offscreen');
     await expect(buildZip(jobsFor([99]), 'j')).rejects.toThrow('Could not fetch any media');

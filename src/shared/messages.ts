@@ -8,8 +8,11 @@ export type Message =
   | { type: 'contextDownload' }
   | { type: 'zipProgress'; done: number; total: number; jobId?: string }
   | { type: 'checkUpdates' }
+  /** Stop the ZIPs this tab started. */
+  | { type: 'cancelZip' }
   // background <-> offscreen
   | { type: 'offscreen:zip'; jobs: DownloadJob[]; jobId: string; target: 'offscreen' }
+  | { type: 'offscreen:cancel'; jobId: string; target: 'offscreen' }
   | { type: 'offscreen:revoke'; url: string; target: 'offscreen' };
 
 export type DownloadResult = { ok: true; count: number } | { ok: false; error: string };

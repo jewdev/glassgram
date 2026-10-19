@@ -11,26 +11,31 @@ const MAX_CONCURRENT = 3;
 const QUEUE_KEY = 'ige.downloadQueue';
 let queue: DownloadJob[] = [];
 const active = new Set<number>();
-/** Blob-URL downloads (ZIPs) → cleanup once finished. */
+/**
+ * Blob-URL downloads (ZIP parts) → cleanup once finished. Saved too: the offscreen document holding
+ * the blobs stays open until they're done, even if the worker restarts in between.
+ */
 const blobDownloads = new Map<number, () => void>();
 let pumping = false;
 
 const ready = (async () => {
   try {
-    const saved = (await chrome.storage.session.get(QUEUE_KEY))[QUEUE_KEY] as { queue: DownloadJob[]; active: number[] } | undefined;
+    const saved = (await chrome.storage.session.get(QUEUE_KEY))[QUEUE_KEY] as { queue: DownloadJob[]; active: number[]; blobs?: number[] } | undefined;
     if (!saved) return;
     queue = [...saved.queue, ...queue];
-    for (const id of saved.active) {
-      const [d] = await chrome.downloads.search({ id });
-      if (d?.state === 'in_progress') active.add(id);
-    }
+    const inProgress = async (id: number) => (await chrome.downloads.search({ id }))[0]?.state === 'in_progress';
+    for (const id of saved.active) if (await inProgress(id)) active.add(id);
+    // Their blob URLs died with the old worker's memory; closing the document frees them.
+    for (const id of saved.blobs ?? []) if (await inProgress(id)) blobDownloads.set(id, () => {});
   } catch (e) {
     console.warn('[IGE] download queue restore failed', e);
   }
 })();
 
 function persist() {
-  chrome.storage.session.set({ [QUEUE_KEY]: { queue, active: [...active] } }).catch((e) => console.warn('[IGE] download queue save failed', e));
+  chrome.storage.session
+    .set({ [QUEUE_KEY]: { queue, active: [...active], blobs: [...blobDownloads.keys()] } })
+    .catch((e) => console.warn('[IGE] download queue save failed', e));
 }
 
 async function pump() {
@@ -57,19 +62,30 @@ chrome.downloads.onChanged.addListener(async (delta) => {
   const state = delta.state?.current;
   if (state !== 'complete' && state !== 'interrupted') return;
   await ready;
-  blobDownloads.get(delta.id)?.();
-  blobDownloads.delete(delta.id);
+  const cleanup = blobDownloads.get(delta.id);
+  if (cleanup) {
+    cleanup();
+    blobDownloads.delete(delta.id);
+    persist();
+    closeOffscreenIfIdle();
+  }
   if (active.delete(delta.id)) persist();
   pump();
 });
 
 ready.then(pump);
+// A document left open by a worker that stopped mid-ZIP holds blobs nobody will download.
+ready.then(closeOffscreenIfIdle);
 
 // ---------------- ZIP via offscreen document ----------------
 const OFFSCREEN_URL = 'src/offscreen/offscreen.html';
 let offscreenCreating: Promise<void> | null = null;
+let offscreenClosing: Promise<void> | null = null;
+
+const offscreenOpen = async () => (await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] })).length > 0;
 
 async function ensureOffscreen() {
+  await offscreenClosing;
   const contexts = await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] });
   if (contexts.length) return;
   // Two ZIP requests at once must share one creation: a second createDocument throws.
@@ -94,22 +110,45 @@ function partName(zipName: string, i: number, parts: number) {
   return `${zipName.slice(0, dot)}_part${i + 1}${zipName.slice(dot)}`;
 }
 
-/** Progress from the offscreen document, routed by job to the tab that asked for that ZIP. */
-const zipTabs = new Map<string, number | undefined>();
+/** ZIPs being built: the tab that asked (for progress and Cancel), and whether it cancelled. */
+const zipJobs = new Map<string, { tabId?: number; cancelled: boolean }>();
 chrome.runtime.onMessage.addListener((msg: Message) => {
   if (msg.type !== 'zipProgress' || !msg.jobId) return false;
-  const tabId = zipTabs.get(msg.jobId);
+  const tabId = zipJobs.get(msg.jobId)?.tabId;
   if (tabId !== undefined) chrome.tabs.sendMessage(tabId, { type: 'zipProgress', done: msg.done, total: msg.total } satisfies Message).catch(() => {});
   return false;
 });
 
+function cancelZips(tabId: number | undefined) {
+  for (const [jobId, job] of zipJobs) {
+    if (job.tabId !== tabId || job.cancelled) continue;
+    job.cancelled = true;
+    chrome.runtime.sendMessage({ type: 'offscreen:cancel', target: 'offscreen', jobId } satisfies Message).catch(() => {});
+  }
+}
+
+/** The offscreen document keeps every ZIP part in memory; close it once nothing needs them. */
+async function closeOffscreenIfIdle() {
+  const idle = () => !zipJobs.size && !blobDownloads.size && !offscreenCreating && !offscreenClosing;
+  if (!idle() || !(await offscreenOpen()) || !idle()) return;
+  offscreenClosing = chrome.offscreen
+    .closeDocument()
+    .catch(() => {})
+    .finally(() => (offscreenClosing = null));
+}
+
 async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: number): Promise<DownloadResult> {
-  await ensureOffscreen();
   const jobId = crypto.randomUUID();
-  zipTabs.set(jobId, tabId);
+  const job = { tabId, cancelled: false };
+  zipJobs.set(jobId, job); // before the document exists, so it isn't closed under this job
   try {
+    await ensureOffscreen();
     const res = (await chrome.runtime.sendMessage({ type: 'offscreen:zip', target: 'offscreen', jobs, jobId } satisfies Message)) as ZipReply;
     if (!res?.ok) return { ok: false, error: res?.error ?? 'ZIP failed' };
+    if (job.cancelled) {
+      res.urls.forEach(revoke); // finished before the cancel reached it
+      return { ok: false, error: 'Cancelled' };
+    }
     for (const [i, url] of res.urls.entries()) {
       try {
         const id = await chrome.downloads.download({ url, filename: partName(zipName, i, res.urls.length), conflictAction: 'uniquify' });
@@ -119,9 +158,11 @@ async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: numb
         throw e;
       }
     }
+    persist();
     return { ok: true, count: res.count };
   } finally {
-    zipTabs.delete(jobId);
+    zipJobs.delete(jobId);
+    closeOffscreenIfIdle();
   }
 }
 
@@ -163,6 +204,10 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
       pump();
     });
     reply({ ok: true, count: msg.jobs.length } satisfies DownloadResult);
+    return false;
+  }
+  if (msg.type === 'cancelZip') {
+    cancelZips(sender.tab?.id);
     return false;
   }
   if (msg.type === 'zip') {

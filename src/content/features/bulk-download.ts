@@ -15,8 +15,16 @@ function checkbox(label: string, checked: boolean) {
 }
 
 export async function openBulkDownload(username: string) {
-  const m = openModal(`Download posts · @${username}`, { width: 460, onClose: () => (cancelled = true) });
+  const m = openModal(`Download posts · @${username}`, {
+    width: 460,
+    onClose: () => {
+      cancelled = true;
+      // The ZIP is built in the background; stop it there too.
+      if (zipping) send({ type: 'cancelZip' }).catch(() => {});
+    },
+  });
   let cancelled = false;
+  let zipping = false;
   m.body.append(h('p', { class: 'ige-muted' }, 'Loading profile…'));
 
   // Post count is nice-to-have; pagination only needs the username.
@@ -107,11 +115,14 @@ export async function openBulkDownload(username: string) {
           if (msg?.type === 'zipProgress') setProgress(msg.done!, msg.total!, `Zipping ${msg.done} / ${msg.total} files…`);
         };
         chrome.runtime.onMessage.addListener(onMsg);
+        zipping = true;
         try {
           const res = await send<DownloadResult>({ type: 'zip', jobs, zipName: zipNameFor(jobs, `${username}_posts`) });
+          if (cancelled) return;
           if (!res?.ok) throw new Error(res?.error);
           setProgress(1, 1, `Done — ZIP with ${res.count} files saved.`);
         } finally {
+          zipping = false;
           chrome.runtime.onMessage.removeListener(onMsg);
         }
       } else {

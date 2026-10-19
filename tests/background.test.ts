@@ -71,6 +71,7 @@ describe('ZIP', () => {
   /** Stand-in offscreen document: reports progress for its job, then returns blob URLs. */
   function offscreen(urls: (jobs: unknown[]) => string[], created: { doc: boolean }) {
     chrome.runtime.getContexts.mockImplementation(async () => (created.doc ? [{}] : []));
+    chrome.offscreen.closeDocument.mockImplementation(async () => void (created.doc = false));
     chrome.offscreen.createDocument.mockImplementation(async () => {
       await flush();
       if (created.doc) throw new Error('Only a single offscreen document may be created.');
@@ -184,5 +185,71 @@ describe('network rules', () => {
       { header: 'origin', operation: 'remove' },
       { header: 'referer', operation: 'set', value: 'https://www.instagram.com/' },
     ]);
+  });
+});
+
+describe('offscreen document', () => {
+  const zipReply = (urls: string[]) =>
+    chrome.runtime.sendMessage.mockImplementation(async (msg: any) => (msg.type === 'offscreen:zip' ? { ok: true, urls, count: 1 } : undefined));
+
+  it('closes once every ZIP part has finished downloading, not before', async () => {
+    await startWorker(fakeChrome());
+    const doc = { open: false };
+    chrome.runtime.getContexts.mockImplementation(async () => (doc.open ? [{}] : []));
+    chrome.offscreen.createDocument.mockImplementation(async () => void (doc.open = true));
+    chrome.offscreen.closeDocument.mockImplementation(async () => void (doc.open = false));
+    zipReply(['blob:1', 'blob:2']);
+    await chrome.runtime.deliver({ type: 'zip', jobs: [job(1)], zipName: 'x.zip' }, { tab: { id: 1 } });
+    await flush();
+    expect(chrome.offscreen.closeDocument).not.toHaveBeenCalled();
+    await chrome.downloads.finish(1);
+    await flush();
+    expect(chrome.offscreen.closeDocument).not.toHaveBeenCalled();
+    await chrome.downloads.finish(2);
+    await flush();
+    expect(chrome.offscreen.closeDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it('after a worker restart, waits for saved ZIP downloads, then closes', async () => {
+    await startWorker(fakeChrome());
+    chrome.runtime.getContexts.mockImplementation(async () => [{}]);
+    zipReply(['blob:1']);
+    await chrome.runtime.deliver({ type: 'zip', jobs: [job(1)], zipName: 'x.zip' }, { tab: { id: 1 } });
+    const { list } = chrome.downloads;
+    await startWorker(fakeChrome({ downloads: list, session: chrome.storage.session.data }));
+    chrome.runtime.getContexts.mockImplementation(async () => [{}]);
+    await flush();
+    expect(chrome.offscreen.closeDocument).not.toHaveBeenCalled();
+    await chrome.downloads.finish(list[0].id);
+    await flush();
+    expect(chrome.offscreen.closeDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes a document left open by a stopped worker with nothing to download', async () => {
+    const c = fakeChrome();
+    c.runtime.getContexts.mockImplementation(async () => [{}]);
+    await startWorker(c);
+    await flush();
+    expect(chrome.offscreen.closeDocument).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('cancelling a ZIP', () => {
+  it("stops the tab's ZIP in the offscreen document and downloads nothing", async () => {
+    await startWorker(fakeChrome());
+    let finish!: (r: unknown) => void;
+    chrome.runtime.sendMessage.mockImplementation((msg: any) => (msg.type === 'offscreen:zip' ? new Promise((r) => (finish = r)) : Promise.resolve()));
+    const res = chrome.runtime.deliver({ type: 'zip', jobs: [job(1)], zipName: 'x.zip' }, { tab: { id: 7 } });
+    await flush();
+    await chrome.runtime.deliver({ type: 'cancelZip' }, { tab: { id: 8 } }); // another tab's cancel
+    expect(chrome.runtime.sendMessage.mock.calls.some(([m]) => m.type === 'offscreen:cancel')).toBe(false);
+    await chrome.runtime.deliver({ type: 'cancelZip' }, { tab: { id: 7 } });
+    const cancel = chrome.runtime.sendMessage.mock.calls.find(([m]) => m.type === 'offscreen:cancel')![0];
+    const zipMsg = chrome.runtime.sendMessage.mock.calls.find(([m]) => m.type === 'offscreen:zip')![0];
+    expect(cancel.jobId).toBe(zipMsg.jobId);
+    finish({ ok: true, urls: ['blob:1'], count: 1 }); // it had just finished: still nothing is saved
+    expect(await res).toEqual({ ok: false, error: 'Cancelled' });
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+    expect(revoked()).toEqual(['blob:1']);
   });
 });

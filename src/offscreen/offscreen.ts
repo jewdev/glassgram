@@ -17,8 +17,14 @@ function uniqueName(name: string, used: Set<string>) {
   }
 }
 
-/** Start a new ZIP once a part passes this size, so no single archive has to sit in memory whole. */
-const PART_BYTES = 1024 ** 3;
+/**
+ * Start a new ZIP once a part passes this size, so no single archive has to sit in memory whole. A
+ * part's chunks are copied into a Blob when it ends, so it briefly takes about twice this.
+ */
+const PART_BYTES = 512 * 1024 ** 2;
+
+/** Running jobs, so the background can stop one. */
+const running = new Map<string, AbortController>();
 
 /** One archive being written: fflate streams it out in chunks that become a Blob when it ends. */
 function openPart() {
@@ -46,6 +52,11 @@ function openPart() {
   };
 }
 
+/** Stops a running job: no new fetches, the ones in flight are aborted, and buildZip rejects. */
+export function cancelZip(jobId: string) {
+  running.get(jobId)?.abort();
+}
+
 /** Exported for tests, which pass a small `partBytes`. */
 export async function buildZip(jobs: DownloadJob[], jobId: string, partBytes = PART_BYTES): Promise<{ urls: string[]; count: number }> {
   const used = new Set<string>();
@@ -54,6 +65,8 @@ export async function buildZip(jobs: DownloadJob[], jobId: string, partBytes = P
   let done = 0;
   let next = 0;
   let failed = 0;
+  const abort = new AbortController();
+  running.set(jobId, abort);
 
   // Each fetched file goes straight into the archive and its buffer is dropped, so memory stays
   // around one part plus the files in flight instead of every file twice.
@@ -69,10 +82,10 @@ export async function buildZip(jobs: DownloadJob[], jobId: string, partBytes = P
   }
 
   async function worker() {
-    while (next < jobs.length) {
+    while (next < jobs.length && !abort.signal.aborted) {
       const job = jobs[next++];
       try {
-        const res = await fetch(job.url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
+        const res = await fetch(job.url, { credentials: 'omit', referrerPolicy: 'no-referrer', signal: abort.signal });
         if (!res.ok) throw new Error(String(res.status));
         const data = new Uint8Array(await res.arrayBuffer());
         const name = uniqueName(basename(job.filename), used);
@@ -80,7 +93,7 @@ export async function buildZip(jobs: DownloadJob[], jobId: string, partBytes = P
         add(name, data);
       } catch (e) {
         failed++;
-        console.warn('[IGE] zip fetch failed', job.url, e);
+        if (!abort.signal.aborted) console.warn('[IGE] zip fetch failed', job.url, e);
       }
       done++;
       chrome.runtime.sendMessage({ type: 'zipProgress', jobId, done, total: jobs.length } satisfies Message).catch(() => {});
@@ -88,11 +101,14 @@ export async function buildZip(jobs: DownloadJob[], jobId: string, partBytes = P
   }
   try {
     await Promise.all(Array.from({ length: Math.min(PARALLEL, jobs.length) }, worker));
+    if (abort.signal.aborted) throw new Error('Cancelled');
     if (part.files) urls.push(part.finish());
     if (!urls.length) throw new Error('Could not fetch any media');
   } catch (e) {
     urls.forEach((u) => URL.revokeObjectURL(u));
     throw e;
+  } finally {
+    running.delete(jobId);
   }
   return { urls, count: jobs.length - failed };
 }
@@ -105,6 +121,7 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, reply) => {
       .catch((e) => reply({ ok: false, error: String(e?.message ?? e) }));
     return true;
   }
+  if (msg.type === 'offscreen:cancel') cancelZip(msg.jobId);
   if (msg.type === 'offscreen:revoke') URL.revokeObjectURL(msg.url);
   return false;
 });
