@@ -60,6 +60,26 @@ export function normalizeMedia(m: ApiMedia): ResolvedPost {
   };
 }
 
+/**
+ * When the first of these CDN links stops working, in ms. Instagram signs each link with its expiry
+ * time as `oe=` (hex unix seconds). Undefined when none of them carries one.
+ */
+export function linksExpireAt(urls: string[]): number | undefined {
+  let first: number | undefined;
+  for (const url of urls) {
+    let oe: string | null = null;
+    try {
+      oe = new URL(url).searchParams.get('oe');
+    } catch {
+      continue;
+    }
+    if (!oe || !/^[0-9a-f]{1,10}$/i.test(oe)) continue;
+    const at = parseInt(oe, 16) * 1000;
+    if (first === undefined || at < first) first = at;
+  }
+  return first;
+}
+
 /** CDN file name (last path segment) — stable across size variants, used to match DOM <img> to API items. */
 export function cdnFileKey(url: string): string {
   try {

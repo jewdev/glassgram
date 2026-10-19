@@ -3,7 +3,7 @@ import { openZoom } from '../ui/zoom';
 import { getHdProfilePic, getReelItems } from './api';
 import { dispatch, downloadPost, jobsForPost, profilePicFilename } from './download';
 import { extFromUrl } from './media';
-import { resolveTarget, type MediaContext } from './resolve';
+import { resolveTarget, type MediaContext, type Target } from './resolve';
 import { openStoryDetails } from '../features/story-details';
 
 function fail(e: unknown) {
@@ -19,7 +19,13 @@ async function withTarget<T>(ctx: MediaContext, fn: (t: Awaited<ReturnType<typeo
   }
 }
 
-export const downloadCurrent = (ctx: MediaContext) => withTarget(ctx, (t) => downloadPost(t.post, [t.index]));
+/** The item showing. Throws rather than act on the wrong carousel slide. */
+function shown(t: Target): number {
+  if (t.index < 0) throw new Error("Couldn't tell which slide is showing. Try again once it has loaded.");
+  return t.index;
+}
+
+export const downloadCurrent = (ctx: MediaContext) => withTarget(ctx, (t) => downloadPost(t.post, [shown(t)]));
 
 export const downloadAll = (ctx: MediaContext) =>
   withTarget(ctx, (t) => {
@@ -30,7 +36,7 @@ export const downloadAll = (ctx: MediaContext) =>
     return downloadPost(t.post);
   });
 
-export const copyMediaUrl = (ctx: MediaContext) => withTarget(ctx, (t) => copyText(t.post.items[t.index].url, 'Media URL copied'));
+export const copyMediaUrl = (ctx: MediaContext) => withTarget(ctx, (t) => copyText(t.post.items[shown(t)].url, 'Media URL copied'));
 
 export const copyCaption = (ctx: MediaContext) =>
   withTarget(ctx, async (t) => {
@@ -40,12 +46,13 @@ export const copyCaption = (ctx: MediaContext) =>
 
 export const zoomMedia = (ctx: MediaContext) =>
   withTarget(ctx, (t) => {
-    const item = t.post.items[t.index];
+    const index = shown(t);
+    const item = t.post.items[index];
     if (item.type !== 'image') return toast('Only photos can be zoomed');
     const n = t.post.items.length;
     openZoom({
       src: item.url,
-      caption: `@${t.post.username}${n > 1 ? ` · ${t.index + 1}/${n}` : ''}`,
+      caption: `@${t.post.username}${n > 1 ? ` · ${index + 1}/${n}` : ''}`,
       onDownload: () => downloadCurrent(ctx),
       onCopy: () => copyText(item.url, 'Image URL copied'),
     });

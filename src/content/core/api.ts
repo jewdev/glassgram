@@ -1,6 +1,6 @@
 import type { KnownUser } from '../../shared/relay';
 import type { ResolvedPost } from '../../shared/types';
-import { normalizeMedia, type ApiMedia } from './media';
+import { linksExpireAt, normalizeMedia, type ApiMedia } from './media';
 import { bridge, bridgeSafe, onPage } from './bridge';
 import { randomPageId, restHeaders } from './headers';
 import { isRateLimited } from './rate-limit';
@@ -147,21 +147,48 @@ function toPost(raw: ApiMedia, shortcode: string): ResolvedPost {
   return post;
 }
 
+// Instagram's CDN links expire (days, not minutes), and a tab can stay open longer than that. A post is
+// looked up again shortly before its links do; without an expiry in them, after an hour.
+const LINK_MARGIN = 10 * 60 * 1000;
+const NO_EXPIRY_TTL = 60 * 60 * 1000;
+const postExpiry = new Map<string, number>();
+
+const expiresAt = (post: ResolvedPost) => {
+  const at = linksExpireAt(post.items.map((it) => it.url));
+  return at === undefined ? Date.now() + NO_EXPIRY_TTL : at - LINK_MARGIN;
+};
+
+/** The post as Instagram's page loaded it, unless its links are about to expire (or it isn't loaded). */
+async function knownPost(shortcode: string): Promise<ResolvedPost | null> {
+  const raw = await bridgeSafe<ApiMedia | null>('getMedia', { code: shortcode }, null);
+  if (!hasMedia(raw)) return null;
+  const post = toPost(raw, shortcode);
+  const linksEnd = linksExpireAt(post.items.map((it) => it.url)) ?? Infinity;
+  return linksEnd - LINK_MARGIN > Date.now() ? post : null;
+}
+
 export async function getPostByShortcode(shortcode: string, offline = false): Promise<ResolvedPost> {
+  if (Date.now() >= (postExpiry.get(shortcode) ?? Infinity)) {
+    postCache.delete(shortcode);
+    postExpiry.delete(shortcode);
+  }
   if (offline && !postCache.has(shortcode)) {
-    const known = await bridgeSafe<ApiMedia | null>('getMedia', { code: shortcode }, null);
-    if (!hasMedia(known)) throw new NotLoaded();
-    postCache.set(shortcode, Promise.resolve(toPost(known, shortcode)));
+    const known = await knownPost(shortcode);
+    if (!known) throw new NotLoaded();
+    postCache.set(shortcode, Promise.resolve(known));
+    postExpiry.set(shortcode, expiresAt(known));
   }
   return cached(postCache, shortcode, async () => {
     // Fast path: Instagram already loaded this media (feed, profile grid, post page).
-    let raw = await bridgeSafe<ApiMedia | null>('getMedia', { code: shortcode }, null);
-    if (!hasMedia(raw)) {
+    let post = await knownPost(shortcode);
+    if (!post) {
       const data = await igGet<{ items: ApiMedia[] }>(`/api/v1/media/${shortcodeToPk(shortcode)}/info/`);
-      raw = data.items?.[0] ?? null;
+      const raw = data.items?.[0];
+      if (!raw) throw new ApiError('Post not found', 404);
+      post = toPost(raw, shortcode);
     }
-    if (!raw) throw new ApiError('Post not found', 404);
-    return toPost(raw, shortcode);
+    postExpiry.set(shortcode, expiresAt(post));
+    return post;
   });
 }
 

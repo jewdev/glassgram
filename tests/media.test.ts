@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extFromUrl, normalizeMedia, pickBest } from '../src/content/core/media';
+import { extFromUrl, linksExpireAt, normalizeMedia, pickBest } from '../src/content/core/media';
 
 const img = (w: number, name = 'a') => ({ url: `https://scontent.cdninstagram.com/v/t51/${name}_n.jpg?stp=x&w=${w}`, width: w, height: w });
 
@@ -48,5 +48,18 @@ describe('media normalize', () => {
       ['31', 'image'],
       ['32', 'video'],
     ]);
+  });
+});
+
+describe('linksExpireAt', () => {
+  const cdn = (oe?: string) => `https://scontent.cdninstagram.com/v/t51/a_n.jpg?stp=x${oe === undefined ? '' : `&oe=${oe}`}&_nc_ht=x`;
+
+  it('reads the earliest oe= as hex unix seconds', () => {
+    expect(linksExpireAt([cdn('6720A1B2'), cdn('6720A1B0')])).toBe(0x6720a1b0 * 1000);
+  });
+
+  it('ignores links without a usable oe=', () => {
+    expect(linksExpireAt([cdn(), cdn('zz'), 'not a url'])).toBeUndefined();
+    expect(linksExpireAt([cdn(), cdn('6720A1B2')])).toBe(0x6720a1b2 * 1000);
   });
 });

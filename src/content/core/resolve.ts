@@ -12,6 +12,7 @@ export type MediaContext =
 
 export interface Target {
   post: ResolvedPost;
+  /** The item showing; -1 when it's a carousel and the showing slide couldn't be matched. */
   index: number;
   /** Story tray items (for "download all" on stories). */
   tray?: ResolvedPost[];
@@ -97,7 +98,9 @@ export function matchIndex(items: MediaItem[], el: MediaEl): number {
 export async function resolveTarget(ctx: MediaContext, offline = false): Promise<Target> {
   if (ctx.kind === 'post') {
     const post = await getPostByShortcode(ctx.shortcode, offline);
-    return { post, index: Math.max(0, matchIndex(post.items, ctx.el)) };
+    // Unknown (-1) only matters for a carousel; actions on "this slide" refuse it rather than guess.
+    const i = matchIndex(post.items, ctx.el);
+    return { post, index: i < 0 && post.items.length === 1 ? 0 : i };
   }
   if (ctx.kind === 'story') {
     const tray = await getReelItems(await ctx.reelId(offline), offline);
