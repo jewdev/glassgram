@@ -298,19 +298,20 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 .feature__inner > :last-child { margin-bottom: 6px; }
 .feature:not(.is-on) .row--sub { opacity: 0.55; }
 
-.feature__warning {
+.feature__callout {
   display: flex;
   gap: 8px;
   align-items: flex-start;
   margin: 0 12px 6px 24px;
   padding: 9px 12px;
   border-radius: 12px;
-  background: var(--risk-soft);
-  color: var(--risk);
   font-size: 13px;
   font-weight: 520;
 }
-.feature__warning svg { flex: none; margin-top: 1px; }
+.feature__callout svg { flex: none; margin-top: 1px; }
+.feature__warning { background: var(--risk-soft); color: var(--risk); }
+.feature__note { background: var(--fill); color: var(--ink-2); font-weight: 450; }
+.feature__note svg { color: var(--accent); }
 
 /* badges */
 .badge {
@@ -328,6 +329,43 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 .badge--untested { background: transparent; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--ink-3); }
 .badge--risky,
 .badge--account { background: var(--risk-soft); color: var(--risk); }
+
+/* badge hint: why this setting has its badge, on hover or focus */
+.row__title { position: relative; }
+.badge--hint { cursor: help; }
+.badge--hint:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.badge__hint {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: min(320px, 100%);
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--glass-strong);
+  box-shadow: var(--glass-shadow), inset 0 0 0 1px var(--hairline);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 450;
+  letter-spacing: 0;
+  line-height: 1.4;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-2px);
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease), visibility 0s 0.15s;
+  pointer-events: none;
+}
+.badge--hint:hover .badge__hint,
+.badge--hint:focus-visible .badge__hint {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+}
+/* Each glass panel is its own layer: lift the one with an open hint above the next panel. */
+.panel:has(.badge--hint:hover, .badge--hint:focus-visible) { position: relative; z-index: 2; }
 
 /* ---------------- controls ---------------- */
 .control {

@@ -113,6 +113,16 @@ function settingRow(def: SettingDef, sub: boolean): HTMLElement {
   title.append(label);
   if (def.badge) {
     const b = el('span', `badge badge--${def.badge}`, BADGE_TEXT[def.badge]);
+    if (def.badgeHint) {
+      // Focusable, so keyboard and touch users can open the hint too.
+      const hint = el('span', 'badge__hint', def.badgeHint);
+      hint.id = `hint-${def.key}`;
+      hint.setAttribute('role', 'tooltip');
+      b.tabIndex = 0;
+      b.classList.add('badge--hint');
+      b.setAttribute('aria-describedby', hint.id);
+      b.append(hint);
+    }
     title.append(b);
   }
   text.append(title);
@@ -133,24 +143,33 @@ function settingRow(def: SettingDef, sub: boolean): HTMLElement {
   return row;
 }
 
-/** A feature: its main row, plus a warning and sub-options that open while it's on. */
+const CALLOUT_ICON = {
+  warning: '<path d="M12 4 2.8 19.5h18.4Z"/><path d="M12 10v4M12 17h.01"/>',
+  note: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+};
+
+/** A red warning or a neutral note under a feature. */
+function callout(kind: keyof typeof CALLOUT_ICON, text: string): HTMLElement {
+  const p = el('p', `feature__callout feature__${kind}`);
+  p.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${CALLOUT_ICON[kind]}</svg>`;
+  p.append(el('span', '', text));
+  return p;
+}
+
+/** A feature: its main row, plus a warning or note and sub-options that open while it's on. */
 function featureBlock(def: SettingDef, children: SettingDef[]): HTMLElement {
   const block = el('div', 'feature');
   block.dataset.key = def.key;
   block.append(settingRow(def, false));
 
   const warning = def.type === 'toggle' ? def.warning : undefined;
-  if (children.length || warning) {
+  const note = def.type === 'toggle' ? def.note : undefined;
+  if (children.length || warning || note) {
     block.classList.add('feature--expandable');
     const drawer = el('div', 'feature__drawer');
     const inner = el('div', 'feature__inner');
-    if (warning) {
-      const w = el('p', 'feature__warning');
-      w.innerHTML =
-        '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4Z"/><path d="M12 10v4M12 17h.01"/></svg>';
-      w.append(el('span', '', warning));
-      inner.append(w);
-    }
+    if (warning) inner.append(callout('warning', warning));
+    if (note) inner.append(callout('note', note));
     for (const c of children) inner.append(settingRow(c, true));
     drawer.append(inner);
     block.append(drawer);

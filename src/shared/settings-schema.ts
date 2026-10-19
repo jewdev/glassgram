@@ -99,10 +99,13 @@ type Base<K extends SettingKey> = {
   quick?: boolean;
   /** Status the user should know before turning it on. */
   badge?: 'experimental' | 'untested' | 'risky' | 'account';
+  /** Why this setting has its badge, shown when the badge is hovered or focused. */
+  badgeHint?: string;
 };
 
 export type SettingDef =
-  | (Base<SettingKey> & { type: 'toggle'; warning?: string })
+  /** `warning`: a risk to know about, shown in red. `note`: plain information, shown neutral. */
+  | (Base<SettingKey> & { type: 'toggle'; warning?: string; note?: string })
   | (Base<SettingKey> & { type: 'select'; options: { value: string; label: string }[] })
   | (Base<SettingKey> & { type: 'text'; placeholder?: string; help?: string })
   | (Base<SettingKey> & { type: 'number'; min: number; max: number; step: number; unit?: string })
@@ -252,7 +255,7 @@ export const SECTIONS: Section[] = [
         key: 'dm.keepUnsent',
         label: 'Keep unsent messages',
         desc: 'Remembers messages people send you. When someone unsends one, it stays in the chat with an unsent mark, and in a list in the popup. Stored only in this browser.',
-        warning:
+        note:
           'Only catches messages that arrive while Instagram is open in this browser. Instagram can change its chat format at any time. Turning this off deletes the saved copies of received messages; unsent messages stay until you clear them from the list.',
       },
       {
@@ -318,6 +321,7 @@ export const SECTIONS: Section[] = [
         desc: "Blocks the \"seen\" request, so you don't appear in a story's viewer list.",
         quick: true,
         badge: 'account',
+        badgeHint: "Instagram's servers can see that you watch stories without marking them seen, which its own app never does. If that looks unusual, Instagram may ask you to confirm it's you.",
         warning: "Instagram can see that you load stories without ever marking them seen. That mismatch may get your account flagged or sent to a verification check.",
       },
       {
@@ -326,6 +330,7 @@ export const SECTIONS: Section[] = [
         label: 'Anonymous live viewing',
         desc: "Watch live videos without joining the viewer list. The viewer count still updates.",
         badge: 'account',
+        badgeHint: "Watching a live without joining it means sending requests Instagram's own app never sends. Of the privacy tools, it's the easiest for Instagram to notice.",
         warning: "Replaces the live heartbeat with repeated info lookups, a pattern no official client makes. Highest flag risk of the privacy tools. Also not tested yet: check with a friend before relying on it.",
       },
       {
@@ -341,6 +346,7 @@ export const SECTIONS: Section[] = [
         label: 'Hide "Seen" in messages',
         desc: "Opening a chat doesn't mark it as read for the other person. Sending still works.",
         badge: 'account',
+        badgeHint: "Instagram's servers can see that you open chats without ever sending a read receipt. If that looks unusual, Instagram may ask you to confirm it's you.",
         warning: "Instagram can see you read messages without ever sending a read receipt. That mismatch may get your account flagged or sent to a verification check.",
       },
       {
@@ -349,6 +355,7 @@ export const SECTIONS: Section[] = [
         label: 'Block analytics',
         desc: "Blocks Instagram's event-logging requests. Some analytics travel over its live connection and can't be blocked.",
         badge: 'account',
+        badgeHint: "Instagram expects every browser to send its usage logs. A session that never sends any looks different from a normal one.",
         warning: "Instagram can see that your browser never sends its usage logs, which makes your session look unlike a normal one. Leave this off to stay out of sight.",
       },
     ],
@@ -366,6 +373,7 @@ export const SECTIONS: Section[] = [
         label: 'Bulk download profile posts',
         desc: 'A button on profiles that downloads the latest posts.',
         badge: 'risky',
+        badgeHint: 'Downloading many posts means many requests in a short time. If there are too many, Instagram pauses your requests for a while. It ends by itself, and the waits below keep you under the limit.',
         warning: 'Many requests in a short time can get your account temporarily rate-limited. Keep the delays reasonable.',
       },
       { type: 'number', key: 'bulk.delayMin', label: 'Shortest wait between requests', min: 0.5, max: 30, step: 0.5, unit: 's', dependsOn: 'bulk.enabled' },
@@ -376,6 +384,7 @@ export const SECTIONS: Section[] = [
         label: 'Unfollowers checker',
         desc: "Who doesn't follow you back, plus CSV export. Open it from the popup or your profile.",
         badge: 'risky',
+        badgeHint: 'Reading whole follower lists takes many requests, and Instagram limits how fast that can happen. If it hits the limit, Instagram pauses your requests for a while. It ends by itself.',
         warning: "Reads your full follower lists page by page, the pattern of unfollower apps that Instagram watches for and rate-limits. Large accounts take a while; don't lower the delays.",
       },
       { type: 'number', key: 'account.delayMin', label: 'Shortest wait between requests', min: 1, max: 30, step: 0.5, unit: 's', dependsOn: 'account.unfollowers' },

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sanitizeSettings } from '../src/shared/settings';
+import { SECTIONS } from '../src/shared/settings-schema';
 
 describe('sanitizeSettings', () => {
   it('drops unknown keys, wrong types and values outside a select', () => {
@@ -19,5 +20,12 @@ describe('sanitizeSettings', () => {
   it('rejects non-finite numbers and inherited keys', () => {
     expect(sanitizeSettings({ 'bulk.delayMin': Number.NaN })).toEqual({});
     expect(sanitizeSettings(Object.create({ 'video.loop': false }))).toEqual({});
+  });
+});
+
+describe('settings schema', () => {
+  it('explains every risk badge on hover', () => {
+    const missing = SECTIONS.flatMap((s) => s.items).filter((d) => (d.badge === 'risky' || d.badge === 'account') && !d.badgeHint);
+    expect(missing.map((d) => d.key)).toEqual([]);
   });
 });
