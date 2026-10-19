@@ -60,13 +60,21 @@ function tagNav() {
 
 function tagHome() {
   if (currentRoute().kind !== 'home') return;
-  // Suggested accounts sidebar: climb from the "See all" link while the column stays narrow.
-  const seeAll = document.querySelector(`${SEL.sidebarSuggestionsLink}:not([data-ige-seen])`);
-  if (seeAll && !seeAll.closest(SEL.article)) {
-    seeAll.setAttribute('data-ige-seen', '');
-    let col: Element = seeAll;
-    while (col.parentElement && col.parentElement.getBoundingClientRect().width < 420 && col.parentElement !== document.body) col = col.parentElement;
-    if (col !== seeAll) col.setAttribute('data-ige-sidebar', '');
+  // Suggested accounts sidebar: climb from the "See all" link (older layout) or the
+  // "Suggested for you" header (newer fixed right column) while the column stays narrow.
+  if (!document.querySelector('[data-ige-sidebar]')) {
+    const anchor =
+      document.querySelector(`${SEL.sidebarSuggestionsLink}:not([data-ige-seen])`) ??
+      [...document.querySelectorAll(`${SEL.main} span:not([data-ige-seen])`)].find(
+        (el) => el.childElementCount === 0 && SUGGESTED_WORDS.includes(el.textContent?.trim() ?? '') && !el.closest(SEL.article),
+      );
+    if (anchor && !anchor.closest(SEL.article)) {
+      anchor.setAttribute('data-ige-seen', '');
+      let col: Element = anchor;
+      while (col.parentElement && col.parentElement.getBoundingClientRect().width < 420 && col.parentElement !== document.body) col = col.parentElement;
+      // Must be a real side column, not a narrow heading inside the feed.
+      if (col !== anchor && col.getBoundingClientRect().left > window.innerWidth / 2) col.setAttribute('data-ige-sidebar', '');
+    }
   }
   // Stories tray: a list whose items contain story-ring canvases, near the top of <main>.
   const main = document.querySelector(SEL.main);
