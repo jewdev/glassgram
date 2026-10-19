@@ -15,12 +15,14 @@ import type { Feature } from './types';
 const ATTR = 'data-ige-dmkeep';
 
 // Storage layout (chrome.storage.local, private to the extension):
-//   ige.dm.unsent       every unsent message, kept until you clear them
+//   ige.dm.u.<id>       one unsent message, kept until you clear them
 //   ige.dm.t.<thread>   recent messages of one chat, so a later unsend can be matched
-const UNSENT_KEY = 'ige.dm.unsent';
+// Unsent messages get a key each so two Instagram tabs never write over each other's.
+const UNSENT_PREFIX = 'ige.dm.u.';
 const THREAD_PREFIX = 'ige.dm.t.';
+const OLD_UNSENT_KEY = 'ige.dm.unsent';
 const LEGACY_KEY = 'ige.dmArchive';
-/** Per-chat cap when recent messages aren't kept forever. */
+/** Per-chat cap, also when recent messages are kept forever. */
 const MAX_PER_THREAD = 2000;
 const SAVE_DELAY = 1000;
 
@@ -37,21 +39,48 @@ let unsent: Shard | null = null;
 let unsentLoad: Promise<Shard> | null = null;
 const shards = new Map<string, Shard>();
 const shardLoads = new Map<string, Promise<Shard>>();
-const dirty = new Set<string>(); // thread ids, or UNSENT_KEY
+const dirtyThreads = new Set<string>();
+const dirtyUnsent = new Set<string>(); // message ids
 let saveTimer: number | undefined;
+let saving: Promise<void> = Promise.resolve();
+
+async function keysWith(prefix: string): Promise<string[]> {
+  // getKeys() needs Chrome 130; older builds fall back to reading everything.
+  const keys = await (chrome.storage.local.getKeys?.() ?? chrome.storage.local.get(null).then(Object.keys));
+  return keys.filter((k) => k.startsWith(prefix));
+}
+
+/** Other tabs add and clear unsent messages too; keep this tab's copy in step. */
+function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>, area: string) {
+  if (area !== 'local' || !unsent) return;
+  let changed = false;
+  for (const [key, { newValue }] of Object.entries(changes)) {
+    if (!key.startsWith(UNSENT_PREFIX)) continue;
+    const id = key.slice(UNSENT_PREFIX.length);
+    if (newValue) unsent[id] = newValue as ArchivedMessage;
+    else delete unsent[id];
+    changed = true;
+  }
+  if (changed) renderGhosts();
+}
 
 function loadUnsent(): Promise<Shard> {
   unsentLoad ??= (async () => {
-    const r = await chrome.storage.local.get([UNSENT_KEY, LEGACY_KEY]);
-    const un = (r[UNSENT_KEY] as Shard | undefined) ?? {};
-    // One-time move from the first version, which kept everything under a single key.
-    const legacy = r[LEGACY_KEY] as Shard | undefined;
-    if (legacy) {
-      for (const m of Object.values(legacy)) if (m.unsentAt) un[m.id] = m;
-      await chrome.storage.local.set({ [UNSENT_KEY]: un });
-      await chrome.storage.local.remove(LEGACY_KEY);
+    const keys = await keysWith(UNSENT_PREFIX);
+    const r = await chrome.storage.local.get([...keys, OLD_UNSENT_KEY, LEGACY_KEY]);
+    const un: Shard = {};
+    for (const k of keys) if (r[k]) un[k.slice(UNSENT_PREFIX.length)] = r[k] as ArchivedMessage;
+    // One-time moves from older versions: everything under one key, then all unsent ones under one key.
+    const moved: Shard = {};
+    for (const m of Object.values((r[LEGACY_KEY] as Shard | undefined) ?? {})) if (m.unsentAt) moved[m.id] = m;
+    Object.assign(moved, r[OLD_UNSENT_KEY] as Shard | undefined);
+    if (r[LEGACY_KEY] || r[OLD_UNSENT_KEY]) {
+      await chrome.storage.local.set(Object.fromEntries(Object.values(moved).map((m) => [UNSENT_PREFIX + m.id, m])));
+      await chrome.storage.local.remove([OLD_UNSENT_KEY, LEGACY_KEY]);
     }
-    return (unsent = un);
+    unsent = { ...moved, ...un };
+    chrome.storage.onChanged.addListener(onStorageChanged);
+    return unsent;
   })().catch((e) => {
     unsentLoad = null;
     throw e;
@@ -84,33 +113,41 @@ const keepDays = () => Number(getSettings()['dm.keepFor']) || 0;
 
 function prune(s: Shard) {
   const days = keepDays();
-  if (!days) return;
-  const cutoff = Date.now() - days * 86_400_000;
+  const cutoff = days ? Date.now() - days * 86_400_000 : 0;
   Object.values(s)
     .sort((a, b) => b.ts - a.ts)
     .forEach((m, i) => {
-      if (m.ts < cutoff || i >= MAX_PER_THREAD) delete s[m.id];
+      if (m.ts < cutoff || i >= MAX_PER_THREAD || unsent?.[m.id]) delete s[m.id];
     });
+}
+
+async function save() {
+  const threads = [...dirtyThreads];
+  const ids = [...dirtyUnsent];
+  dirtyThreads.clear();
+  dirtyUnsent.clear();
+  const out: Record<string, unknown> = {};
+  for (const id of ids) if (unsent?.[id]) out[UNSENT_PREFIX + id] = unsent[id];
+  if (threads.length) {
+    // Another tab may have saved the same chat since this one loaded it: merge, don't replace.
+    const stored = await chrome.storage.local.get(threads.map((t) => THREAD_PREFIX + t));
+    for (const t of threads) {
+      const s = shards.get(t);
+      if (!s) continue;
+      for (const [id, m] of Object.entries((stored[THREAD_PREFIX + t] as Shard | undefined) ?? {})) s[id] ??= m;
+      prune(s);
+      out[THREAD_PREFIX + t] = s;
+    }
+  }
+  if (Object.keys(out).length) await chrome.storage.local.set(out);
 }
 
 function flush(): Promise<void> {
   clearTimeout(saveTimer);
   saveTimer = undefined;
-  const out: Record<string, Shard> = {};
-  for (const key of dirty) {
-    if (key === UNSENT_KEY) {
-      if (unsent) out[UNSENT_KEY] = unsent;
-    } else {
-      const s = shards.get(key);
-      if (s) {
-        prune(s);
-        out[THREAD_PREFIX + key] = s;
-      }
-    }
-  }
-  dirty.clear();
-  if (!Object.keys(out).length) return Promise.resolve();
-  return chrome.storage.local.set(out).catch((e) => console.warn('[IGE] DM archive save failed', e));
+  // One save at a time, so a slow one can't land after a newer one.
+  saving = saving.then(save).catch((e) => console.warn('[IGE] DM archive save failed', e));
+  return saving;
 }
 
 function scheduleSave() {
@@ -142,7 +179,7 @@ export async function handle(events: DmEvent[]) {
       if (m.senderId === me || un[m.id]) continue;
       const s = await loadShard(m.thread);
       s[m.id] = { ...s[m.id], ...m };
-      dirty.add(m.thread);
+      dirtyThreads.add(m.thread);
     } else {
       if (un[e.id]) continue;
       const s = await loadShard(e.thread);
@@ -150,13 +187,14 @@ export async function handle(events: DmEvent[]) {
       if (!m) continue; // arrived before we were listening — nothing to show
       un[e.id] = { ...m, unsentAt: Date.now() };
       delete s[e.id];
-      dirty.add(e.thread).add(UNSENT_KEY);
+      dirtyThreads.add(e.thread);
+      dirtyUnsent.add(e.id);
       fresh = true;
       const preview = describeContent(m);
       toast(`${who(m)} unsent: "${preview.length > 80 ? `${preview.slice(0, 80)}…` : preview}"`, 'info', 8000);
     }
   }
-  if (dirty.size) scheduleSave();
+  if (dirtyThreads.size || dirtyUnsent.size) scheduleSave();
   if (fresh) renderGhosts();
 }
 
@@ -309,7 +347,9 @@ export async function openUnsentMessages() {
         onClick: async () => {
           if (!list().length) return;
           for (const id of Object.keys(un)) delete un[id];
-          await chrome.storage.local.set({ [UNSENT_KEY]: un });
+          dirtyUnsent.clear();
+          // Every tab's, not just the ones this tab knows about.
+          await chrome.storage.local.remove(await keysWith(UNSENT_PREFIX));
           render();
           renderGhosts();
           toast('Unsent messages cleared', 'success');
@@ -339,13 +379,12 @@ export const dmArchive: Feature = {
       document.documentElement.removeAttribute(ATTR);
       document.querySelectorAll(`[${GHOST}]`).forEach((g) => g.remove());
       // Turning the feature off forgets the recent-message buffer; unsent ones stay until cleared.
-      dirty.forEach((k) => k !== UNSENT_KEY && dirty.delete(k));
+      dirtyThreads.clear();
       shards.clear();
       shardLoads.clear();
       flush() // a message unsent just before this must still reach storage
-        // getKeys() needs Chrome 130; older builds fall back to reading everything.
-        .then(() => chrome.storage.local.getKeys?.() ?? chrome.storage.local.get(null).then(Object.keys))
-        .then((keys) => chrome.storage.local.remove(keys.filter((k) => k.startsWith(THREAD_PREFIX))));
+        .then(() => keysWith(THREAD_PREFIX))
+        .then((keys) => chrome.storage.local.remove(keys));
     };
   },
 };

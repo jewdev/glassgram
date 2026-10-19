@@ -259,7 +259,7 @@ export const SECTIONS: Section[] = [
         type: 'select',
         key: 'dm.keepFor',
         label: 'Remember received messages for',
-        desc: 'How far back an unsend can still be caught. Unsent messages themselves are kept until you clear them.',
+        desc: 'How far back an unsend can still be caught, up to the last 2,000 messages of each chat. Unsent messages themselves are kept until you clear them.',
         dependsOn: 'dm.keepUnsent',
         options: [
           { value: '1', label: '1 day' },
