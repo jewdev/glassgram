@@ -1,7 +1,8 @@
 // One-click update for the unpacked install: writes a release straight into the extension folder the
 // user picked once, through the File System Access API, then reloads. Brave ships with the API off.
 import { unzipSync } from 'fflate';
-import { checkBundle, patchUpdateState, safeZipPath, staleAssets, type Release } from '../shared/updates';
+import { SIGNING_KEY } from '../shared/signing-key';
+import { checkBundle, patchUpdateState, safeZipPath, staleAssets, verifySignature, type Release } from '../shared/updates';
 
 type Mode = { mode: 'readwrite' };
 type Folder = FileSystemDirectoryHandle & {
@@ -106,13 +107,27 @@ export const showInstallFolder = () => chrome.tabs.create({ url: `chrome://exten
 // ---------------- download ----------------
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 
-async function download(r: Release): Promise<Map<string, Uint8Array>> {
-  if (!r.zipUrl || !r.zipSha256) throw new UpdateError("This release can't be installed in one click.");
-  const res = await fetch(r.zipUrl, { cache: 'no-store', credentials: 'omit' });
+async function fetchAsset(url: string): Promise<Response> {
+  const res = await fetch(url, { cache: 'no-store', credentials: 'omit' });
   if (!res.ok) throw new UpdateError(`GitHub answered with an error (${res.status}).`);
-  const zip = await res.arrayBuffer();
-  // Same file GitHub published for this release, byte for byte.
+  return res;
+}
+
+/** True when the ZIP carries the release key's signature. Older browsers without Ed25519 throw. */
+async function signedByUs(zip: ArrayBuffer, sig: string): Promise<boolean> {
+  try {
+    return await verifySignature(zip, sig, SIGNING_KEY);
+  } catch {
+    throw new UpdateError("This browser can't check the update's signature. Follow the steps below.");
+  }
+}
+
+async function download(r: Release): Promise<Map<string, Uint8Array>> {
+  if (!r.zipUrl || !r.zipSha256 || !r.zipSigUrl || !SIGNING_KEY) throw new UpdateError("This release can't be installed in one click.");
+  const [zip, sig] = await Promise.all([fetchAsset(r.zipUrl).then((res) => res.arrayBuffer()), fetchAsset(r.zipSigUrl).then((res) => res.text())]);
+  // GitHub's digest only catches a broken download; the signature proves the release CI built it.
   if (hex(await crypto.subtle.digest('SHA-256', zip)) !== r.zipSha256) throw new UpdateError("The download didn't match the release. Nothing was changed.");
+  if (!(await signedByUs(zip, sig))) throw new UpdateError("The download isn't signed by Glassgram's release key. Nothing was changed.");
 
   const files = new Map<string, Uint8Array>();
   for (const [name, data] of Object.entries(unzipSync(new Uint8Array(zip)))) {
@@ -121,7 +136,7 @@ async function download(r: Release): Promise<Map<string, Uint8Array>> {
     if (!path) throw new UpdateError('The download has an unsafe file path. Nothing was changed.');
     files.set(path, data);
   }
-  const bad = checkBundle(files, chrome.runtime.getManifest().name, r.version);
+  const bad = checkBundle(files, chrome.runtime.getManifest(), r.version);
   if (bad) throw new UpdateError(`${bad} Nothing was changed.`);
   return files;
 }

@@ -57,9 +57,10 @@ Open Instagram and hover over a post. Pin Glassgram from the puzzle-piece menu t
 The settings page shows what changed. Press **Update now**. The first time, Glassgram asks for the folder
 you picked with **Load unpacked**, because browsers don't tell extensions where they live. **Show me where
 it is** opens the page that lists the path, and picking the folder around it (like Downloads) works too.
-Glassgram refuses any folder without its own `manifest.json`. After that, it downloads the release, checks it matches the
-file published on GitHub, writes it into that folder and reloads itself. If writing fails, it puts the
-old files back.
+Glassgram refuses any folder without its own `manifest.json`. After that, it downloads the release, checks it carries the
+signature Glassgram's release build makes, writes it into that folder and reloads itself. If writing fails,
+it puts the old files back. A release that asks for new permissions or sites is never installed in one
+click: Glassgram lists what it wants and leaves the update to you.
 
 One-click updates are off by default in Brave. Turn on `brave://flags/#file-system-access-api` and
 restart Brave, or update by hand: download the ZIP, unzip it over the old folder, and press **Reload

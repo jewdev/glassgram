@@ -14,6 +14,8 @@ export interface Release {
   zipUrl?: string;
   /** SHA-256 of the ZIP as hex, from GitHub's asset digest. One-click install needs it. */
   zipSha256?: string;
+  /** The ZIP's Ed25519 signature, made in CI. One-click install needs it. */
+  zipSigUrl?: string;
   publishedAt: string;
 }
 
@@ -65,6 +67,7 @@ export function parseReleases(json: unknown): Release[] {
     .filter((r) => r && !r.draft && !r.prerelease && /^v?\d/.test(r.tag_name ?? ''))
     .map((r) => {
       const zip = r.assets?.find((a) => a.name.endsWith('.zip'));
+      const sig = zip && r.assets?.find((a) => a.name === `${zip.name}.sig`);
       return {
         version: r.tag_name.replace(/^v/i, ''),
         name: r.name || r.tag_name,
@@ -72,6 +75,7 @@ export function parseReleases(json: unknown): Release[] {
         url: r.html_url,
         zipUrl: zip?.browser_download_url,
         zipSha256: /^sha256:([0-9a-f]{64})$/i.exec(zip?.digest ?? '')?.[1].toLowerCase(),
+        zipSigUrl: sig?.browser_download_url,
         publishedAt: r.published_at ?? '',
       };
     })
@@ -106,19 +110,55 @@ export function safeZipPath(name: string): string | null {
   return segs.every((s) => s && s !== '.' && s !== '..') ? name : null;
 }
 
-/** Why an unzipped release can't be installed over `name`, or undefined when it can. */
-export function checkBundle(files: Map<string, Uint8Array>, name: string, version: string): string | undefined {
+type Access = { permissions?: unknown; host_permissions?: unknown; content_scripts?: unknown; externally_connectable?: unknown };
+
+const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []);
+
+/** Everything a manifest can reach without a prompt: API permissions, hosts, pages scripts run on, pages that can message it. */
+function access(m: Access): Set<string> {
+  const scripts = Array.isArray(m.content_scripts) ? m.content_scripts : [];
+  const ext = (m.externally_connectable ?? {}) as { matches?: unknown; ids?: unknown };
+  return new Set([
+    ...strings(m.permissions).map((p) => `permission ${p}`),
+    ...strings(m.host_permissions).map((h) => `site ${h}`),
+    ...scripts.flatMap((s) => strings((s as { matches?: unknown })?.matches)).map((h) => `scripts on ${h}`),
+    ...strings(ext.matches).map((h) => `messages from ${h}`),
+    ...strings(ext.ids).map((id) => `messages from extension ${id}`),
+  ]);
+}
+
+/**
+ * Access the new manifest has that the running one doesn't. An unpacked extension gets these on reload
+ * without the prompt a store update shows, so one-click install refuses them.
+ */
+export function newAccess(next: Access, running: Access): string[] {
+  const had = access(running);
+  return [...access(next)].filter((a) => !had.has(a));
+}
+
+/** Why an unzipped release can't be installed over the running build, or undefined when it can. */
+export function checkBundle(files: Map<string, Uint8Array>, running: Access & { name: string }, version: string): string | undefined {
   const raw = files.get('manifest.json');
   if (!raw) return 'The download has no manifest.json.';
-  let m: { name?: unknown; version?: unknown; manifest_version?: unknown };
+  let m: Access & { name?: unknown; version?: unknown; manifest_version?: unknown };
   try {
     m = JSON.parse(new TextDecoder().decode(raw));
   } catch {
     return "The download's manifest.json is broken.";
   }
-  if (m.name !== name || m.manifest_version !== 3) return "The download isn't a Glassgram build.";
+  if (m.name !== running.name || m.manifest_version !== 3) return "The download isn't a Glassgram build.";
   if (m.version !== version) return `The download is version ${String(m.version)}, not ${version}.`;
+  const added = newAccess(m, running);
+  if (added.length) return `Version ${version} asks for new access (${added.join(', ')}), so it can't be installed in one click. If you trust it, update by hand with the steps below.`;
   return undefined;
+}
+
+const unbase64 = (s: string) => Uint8Array.from(atob(s.trim()), (c) => c.charCodeAt(0));
+
+/** True when `sig` (base64) is a valid Ed25519 signature of `data` under `publicKey` (base64 SPKI). */
+export async function verifySignature(data: BufferSource, sig: string, publicKey: string): Promise<boolean> {
+  const key = await crypto.subtle.importKey('spki', unbase64(publicKey), { name: 'Ed25519' }, false, ['verify']);
+  return crypto.subtle.verify({ name: 'Ed25519' }, key, unbase64(sig), data);
 }
 
 /** Build chunks left over from the old version. Only hashed files under assets/ are ever removed. */

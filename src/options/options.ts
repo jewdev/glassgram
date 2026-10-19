@@ -6,6 +6,7 @@ import { downloadRelease, renderReleaseNotes } from '../shared/release-notes';
 import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
 import { loadSettings, onSettingsChanged, resetSettings, sanitizeSettings, saveSettings } from '../shared/settings';
 import { SECTIONS, type Section, type SectionIcon, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
+import { SIGNING_KEY } from '../shared/signing-key';
 import { availableUpdate, between, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, RELEASES_URL, type Release, type UpdateState } from '../shared/updates';
 import { canSelfUpdate, forgetFolder, isBrave, savedFolder, selfUpdate, showInstallFolder, UpdateError, type Step } from './self-update';
 
@@ -456,7 +457,7 @@ async function renderOneClick(update: Release, state: UpdateState) {
   const note = $('update-install-note');
   const forget = $('update-forget');
   const panel = $('update-folder');
-  const supported = canSelfUpdate() && !!update.zipUrl && !!update.zipSha256;
+  const supported = canSelfUpdate() && !!update.zipUrl && !!update.zipSha256 && !!update.zipSigUrl && !!SIGNING_KEY;
   $<HTMLDetailsElement>('update-manual').open ||= !supported;
   $('update-download').classList.toggle('pill-btn--accent', !supported);
 
@@ -483,7 +484,7 @@ async function renderOneClick(update: Release, state: UpdateState) {
   if (state.installError) note.textContent = state.installError;
   else if (installing) note.textContent = KEEP_OPEN;
   else note.textContent = folder
-    ? `Downloads ${update.version}, checks it matches the release, installs it into your Glassgram folder and reloads.`
+    ? `Downloads ${update.version}, checks Glassgram's signature on it, installs it into your Glassgram folder and reloads.`
     : 'The first time, you show Glassgram which folder it runs from.';
   btn.disabled = pick.disabled = installing;
 
