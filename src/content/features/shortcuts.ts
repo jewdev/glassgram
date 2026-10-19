@@ -16,7 +16,9 @@ function isTyping(e: KeyboardEvent): boolean {
 /** Media under the mouse, otherwise the largest visible media in the viewport. */
 function currentContext(): MediaContext | null {
   const hovered = getHovered();
-  if (hovered) return contextFor(hovered.el);
+  // A hovered story preview has no context; fall through to the open story.
+  const fromHover = hovered && contextFor(hovered.el);
+  if (fromHover) return fromHover;
   let best: MediaEl | null = null;
   let bestArea = 0;
   for (const el of document.querySelectorAll<MediaEl>('article img, article video, main img, main video, section img, section video, div[role="dialog"] img, div[role="dialog"] video')) {

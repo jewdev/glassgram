@@ -17,8 +17,21 @@ export interface Target {
   tray?: ResolvedPost[];
 }
 
+/**
+ * The story viewer centers the open story and shows the neighboring trays as smaller previews to
+ * its left and right. Only the open story spans the middle of the window; the route describes it,
+ * not the previews, so acting on a preview would hit the wrong story.
+ */
+function isStoryPreview(el: MediaEl): boolean {
+  const r = el.getBoundingClientRect();
+  const mid = innerWidth / 2;
+  return r.right < mid || r.left > mid;
+}
+
 export function contextFor(el: MediaEl): MediaContext | null {
   const route = currentRoute();
+
+  if ((route.kind === 'stories' || route.kind === 'highlight') && isStoryPreview(el)) return null;
 
   if (route.kind === 'stories' && route.username) {
     const username = route.username;
