@@ -66,7 +66,7 @@ export const DEFAULTS = {
   // Links
   'links.clean': true,
   'links.shareDomain': '',
-  'links.direct': true,
+  'links.direct': false,
 
   // Privacy
   'privacy.anonStories': false,
@@ -286,7 +286,7 @@ export const SECTIONS: Section[] = [
         help: 'Optional. Replace instagram.com in copied links, e.g. kkinstagram.com for previews in Discord or Telegram.',
         dependsOn: 'links.clean',
       },
-      { type: 'toggle', key: 'links.direct', label: 'Open links directly', desc: "Outbound links skip Instagram's l.instagram.com redirect page." },
+      { type: 'toggle', key: 'links.direct', label: 'Open links directly', desc: "Outbound links skip Instagram's l.instagram.com redirect page. That page is also where Instagram warns about harmful links, so you won't see those warnings." },
     ],
   },
   {
