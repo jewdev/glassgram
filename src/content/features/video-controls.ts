@@ -1,5 +1,6 @@
 import { onHover } from '../core/hover';
 import { currentRoute } from '../core/router';
+import { isOwnUi } from '../core/selectors';
 import { getSettings } from '../core/state';
 import { h, icon, ICONS, uiLayer } from '../ui/dom';
 import type { Feature } from './types';
@@ -35,6 +36,30 @@ function fmt(t: number) {
 function onStoryRoute() {
   const k = currentRoute().kind;
   return k === 'stories' || k === 'highlight';
+}
+
+/** How far up from the video's bottom edge Instagram's story footer (reply box, like, share) can reach. */
+const STORY_FOOTER_ABOVE = 140;
+/** How far below the video's bottom edge the footer can start, when Instagram puts it under the video. */
+const STORY_FOOTER_BELOW = 80;
+
+/**
+ * Bottom edge of Instagram's story footer controls around `v`, found by position rather than class names.
+ * Picks the lowest control that starts near the video's bottom edge and overlaps it horizontally;
+ * falls back to the video's own bottom edge when none is found.
+ */
+function storyFooterBottom(v: HTMLVideoElement, r: DOMRect): number {
+  const root = v.closest('section') ?? document.body;
+  let bottom = r.bottom;
+  for (const el of root.querySelectorAll('textarea, input, button, [role="button"], a, svg')) {
+    if (isOwnUi(el)) continue;
+    const b = el.getBoundingClientRect();
+    if (!b.width || !b.height || b.height > 80) continue;
+    if (b.right <= r.left || b.left >= r.right) continue;
+    if (b.top < r.bottom - STORY_FOOTER_ABOVE || b.top >= r.bottom + STORY_FOOTER_BELOW) continue;
+    bottom = Math.max(bottom, b.bottom);
+  }
+  return bottom;
 }
 
 function wantsLoop(v: HTMLVideoElement) {
@@ -236,7 +261,9 @@ export const videoControls: Feature = {
       const bottom = Math.min(innerHeight, r.bottom);
       bar.style.left = `${Math.max(0, r.left) + 8}px`;
       bar.style.width = `${Math.min(r.right, innerWidth) - Math.max(0, r.left) - 16}px`;
-      bar.style.top = `${bottom - 44}px`;
+      // On stories, sit under Instagram's reply box and buttons instead of covering them.
+      // Kept on screen, so with no room below it overlaps the bottom of the story.
+      bar.style.top = onStoryRoute() ? `${Math.min(innerHeight - 40, storyFooterBottom(hv.el, r) + 4)}px` : `${bottom - 44}px`;
       bar.classList.toggle('is-visible', bottom - Math.max(0, r.top) > 120);
     });
 
