@@ -244,6 +244,7 @@ function render() {
 
   renderPreview();
   renderAutoCheck();
+  renderMotionToggle();
   refreshState();
   applySearch(($('search') as HTMLInputElement).value);
   observeNav();
@@ -404,6 +405,12 @@ function renderAutoCheck() {
   const sw = switchControl('set-updates.check', settings['updates.check'], 'Check for updates automatically', (v) => change('updates.check', v));
   sw.classList.add('switch--sm');
   $('update-auto').replaceChildren(sw);
+}
+
+function renderMotionToggle() {
+  const sw = switchControl('set-ui.animations', settings['ui.animations'], 'Animations', (v) => change('ui.animations', v));
+  sw.classList.add('switch--sm');
+  $('motion-toggle').replaceChildren(sw);
 }
 
 function renderUpdates(state: UpdateState) {

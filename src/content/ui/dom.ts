@@ -48,16 +48,32 @@ function addStyles(root: ShadowRoot, hostCss: string) {
 }
 
 let theme = 'system';
-/** Top elements of our shadow roots; they carry the theme. */
+let motion = true;
+/** Top elements of our shadow roots; they carry the theme and the animations setting. */
 const themed = new Set<HTMLElement>();
+
+function applyLook(el: HTMLElement) {
+  el.setAttribute('data-theme', theme);
+  el.setAttribute('data-motion', motion ? 'on' : 'off');
+}
+
+function refreshLook() {
+  for (const el of themed) {
+    if (el.isConnected) applyLook(el);
+    else themed.delete(el);
+  }
+}
 
 /** Our floating UI follows the extension's Appearance setting, not Instagram's own theme. */
 export function setTheme(next: string) {
   theme = next;
-  for (const el of themed) {
-    if (el.isConnected) el.setAttribute('data-theme', theme);
-    else themed.delete(el);
-  }
+  refreshLook();
+}
+
+/** Turns our UI's animations and transitions on or off. */
+export function setMotion(on: boolean) {
+  motion = on;
+  refreshLook();
 }
 
 /** A bare `tag` element showing `top` in a closed shadow root. `hostCss` styles the host (`:host { … }`). */
@@ -65,7 +81,7 @@ export function shadowHost<K extends keyof HTMLElementTagNameMap>(tag: K, top: H
   const host = document.createElement(tag);
   const root = host.attachShadow({ mode: 'closed' });
   addStyles(root, hostCss);
-  top.setAttribute('data-theme', theme);
+  applyLook(top);
   themed.add(top);
   root.append(top);
   addHost(host);

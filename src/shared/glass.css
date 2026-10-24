@@ -180,6 +180,9 @@ button, input, select { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+/* Animations turned off in the settings sidebar (see theme.ts). */
+:root[data-motion='off'] { scroll-behavior: auto !important; }
+:root[data-motion='off'] *, :root[data-motion='off'] *::before, :root[data-motion='off'] *::after { transition: none !important; animation: none !important; }
 @media (prefers-reduced-transparency: reduce) {
   .glass { background: var(--glass-strong); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }

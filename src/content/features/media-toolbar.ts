@@ -30,14 +30,14 @@ function buttonsFor(ctx: MediaContext): Buttons | null {
     };
   }
   const isStory = ctx.kind === 'story';
-  const details = isStory && s['stories.mentions'] ? iconButton('at', 'Mentions & stickers', () => showStoryDetails(ctx), 'is-hidden ige-btn--count') : undefined;
+  const details = isStory && s['stories.mentions'] ? iconButton('at', 'Mentions & stickers', () => showStoryDetails(ctx), 'is-hidden ige-btn--late ige-btn--count') : undefined;
   if (isStory && !s['stories.download']) return details ? { btns: [details], details } : null;
   if (ctx.kind === 'post' && !s['download.enabled']) return null;
 
   const btns: HTMLElement[] = [iconButton('download', isStory ? 'Download this story' : 'Download this media', () => downloadCurrent(ctx))];
   let all: HTMLElement | undefined;
   if (isStory || s['download.showAll']) {
-    all = iconButton('downloadAll', isStory ? 'Download all stories in this tray' : 'Download all items', () => downloadAll(ctx), 'is-hidden');
+    all = iconButton('downloadAll', isStory ? 'Download all stories in this tray' : 'Download all items', () => downloadAll(ctx), 'is-hidden ige-btn--late');
     // Leftmost: the bar is right-anchored, so revealing it later grows leftward and the other buttons stay put.
     btns.unshift(all);
   }

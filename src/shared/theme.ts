@@ -17,7 +17,14 @@ export function applyTheme(choice: ThemeChoice) {
   }
 }
 
-/** Apply the cached theme now, then the synced setting, and follow later changes. */
+/** Turns the page's animations and transitions off when the user disabled them (see glass.css). */
+export function applyMotion(on: boolean) {
+  const root = document.documentElement;
+  if (on) delete root.dataset.motion;
+  else root.dataset.motion = 'off';
+}
+
+/** Apply the cached theme now, then the synced setting, and follow later changes. Animations follow too. */
 export function initTheme(onChange?: (choice: ThemeChoice) => void) {
   try {
     const cached = localStorage.getItem(CACHE_KEY) as ThemeChoice | null;
@@ -27,10 +34,12 @@ export function initTheme(onChange?: (choice: ThemeChoice) => void) {
   }
   loadSettings().then((s) => {
     applyTheme(s['ui.theme']);
+    applyMotion(s['ui.animations']);
     onChange?.(s['ui.theme']);
   });
   onSettingsChanged((s) => {
     applyTheme(s['ui.theme']);
+    applyMotion(s['ui.animations']);
     onChange?.(s['ui.theme']);
   });
 }

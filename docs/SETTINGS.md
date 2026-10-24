@@ -93,3 +93,7 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 
 The settings sidebar also has **Check for updates automatically** (on). Glassgram asks GitHub for new
 releases twice a day and shows a **NEW** badge on its icon when one is out. **Check now** checks right away.
+
+The sidebar also has **Animations** (on). Turn it off to stop the fades and slides on Glassgram's toolbars,
+menus and dialogs, and on the settings page and popup. Glassgram also skips them when your system asks for
+reduced motion.

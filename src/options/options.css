@@ -71,9 +71,12 @@ body { min-height: 100vh; }
 .nav__label { flex: 1; }
 .nav__count { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
 
-/* footer: three groups (settings file, updates, about), each one step quieter than the last */
+/* footer: settings file, animations, updates, about, each one step quieter than the last */
 .sidebar__foot { display: flex; flex-direction: column; gap: 16px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--hairline); }
 .sidebar__actions { display: flex; gap: 6px; }
+
+.side-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; }
+.side-toggle__label { color: var(--ink-2); font-size: 13px; line-height: 1.35; cursor: pointer; }
 
 .updates { display: flex; flex-direction: column; gap: 4px; padding: 0 10px; }
 .updates__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }

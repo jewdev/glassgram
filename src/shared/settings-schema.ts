@@ -5,6 +5,8 @@
 export const DEFAULTS = {
   // Appearance of the extension's own pages (settings, popup)
   'ui.theme': 'system' as 'system' | 'light' | 'dark',
+  // Animations in the extension's overlays on Instagram and its own pages (set from the settings sidebar)
+  'ui.animations': true,
   // Look for new releases on GitHub twice a day (set from the settings sidebar)
   'updates.check': true,
 

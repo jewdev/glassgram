@@ -19,6 +19,9 @@
   --ige-rim-low: rgb(255 255 255 / 0.3);
   --ige-blur: blur(22px) saturate(170%);
   --ige-hover: rgb(120 130 160 / 0.16);
+  /* Motion: things ease out as they appear and leave a little faster, back toward where they came from. */
+  --ige-in: 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+  --ige-out: 0.12s cubic-bezier(0.4, 0, 1, 1);
   position: fixed;
   inset: 0;
   z-index: 2147483000;
@@ -103,8 +106,8 @@
 .ige-btn--ghost { padding: 0 14px; border-radius: 999px; }
 .ige-btn--ghost:hover:not(:disabled) { background: var(--ige-hover); }
 .ige-btn.is-hidden { display: none; }
-/* Late-revealed toolbar buttons grow in instead of popping. */
-.ige-toolbar .ige-btn:not(.is-hidden) { animation: ige-btn-in 0.18s ease-out; }
+/* Buttons revealed after the toolbar is already showing grow in instead of popping. */
+.ige-toolbar .ige-btn--late:not(.is-hidden) { animation: ige-btn-in var(--ige-in); }
 @keyframes ige-btn-in { from { opacity: 0; max-width: 0; min-width: 0; padding: 0; overflow: hidden; } to { max-width: 80px; } }
 .ige-btn.is-active { color: var(--ige-accent); }
 
@@ -119,10 +122,12 @@
   color: #fff;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-4px);
-  transition: opacity 0.14s, transform 0.14s, visibility 0s linear 0.14s;
+  /* Pinned to the media's top-right corner, so it grows out of that corner and shrinks back into it. */
+  transform: scale(0.94);
+  transform-origin: top right;
+  transition: opacity var(--ige-out), transform var(--ige-out), visibility 0s linear 0.12s;
 }
-.ige-toolbar.is-visible { opacity: 1; visibility: visible; transform: none; transition: opacity 0.14s, transform 0.14s; }
+.ige-toolbar.is-visible { opacity: 1; visibility: visible; transform: none; transition: opacity var(--ige-in), transform var(--ige-in); }
 .ige-toolbar .ige-btn:hover { background: rgb(255 255 255 / 0.22); }
 
 /* ---------- video bar ---------- */
@@ -138,9 +143,11 @@
   color: #fff;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.14s, visibility 0s linear 0.14s;
+  /* Pinned to the video's bottom edge, so it rises from there and sinks back. */
+  transform: translateY(6px);
+  transition: opacity var(--ige-out), transform var(--ige-out), visibility 0s linear 0.12s;
 }
-.ige-vbar.is-visible { opacity: 1; visibility: visible; transition: opacity 0.14s; }
+.ige-vbar.is-visible { opacity: 1; visibility: visible; transform: none; transition: opacity var(--ige-in), transform var(--ige-in); }
 .ige-vbar .ige-btn:hover { background: rgb(255 255 255 / 0.16); }
 .ige-vbar .ige-btn.is-active { color: #6cc4ff; }
 .ige-vbar__time { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; opacity: 0.9; }
@@ -180,9 +187,9 @@
   font-weight: 500;
   opacity: 0;
   transform: translateY(8px) scale(0.97);
-  transition: opacity 0.18s, transform 0.18s;
+  transition: opacity var(--ige-out), transform var(--ige-out);
 }
-.ige-toast.is-in { opacity: 1; transform: none; }
+.ige-toast.is-in { opacity: 1; transform: none; transition: opacity var(--ige-in), transform var(--ige-in); }
 .ige-toast--success { background: linear-gradient(rgb(52 199 89 / 0.28), rgb(52 199 89 / 0.28)), var(--ige-panel); }
 .ige-toast--error { background: linear-gradient(rgb(255 69 58 / 0.3), rgb(255 69 58 / 0.3)), var(--ige-panel); }
 
@@ -197,9 +204,9 @@
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   opacity: 0;
-  transition: opacity 0.16s;
+  transition: opacity var(--ige-out);
 }
-.ige-backdrop.is-in { opacity: 1; }
+.ige-backdrop.is-in { opacity: 1; transition: opacity var(--ige-in); }
 .ige-modal {
   display: flex;
   flex-direction: column;
@@ -208,10 +215,10 @@
   border-radius: 22px;
   background: var(--ige-panel);
   color: var(--ige-fg);
-  transform: scale(0.97);
-  transition: transform 0.16s;
+  transform: translateY(8px) scale(0.97);
+  transition: transform var(--ige-out);
 }
-.ige-backdrop.is-in .ige-modal { transform: none; }
+.ige-backdrop.is-in .ige-modal { transform: none; transition: transform var(--ige-in); }
 .ige-modal__head {
   display: flex;
   align-items: center;
@@ -338,10 +345,11 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
   background: rgb(0 0 0 / 0.92);
   color: #fff;
   opacity: 0;
-  transition: opacity 0.18s;
+  transition: opacity var(--ige-out);
 }
-.ige-zoom.is-in { opacity: 1; }
-.ige-zoom__stage { flex: 1; display: grid; place-items: center; overflow: hidden; cursor: grab; }
+.ige-zoom.is-in { opacity: 1; transition: opacity var(--ige-in); }
+.ige-zoom__stage { flex: 1; display: grid; place-items: center; overflow: hidden; cursor: grab; transform: scale(0.97); transition: transform var(--ige-out); }
+.ige-zoom.is-in .ige-zoom__stage { transform: none; transition: transform var(--ige-in); }
 .ige-zoom__stage.is-dragging { cursor: grabbing; }
 .ige-zoom__img { max-width: 92vw; max-height: calc(100vh - 90px); user-select: none; transition: transform 0.06s linear; border-radius: 4px; }
 .ige-zoom__bar {
@@ -381,7 +389,9 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 .ige-voice-dl:focus-visible { outline: 2px solid #0095f6; outline-offset: 2px; }
 
 /* ---------- floating profile tools ---------- */
-.ige-fab { position: fixed; right: 24px; bottom: 24px; display: none; flex-direction: column; align-items: flex-end; gap: 10px; }
+/* The closed menu still takes up room above the button, so only the button and the open menu catch clicks. */
+.ige-fab { position: fixed; right: 24px; bottom: 24px; display: none; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
+.ige-fab > * { pointer-events: auto; }
 .ige-fab.is-visible { display: flex; }
 .ige-fab__btn {
   display: grid;
@@ -394,20 +404,26 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
   color: #fff;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.55), inset 0 0 0 1px rgb(255 255 255 / 0.2), 0 8px 22px -6px rgb(221 42 123 / 0.55);
   cursor: pointer;
-  transition: transform 0.15s;
+  transition: transform var(--ige-in);
 }
 .ige-fab__btn:hover { transform: scale(1.06); }
 .ige-fab.is-open .ige-fab__btn { transform: rotate(45deg); }
 .ige-fab__menu {
-  display: none;
+  display: flex;
   flex-direction: column;
   min-width: 210px;
   padding: 6px;
   border-radius: 18px;
   background: var(--ige-panel);
   color: var(--ige-fg);
+  opacity: 0;
+  visibility: hidden;
+  /* Opens out of the button below it and folds back into it. */
+  transform: translateY(8px) scale(0.95);
+  transform-origin: bottom right;
+  transition: opacity var(--ige-out), transform var(--ige-out), visibility 0s linear 0.12s;
 }
-.ige-fab.is-open .ige-fab__menu { display: flex; }
+.ige-fab.is-open .ige-fab__menu { opacity: 1; visibility: visible; transform: none; transition: opacity var(--ige-in), transform var(--ige-in); }
 .ige-menuitem {
   display: flex;
   align-items: center;
@@ -451,5 +467,7 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 :host-context(html.__fb-dark-mode) .ige-follow-badge--notback { background: #45250f; color: #ffbf8f; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ige-layer * { transition: none !important; }
+  .ige-layer *, .ige-layer *::before, .ige-layer *::after { transition: none !important; animation: none !important; }
 }
+/* Animations turned off in the settings sidebar (data-motion is set in dom.ts). */
+[data-motion='off'], [data-motion='off'] *, [data-motion='off'] *::before, [data-motion='off'] *::after { transition: none !important; animation: none !important; }

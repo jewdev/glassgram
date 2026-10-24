@@ -22,7 +22,7 @@ import { timestamps } from './features/timestamps';
 import type { Feature } from './features/types';
 import { openUnfollowers } from './features/unfollowers';
 import { videoControls } from './features/video-controls';
-import { setTheme } from './ui/dom';
+import { setMotion, setTheme } from './ui/dom';
 
 // The channel to the page script must exist before Instagram's scripts do (see shared/page-channel.ts).
 connectPage();
@@ -54,6 +54,7 @@ function sync(s: Settings) {
   // Anonymous stories, DM privacy and link cleaning run in the page script.
   sendPageSettings(s);
   setTheme(s['ui.theme']);
+  setMotion(s['ui.animations']);
   for (const f of FEATURES) {
     const on = f.isEnabled(s);
     const stop = running.get(f.id);
