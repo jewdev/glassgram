@@ -30,7 +30,11 @@ let checks = new WeakMap<Element, number>();
 /** Nav links / sidebar anchors already handled. */
 let seen = new WeakSet<Element>();
 
-const has = (kind: Kind) => [...kinds].some(([el, k]) => k === kind && el.isConnected);
+/** Runs on every DOM scan: walk the map without copying it. */
+function has(kind: Kind, within?: Element): boolean {
+  for (const [el, k] of kinds) if (k === kind && el.isConnected && (!within || within.contains(el))) return true;
+  return false;
+}
 
 function hasExactLabel(root: Element, words: string[]): boolean {
   for (const el of root.querySelectorAll('span, a')) {
@@ -96,7 +100,7 @@ function tagHome() {
   }
   // Stories tray: a list whose items contain story-ring canvases, near the top of <main>.
   const main = document.querySelector(SEL.main);
-  if (main && ![...kinds].some(([el, k]) => k === 'stories' && main.contains(el))) {
+  if (main && !has('stories', main)) {
     for (const ul of main.querySelectorAll('ul')) {
       if (ul.closest(SEL.article)) continue;
       if (ul.querySelectorAll('li canvas').length >= 2) {

@@ -94,9 +94,14 @@ async function boot() {
       runHealthCheck().then(reply, (e) => reply({ error: String(e?.message ?? e) }));
       return true; // async reply
     }
-    if (msg.type === 'openUnfollowers') openUnfollowers();
-    else if (msg.type === 'openUnsent') openUnsentMessages();
-    else if (msg.type === 'contextDownload') contextDownload();
+    // Answered, so the background knows the panel opened and stops retrying.
+    if (msg.type === 'openUnfollowers') {
+      openUnfollowers();
+      reply({ ok: true });
+    } else if (msg.type === 'openUnsent') {
+      openUnsentMessages();
+      reply({ ok: true });
+    } else if (msg.type === 'contextDownload') contextDownload();
     return false;
   });
 }

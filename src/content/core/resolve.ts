@@ -107,8 +107,13 @@ export async function resolveTarget(ctx: MediaContext, offline = false): Promise
     if (!tray.length) throw new Error('No stories found');
     let i = ctx.storyId ? tray.findIndex((p) => p.id === ctx.storyId) : -1;
     if (i < 0) {
-      const flat = tray.map((p) => p.items[0]).filter(Boolean);
-      i = matchIndex(flat, ctx.el);
+      // Keep tray positions: a story without items must not shift the ones after it.
+      const withItems = tray.flatMap((p, at) => (p.items[0] ? [{ item: p.items[0], at }] : []));
+      const j = matchIndex(
+        withItems.map((x) => x.item),
+        ctx.el,
+      );
+      i = j < 0 ? -1 : withItems[j].at;
     }
     // Guessing would download someone else's story item; only a single-item tray is unambiguous.
     if (i < 0 && tray.length > 1) throw new Error("Couldn't tell which story is showing. It may have expired.");

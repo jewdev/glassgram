@@ -86,11 +86,14 @@ export const videoControls: Feature = {
   isEnabled: (s) => s['video.enabled'],
   start() {
     // Videos already on the page played before the saved volume loaded, so apply it once it arrives.
-    chrome.storage.local.get([VOLUME_KEY, MUTED_KEY]).then((r) => {
-      savedVolume = r[VOLUME_KEY] as number | undefined;
-      savedMuted = r[MUTED_KEY] as boolean | undefined;
-      document.querySelectorAll('video').forEach(applyDefaults);
-    });
+    chrome.storage.local
+      .get([VOLUME_KEY, MUTED_KEY])
+      .then((r) => {
+        savedVolume = r[VOLUME_KEY] as number | undefined;
+        savedMuted = r[MUTED_KEY] as boolean | undefined;
+        document.querySelectorAll('video').forEach(applyDefaults);
+      })
+      .catch(() => {}); // extension reloaded under this tab: keep Instagram's own volume
     // Keep other tabs in step with the volume picked here.
     const onStorage = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== 'local') return;

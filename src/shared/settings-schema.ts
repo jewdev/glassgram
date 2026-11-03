@@ -106,6 +106,8 @@ type Base<K extends SettingKey> = {
   dependsOn?: SettingKey;
   /** Shown in the popup as a quick toggle. */
   quick?: boolean;
+  /** Shorter label for the popup's tiles; `label` is used when unset. */
+  short?: string;
   /** Status the user should know before turning it on. */
   badge?: 'experimental' | 'untested' | 'risky' | 'account';
   /** Why this setting has its badge, shown when the badge is hovered or focused. */
@@ -142,12 +144,12 @@ export const SECTIONS: Section[] = [
     half: 'everyday',
     intro: 'Hover any post, reel or story to get download actions.',
     items: [
-      { type: 'toggle', key: 'download.enabled', label: 'Download toolbar on posts & reels', desc: 'A small toolbar appears when you hover photos and videos.', quick: true },
+      { type: 'toggle', key: 'download.enabled', label: 'Download toolbar on posts & reels', short: 'Download toolbar', desc: 'A small toolbar appears when you hover photos and videos.', quick: true },
       { type: 'toggle', key: 'download.showAll', label: '"Download all" for carousels', dependsOn: 'download.enabled' },
       { type: 'toggle', key: 'download.copyUrl', label: '"Copy media URL" button', dependsOn: 'download.enabled' },
       { type: 'toggle', key: 'download.copyCaption', label: '"Copy caption" button', dependsOn: 'download.enabled' },
       { type: 'toggle', key: 'download.zoom', label: '"View full size" button on photos', desc: 'Opens the photo in a viewer: wheel to zoom, drag to pan.', dependsOn: 'download.enabled' },
-      { type: 'toggle', key: 'stories.download', label: 'Download stories & highlights', desc: 'The current story or the whole tray, from the story viewer.', quick: true },
+      { type: 'toggle', key: 'stories.download', label: 'Download stories & highlights', short: 'Download stories', desc: 'The current story or the whole tray, from the story viewer.', quick: true },
       { type: 'toggle', key: 'info.contextMenu', label: 'Right-click "Download Instagram media"', desc: 'Adds an entry to the browser\'s context menu on instagram.com.' },
       {
         type: 'text',
@@ -174,11 +176,12 @@ export const SECTIONS: Section[] = [
     icon: 'eye',
     half: 'everyday',
     items: [
-      { type: 'toggle', key: 'profile.hdPic', label: 'HD profile picture', desc: 'Hover a profile picture to zoom it full size, download it or copy its URL.', quick: true },
+      { type: 'toggle', key: 'profile.hdPic', label: 'HD profile picture', short: 'HD profile pic', desc: 'Hover a profile picture to zoom it full size, download it or copy its URL.', quick: true },
       {
         type: 'toggle',
         key: 'profile.followBadge',
         label: 'Follow status badge',
+        short: 'Follow badge',
         desc: `Shows "Follows you", "Doesn't follow you" or "Follow each other" next to the username. Click it to see close friends, mutes, restrict and more.`,
         quick: true,
       },
@@ -220,10 +223,11 @@ export const SECTIONS: Section[] = [
         type: 'toggle',
         key: 'feed.followingOnly',
         label: 'Following-only feed',
+        short: 'Following feed',
         desc: 'Home always opens the chronological feed of accounts you follow.',
         quick: true,
       },
-      { type: 'toggle', key: 'declutter.ads', label: 'Hide sponsored posts', quick: true },
+      { type: 'toggle', key: 'declutter.ads', label: 'Hide sponsored posts', short: 'Hide ads', quick: true },
       { type: 'toggle', key: 'declutter.suggested', label: 'Hide suggested posts & reels' },
       { type: 'toggle', key: 'declutter.sidebarSuggestions', label: 'Hide suggested accounts sidebar' },
       { type: 'toggle', key: 'declutter.storiesTray', label: 'Hide stories tray on Home' },
@@ -277,7 +281,7 @@ export const SECTIONS: Section[] = [
     icon: 'play',
     half: 'everyday',
     items: [
-      { type: 'toggle', key: 'video.enabled', label: 'Video control bar', desc: 'Seek bar, speed, volume and loop when you hover a video.', quick: true },
+      { type: 'toggle', key: 'video.enabled', label: 'Video control bar', short: 'Video controls', desc: 'Seek bar, speed, volume and loop when you hover a video.', quick: true },
       {
         type: 'select',
         key: 'video.speed',
@@ -346,7 +350,7 @@ export const SECTIONS: Section[] = [
     half: 'everyday',
     intro: 'Act on the media under your mouse, or the most visible post. Ignored while you type.',
     items: [
-      { type: 'toggle', key: 'shortcuts.enabled', label: 'Keyboard shortcuts', quick: true },
+      { type: 'toggle', key: 'shortcuts.enabled', label: 'Keyboard shortcuts', short: 'Shortcuts', quick: true },
       { type: 'shortcut', key: 'shortcuts.download', label: 'Download current media', dependsOn: 'shortcuts.enabled' },
       { type: 'shortcut', key: 'shortcuts.downloadAll', label: 'Download all', dependsOn: 'shortcuts.enabled' },
       { type: 'shortcut', key: 'shortcuts.zoom', label: 'Zoom photo or profile picture', dependsOn: 'shortcuts.enabled' },
@@ -365,6 +369,7 @@ export const SECTIONS: Section[] = [
         type: 'toggle',
         key: 'privacy.anonStories',
         label: 'Anonymous story viewing',
+        short: 'Anonymous stories',
         desc: "Blocks the \"seen\" request, so you don't appear in a story's viewer list.",
         quick: true,
         badge: 'account',

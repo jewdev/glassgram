@@ -116,8 +116,3 @@ export function getHovered(): Hovered | null {
   if (current && !current.el.isConnected) current = null;
   return current;
 }
-
-/** Re-check what's under the pointer (e.g. after a carousel slide changes). */
-export function refreshHover() {
-  queue();
-}

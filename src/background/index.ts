@@ -1,6 +1,7 @@
 import type { DownloadResult, Message } from '../shared/messages';
 import { loadSettings, onSettingsChanged } from '../shared/settings';
 import type { Settings } from '../shared/settings-schema';
+import { findIgTab, IG_URL, tabLoaded } from '../shared/tabs';
 import type { DownloadJob } from '../shared/types';
 import { availableUpdate, compareVersions, loadUpdateState, onUpdateStateChanged, parseReleases, patchUpdateState, RELEASES_API, type UpdateState } from '../shared/updates';
 
@@ -216,6 +217,10 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
       .catch((e) => reply({ ok: false, error: String(e?.message ?? e) } satisfies DownloadResult));
     return true; // async reply
   }
+  if (msg.type === 'openOnInstagram') {
+    openOnInstagram(msg.panel).catch((e) => console.warn('[IGE] open panel', e));
+    return false;
+  }
   if (msg.type === 'ping') {
     reply({ ok: true });
     return false;
@@ -226,6 +231,43 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
   }
   return false;
 });
+
+// ---------------- popup tools: open a panel on Instagram ----------------
+// The popup closes as soon as another tab takes focus, so the worker does the waiting: find or open an
+// Instagram tab, then ask its content script for the panel until it answers.
+const PANEL_TRIES = 15;
+const PANEL_RETRY_MS = 300;
+
+async function showPanel(tabId: number, panel: Message): Promise<boolean> {
+  for (let i = 0; i < PANEL_TRIES; i++) {
+    try {
+      await chrome.tabs.sendMessage(tabId, panel);
+      return true;
+    } catch {
+      await new Promise((r) => setTimeout(r, PANEL_RETRY_MS)); // content script not listening yet
+    }
+  }
+  return false;
+}
+
+async function openOnInstagram(panel: 'openUnfollowers' | 'openUnsent') {
+  const msg = { type: panel } satisfies Message;
+  let tab = await findIgTab();
+  if (tab?.id === undefined) {
+    tab = await chrome.tabs.create({ url: IG_URL });
+    if (tab.id === undefined) return;
+    await tabLoaded(tab.id);
+    await showPanel(tab.id, msg);
+    return;
+  }
+  await chrome.tabs.update(tab.id, { active: true });
+  if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+  if (await showPanel(tab.id, msg)) return;
+  // A tab opened before Glassgram was reloaded has no content script: reload it once.
+  await chrome.tabs.reload(tab.id);
+  await tabLoaded(tab.id);
+  await showPanel(tab.id, msg);
+}
 
 // ---------------- update check (GitHub Releases) ----------------
 const UPDATE_ALARM = 'update-check';
@@ -358,10 +400,33 @@ async function syncDnr(s: Settings) {
   });
 }
 
+// Settings change for every toggle and keystroke on the settings page; only redo the menu, the
+// network rules and the alarm when a setting they read changed. In memory only: a restarted worker
+// applies everything again.
+let lastMenu: boolean | undefined;
+let lastDnr = '';
+let lastAlarm: boolean | undefined;
+
 function applySettings(s: Settings) {
-  syncContextMenu(s);
-  syncDnr(s).catch((e) => console.warn('[IGE] DNR', e));
-  syncUpdateAlarm(s).catch((e) => console.warn('[IGE] update alarm', e));
+  if (s['info.contextMenu'] !== lastMenu) {
+    lastMenu = s['info.contextMenu'];
+    syncContextMenu(s);
+  }
+  const dnr = `${s['privacy.blockAnalytics']}|${s['privacy.anonStories']}`;
+  if (dnr !== lastDnr) {
+    lastDnr = dnr;
+    syncDnr(s).catch((e) => {
+      lastDnr = ''; // try again on the next change
+      console.warn('[IGE] DNR', e);
+    });
+  }
+  if (s['updates.check'] !== lastAlarm) {
+    lastAlarm = s['updates.check'];
+    syncUpdateAlarm(s).catch((e) => {
+      lastAlarm = undefined;
+      console.warn('[IGE] update alarm', e);
+    });
+  }
 }
 
 chrome.runtime.onInstalled.addListener(async (details) => {

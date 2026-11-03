@@ -21,8 +21,20 @@ function reelCode(): string | undefined {
   return r.kind === 'reel' ? r.shortcode : undefined;
 }
 
+/** How long the reel's video is reused before looking for it again (placing the badge stays per frame). */
+const VIDEO_LOOKUP_MS = 200;
+let video: HTMLVideoElement | undefined;
+let videoAt = 0;
+
 /** The video nearest the middle of the screen: the reel being watched. */
 function reelVideo(): HTMLVideoElement | undefined {
+  const now = performance.now();
+  if (video?.isConnected && now - videoAt < VIDEO_LOOKUP_MS) return video;
+  videoAt = now;
+  return (video = nearestVideo());
+}
+
+function nearestVideo(): HTMLVideoElement | undefined {
   const mid = innerHeight / 2;
   let best: HTMLVideoElement | undefined;
   let bestDist = Infinity;
@@ -69,8 +81,8 @@ function place() {
   if (!code) return hideBadge();
   frame = requestAnimationFrame(place);
   if (document.visibilityState !== 'visible') return;
-  const video = reelVideo();
-  if (!video) return hideBadge();
+  const v = reelVideo();
+  if (!v) return hideBadge();
   if (code !== current) {
     current = code;
     count(code);
@@ -80,7 +92,7 @@ function place() {
     badge = h('div', { class: 'ige-reels', role: 'status', 'aria-label': `Reel ${tally.count} today` }, num, h('span', { class: 'ige-reels__label' }, 'reels today'));
     uiLayer().append(badge);
   }
-  const r = video.getBoundingClientRect();
+  const r = v.getBoundingClientRect();
   badge.style.transform = `translate(${Math.round(Math.max(r.left, 0) + 12)}px, ${Math.round(Math.max(r.top, 0) + 12)}px)`;
   badge.style.visibility = 'visible';
 }
@@ -120,7 +132,7 @@ export const reelCounter: Feature = {
       document.removeEventListener('visibilitychange', watch);
       cancelAnimationFrame(frame);
       frame = 0;
-      current = undefined;
+      current = video = undefined;
       badge?.remove();
       badge = num = undefined;
     };

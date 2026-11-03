@@ -1,15 +1,14 @@
-import { switchControl } from '../shared/controls';
-import { sectionIcon } from '../shared/icons';
+import { featureIcon } from '../shared/icons';
 import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
 import type { Message } from '../shared/messages';
+import { IG_URL } from '../shared/tabs';
 import { loadSettings, saveSettings } from '../shared/settings';
 import { dayKey, FOCUS_KEY, formatLeft, REELS_KEY, reelsText, reelTally, today } from '../shared/focus';
 import { renderReleaseNotes } from '../shared/release-notes';
-import { SECTIONS, type SettingKey, type Settings } from '../shared/settings-schema';
+import { SECTIONS, type Section, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
 import { availableUpdate, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, type UpdateState } from '../shared/updates';
 
 const $ = (id: string) => document.getElementById(id)!;
-const IG_URL = 'https://www.instagram.com/';
 
 async function activeIgTab(): Promise<chrome.tabs.Tab | undefined> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -19,7 +18,8 @@ async function activeIgTab(): Promise<chrome.tabs.Tab | undefined> {
 function renderThemeButton(current: ThemeChoice) {
   const btn = $('theme') as HTMLButtonElement;
   const next = THEME_ORDER[(THEME_ORDER.indexOf(current) + 1) % THEME_ORDER.length];
-  btn.innerHTML = themeIcon(current, 17);
+  btn.innerHTML = themeIcon(current, 18);
+  btn.append(Object.assign(document.createElement('span'), { textContent: THEME_LABEL[current] }));
   btn.title = `Appearance: ${THEME_LABEL[current]} (click for ${THEME_LABEL[next]})`;
   btn.setAttribute('aria-label', btn.title);
   btn.onclick = () => {
@@ -28,64 +28,81 @@ function renderThemeButton(current: ThemeChoice) {
   };
 }
 
+const RISK_TEXT = { experimental: 'experimental', untested: 'not tested yet', risky: 'rate-limit risk', account: 'account risk' } as const;
+
+/** One quick toggle as a tap tile: icon, short label and On/Off. Power tools are drawn in red. */
+function tile(def: SettingDef, sec: Section, on: boolean, onChange: (on: boolean) => void): HTMLButtonElement {
+  const power = sec.half === 'power';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `tile${power ? ' tile--risk' : ''}`;
+  btn.title = def.desc ? `${def.label}: ${def.desc}` : def.label;
+  const ic = document.createElement('span');
+  ic.className = 'tile__icon';
+  ic.innerHTML = featureIcon(def.key, sec.icon, 17);
+  const text = document.createElement('span');
+  text.className = 'tile__text';
+  const label = document.createElement('span');
+  label.className = 'tile__label';
+  // Power tiles span the row, so they have room for the full name.
+  label.textContent = power ? def.label : (def.short ?? def.label);
+  const state = document.createElement('span');
+  state.className = 'tile__state';
+  text.append(label, state);
+  btn.append(ic, text);
+  const render = (v: boolean) => {
+    btn.setAttribute('aria-pressed', String(v));
+    state.textContent = (v ? 'On' : 'Off') + (def.badge ? ` · ${RISK_TEXT[def.badge]}` : '');
+  };
+  render(on);
+  btn.addEventListener('click', () => {
+    on = !on;
+    render(on);
+    onChange(on);
+  });
+  return btn;
+}
+
 initTheme(renderThemeButton);
 
 async function init() {
   const settings: Settings = await loadSettings();
-  const list = $('toggles');
   const quick = SECTIONS.flatMap((sec) => sec.items.filter((d) => d.quick && d.type === 'toggle').map((def) => ({ def, sec })));
+  const everyday = quick.filter(({ sec }) => sec.half !== 'power');
 
   const updateCount = () => {
-    const on = quick.filter(({ def }) => settings[def.key] === true).length;
-    $('count').textContent = `${on} of ${quick.length} on`;
+    const on = everyday.filter(({ def }) => settings[def.key] === true).length;
+    $('count').textContent = `· ${on} on`;
   };
 
   for (const { def, sec } of quick) {
-    const li = document.createElement('li');
-    li.className = `toggle${sec.half === 'power' ? ' toggle--power' : ''}`;
-    const ic = document.createElement('span');
-    ic.className = 'toggle__icon';
-    ic.innerHTML = sectionIcon(sec.icon, 16);
-    const label = document.createElement('label');
-    label.className = 'toggle__label';
-    label.htmlFor = `set-${def.key}`;
-    label.textContent = def.label;
-    li.append(
-      ic,
-      label,
-      switchControl(`set-${def.key}`, !!settings[def.key], def.label, (v) => {
-        (settings as Record<SettingKey, unknown>)[def.key] = v;
-        updateCount();
-        saveSettings({ [def.key]: v } as Partial<Settings>);
-      }),
-    );
-    list.append(li);
+    const t = tile(def, sec, !!settings[def.key], (v) => {
+      (settings as Record<SettingKey, unknown>)[def.key] = v;
+      updateCount();
+      saveSettings({ [def.key]: v } as Partial<Settings>);
+    });
+    $(sec.half === 'power' ? 'power-tiles' : 'tiles').append(t);
   }
+  $('power').hidden = !quick.some(({ sec }) => sec.half === 'power');
   updateCount();
 
-  const openSettings = () => chrome.runtime.openOptionsPage();
-  $('settings').addEventListener('click', openSettings);
-  $('open-settings').addEventListener('click', openSettings);
+  $('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
   const tab = await activeIgTab();
   $('status').classList.toggle('is-active', !!tab);
-  $('status-text').textContent = tab ? 'Active on this tab' : 'Open Instagram to use';
+  $('status-text').textContent = tab ? 'Active' : 'Not on Instagram';
 
-  const tool = (id: string, enabled: boolean, msg: Message) => {
+  const tool = (id: string, enabled: boolean, panel: 'openUnfollowers' | 'openUnsent') => {
     const btn = $(id) as HTMLButtonElement;
     btn.hidden = !enabled;
-    btn.addEventListener('click', async () => {
-      const t = await activeIgTab();
-      if (t?.id !== undefined) {
-        await chrome.tabs.sendMessage(t.id, msg).catch(() => {});
-      } else {
-        await chrome.tabs.create({ url: IG_URL });
-      }
+    btn.addEventListener('click', () => {
+      // The background opens or focuses Instagram and shows the panel; this popup closes meanwhile.
+      chrome.runtime.sendMessage({ type: 'openOnInstagram', panel } satisfies Message).catch(() => {});
       window.close();
     });
   };
-  tool('unfollowers', settings['account.unfollowers'], { type: 'openUnfollowers' });
-  tool('unsent', settings['dm.keepUnsent'], { type: 'openUnsent' });
+  tool('unfollowers', settings['account.unfollowers'], 'openUnfollowers');
+  tool('unsent', settings['dm.keepUnsent'], 'openUnsent');
 
   if (settings['focus.enabled'] || settings['focus.reelCounter']) renderToday(settings);
   renderUpdate(await loadUpdateState());

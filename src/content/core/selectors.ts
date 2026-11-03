@@ -67,8 +67,3 @@ export function isOnTopLayer(el: Element): boolean {
 }
 
 export { isOwnUi } from '../ui/hosts';
-
-export function textMatches(el: Element, words: string[]): boolean {
-  const t = el.textContent ?? '';
-  return words.some((w) => t.includes(w));
-}

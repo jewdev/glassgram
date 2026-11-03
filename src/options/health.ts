@@ -3,9 +3,9 @@
 
 import { overall, pickTab, reportText, summary, type HealthCheck, type HealthReport, type HealthStatus } from '../shared/health';
 import type { Message } from '../shared/messages';
+import { IG_URL, tabLoaded } from '../shared/tabs';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const IG_URL = 'https://www.instagram.com/';
 
 const ICON: Record<HealthStatus, string> = {
   ok: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
@@ -34,20 +34,6 @@ async function background(): Promise<HealthCheck> {
     /* reported below */
   }
   return { id: 'background', label, status: 'fail', detail: 'Not answering. Press Reload Glassgram on the extensions page.', affects: ['Downloads', 'ZIP files', 'Update checks'] };
-}
-
-/** Resolves once the tab finished loading (or after `ms`). */
-function loaded(tabId: number, ms = 20000): Promise<void> {
-  return new Promise((resolve) => {
-    const done = () => {
-      chrome.tabs.onUpdated.removeListener(onUpdated);
-      clearTimeout(timer);
-      resolve();
-    };
-    const onUpdated = (id: number, info: { status?: string }) => id === tabId && info.status === 'complete' && done();
-    const timer = setTimeout(done, ms);
-    chrome.tabs.onUpdated.addListener(onUpdated);
-  });
 }
 
 type Action = { label: string; run: () => void };
@@ -151,7 +137,7 @@ async function run() {
           setAction();
           busy(true);
           await chrome.tabs.reload(tabId).catch(() => {});
-          await loaded(tabId);
+          await tabLoaded(tabId);
           busy(false);
           run();
         },

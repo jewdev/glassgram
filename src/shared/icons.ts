@@ -1,4 +1,4 @@
-import type { SectionIcon } from './settings-schema';
+import type { SectionIcon, SettingKey } from './settings-schema';
 
 /** Section icons for the settings page and popup: one 24px grid, 1.8 stroke, round caps. */
 export const SECTION_ICON_PATHS: Record<SectionIcon, string> = {
@@ -14,6 +14,36 @@ export const SECTION_ICON_PATHS: Record<SectionIcon, string> = {
   tools: '<path d="M14.5 6.5a3.5 3.5 0 0 0-4.6 4.6L4.5 16.5l3 3 5.4-5.4a3.5 3.5 0 0 0 4.6-4.6L15 12l-3-3Z"/>',
 };
 
+/** Icons for single features (popup tiles), on the same grid. A feature without one uses its section's. */
+const FEATURE_ICON_PATHS: Partial<Record<SettingKey, string>> = {
+  'download.enabled': SECTION_ICON_PATHS.download,
+  // a story ring with a download arrow
+  'stories.download': '<circle cx="12" cy="12" r="8.5" stroke-dasharray="3.2 2.2"/><path d="M12 8v7.5"/><path d="m8.8 12.5 3.2 3.2 3.2-3.2"/>',
+  // a portrait in a frame
+  'profile.hdPic': '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="12" cy="10" r="3"/><path d="M6.8 20.5a5.5 5.5 0 0 1 10.4 0"/>',
+  // a person with a check mark
+  'profile.followBadge': '<circle cx="9" cy="8" r="3.8"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="m16.5 11 2 2 3.5-3.5"/>',
+  // a list with a check mark
+  'feed.followingOnly': '<path d="M4 6h14M4 12h14M4 18h8"/><path d="m15 18 2 2 4-4"/>',
+  // a crossed-out megaphone
+  'declutter.ads': '<path d="M4 10v4h3l7 4V6l-7 4Z"/><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M3 3l18 18"/>',
+  'focus.enabled': SECTION_ICON_PATHS.focus,
+  // tally marks
+  'focus.reelCounter': '<path d="M6 5v14M10 5v14M14 5v14M18 5v14M4 16 20 8"/>',
+  // a player with a seek bar
+  'video.enabled': '<rect x="3.5" y="3.5" width="17" height="12" rx="2.5"/><path d="m10.5 7 3.5 2.5-3.5 2.5Z"/><path d="M4 20h16"/><circle cx="9" cy="20" r="1.6" fill="currentColor"/>',
+  'shortcuts.enabled': SECTION_ICON_PATHS.keyboard,
+  // a crossed-out eye
+  'privacy.anonStories': '<path d="M3 3l18 18"/><path d="M10.6 5.6c.5-.1.9-.1 1.4-.1 6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.7M6.6 6.6A17 17 0 0 0 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.3-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+};
+
+const svg = (paths: string, size: number) =>
+  `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+
 export function sectionIcon(name: SectionIcon, size = 18): string {
-  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SECTION_ICON_PATHS[name]}</svg>`;
+  return svg(SECTION_ICON_PATHS[name], size);
+}
+
+export function featureIcon(key: SettingKey, fallback: SectionIcon, size = 18): string {
+  return svg(FEATURE_ICON_PATHS[key] ?? SECTION_ICON_PATHS[fallback], size);
 }

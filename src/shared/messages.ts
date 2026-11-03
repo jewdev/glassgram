@@ -8,6 +8,8 @@ export type Message =
   | { type: 'contextDownload' }
   | { type: 'zipProgress'; done: number; total: number; jobId?: string }
   | { type: 'checkUpdates' }
+  /** Popup → background: bring up an Instagram tab (opening one if needed) and show this panel in it. */
+  | { type: 'openOnInstagram'; panel: 'openUnfollowers' | 'openUnsent' }
   /** Settings page → content script: run the health check in this tab (replies with a HealthReport). */
   | { type: 'healthCheck' }
   /** Settings page → background: is the service worker answering? */
