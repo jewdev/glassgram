@@ -10,18 +10,21 @@ import { voiceDownload } from './features/dm-tools';
 import { commentMedia } from './features/comment-media';
 import { copyComment } from './features/copy-comment';
 import { followBadge } from './features/follow-badge';
+import { focusMode } from './features/focus';
 import { followingFeed } from './features/following-feed';
 import { cleanLinks, directLinks } from './features/links';
 import { noAutoplay } from './features/no-autoplay';
 import { noDoubleTap } from './features/no-double-tap';
 import { mediaToolbar } from './features/media-toolbar';
 import { profileTools } from './features/profile-tools';
+import { reelCounter } from './features/reel-counter';
 import { shortcuts } from './features/shortcuts';
 import { storyNoAdvance } from './features/story-no-advance';
 import { timestamps } from './features/timestamps';
 import type { Feature } from './features/types';
 import { openUnfollowers } from './features/unfollowers';
 import { videoControls } from './features/video-controls';
+import { runHealthCheck } from './health';
 import { setMotion, setTheme } from './ui/dom';
 
 // The channel to the page script must exist before Instagram's scripts do (see shared/page-channel.ts).
@@ -29,6 +32,8 @@ connectPage();
 
 const FEATURES: Feature[] = [
   declutter,
+  focusMode,
+  reelCounter,
   mediaToolbar,
   videoControls,
   timestamps,
@@ -84,10 +89,15 @@ async function boot() {
   sync(settings);
   onSettingsChanged(sync);
 
-  chrome.runtime.onMessage.addListener((msg: Message) => {
+  chrome.runtime.onMessage.addListener((msg: Message, _sender, reply) => {
+    if (msg.type === 'healthCheck') {
+      runHealthCheck().then(reply, (e) => reply({ error: String(e?.message ?? e) }));
+      return true; // async reply
+    }
     if (msg.type === 'openUnfollowers') openUnfollowers();
     else if (msg.type === 'openUnsent') openUnsentMessages();
     else if (msg.type === 'contextDownload') contextDownload();
+    return false;
   });
 }
 

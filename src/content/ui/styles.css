@@ -466,6 +466,84 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 :host-context(html.__fb-dark-mode) .ige-follow-badge--follower { background: #10304f; color: #9cc9ff; }
 :host-context(html.__fb-dark-mode) .ige-follow-badge--notback { background: #45250f; color: #ffbf8f; }
 
+/* ---------- focus mode ---------- */
+.ige-focus-veil {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  -webkit-backdrop-filter: grayscale(1);
+  backdrop-filter: grayscale(1);
+}
+.ige-focus-pill {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--ige-glass);
+  -webkit-backdrop-filter: var(--ige-blur);
+  backdrop-filter: var(--ige-blur);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.ige-focus-pill.is-low { background: var(--ige-danger); }
+.ige-focus-block {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(8 10 20 / 0.55);
+  -webkit-backdrop-filter: blur(18px) grayscale(1);
+  backdrop-filter: blur(18px) grayscale(1);
+  opacity: 0;
+  transition: opacity var(--ige-out);
+}
+.ige-focus-block.is-in { opacity: 1; transition: opacity var(--ige-in); }
+.ige-focus-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(400px, calc(100vw - 32px));
+  padding: 24px;
+  border-radius: 22px;
+  background: var(--ige-panel);
+  -webkit-backdrop-filter: var(--ige-blur);
+  backdrop-filter: var(--ige-blur);
+  box-shadow: var(--ige-shadow);
+  color: var(--ige-fg);
+  text-align: center;
+}
+.ige-focus-card h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.ige-focus-card p { margin: 0; color: var(--ige-muted); font-size: 14px; line-height: 1.45; }
+.ige-focus-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+/* ---------- reel counter ---------- */
+.ige-reels {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--ige-glass);
+  -webkit-backdrop-filter: var(--ige-blur);
+  backdrop-filter: var(--ige-blur);
+  color: #fff;
+  pointer-events: none;
+  visibility: hidden;
+}
+.ige-reels__num { font-size: 16px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.ige-reels__label { font-size: 12px; font-weight: 600; opacity: 0.85; }
+.ige-reels.is-bump .ige-reels__num { display: inline-block; animation: ige-reels-bump 0.35s var(--ige-in); }
+@keyframes ige-reels-bump { 40% { transform: scale(1.35); } }
+
 @media (prefers-reduced-motion: reduce) {
   .ige-layer *, .ige-layer *::before, .ige-layer *::after { transition: none !important; animation: none !important; }
 }

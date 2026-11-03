@@ -111,6 +111,8 @@ press reload on the extension's card.
 
 - **Declutter**: hide ads, suggested posts and accounts, stories tray, Reels and Explore tabs, Threads links.
 - **Following-only feed**, **no double-click likes**.
+- **Focus mode**: a daily time limit for Reels and Explore, a time-left timer and optional grayscale. Off by default.
+- **Reel counter** on every reel: how many reels you've watched today. Off by default.
 - **Video controls**: seek, speed, volume, loop, autoplay off.
 
 ### 🔒 Privacy and links
@@ -122,7 +124,9 @@ press reload on the extension's card.
 ### ✨ Small extras
 
 Exact timestamps, copy comment, save GIFs from comments, a searchable settings page with
-export/import, and a popup with quick toggles. Every feature can be switched off;
+export/import, a popup with quick toggles, and a **health check** in the settings sidebar that tells
+you which features an Instagram change broke (it sends Instagram nothing, and **Copy report** gives
+you a bug report without usernames or links). Every feature can be switched off;
 see the [settings reference](docs/SETTINGS.md) for all options and defaults.
 
 ## Keyboard shortcuts

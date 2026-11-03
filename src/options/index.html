@@ -44,6 +44,14 @@
             <span id="motion-toggle"></span>
           </div>
 
+          <section class="updates" aria-labelledby="health-title">
+            <div class="updates__head">
+              <h2 id="health-title" class="updates__title">Health</h2>
+              <button id="health-run" class="pill-btn pill-btn--quiet updates__btn" type="button">Run check</button>
+            </div>
+            <p id="health-status" class="updates__status" role="status" aria-live="polite">Not checked yet</p>
+          </section>
+
           <section class="updates" aria-labelledby="updates-title">
             <div class="updates__head">
               <h2 id="updates-title" class="updates__title">Updates</h2>
@@ -143,6 +151,23 @@
             <button id="whats-new-close" class="pill-btn pill-btn--quiet update-card__close" type="button">Dismiss</button>
           </header>
           <div id="whats-new-notes" class="update-card__notes"></div>
+        </section>
+
+        <section id="health" class="update-card glass" aria-labelledby="health-card-title" hidden>
+          <header class="update-card__head">
+            <span id="health-icon" class="update-card__icon health__icon" aria-hidden="true"></span>
+            <div class="update-card__text">
+              <h2 id="health-card-title">Health check</h2>
+              <p id="health-card-sub" class="update-card__sub"></p>
+            </div>
+            <button id="health-close" class="pill-btn pill-btn--quiet update-card__close" type="button">Close</button>
+          </header>
+          <ul id="health-list" class="health"></ul>
+          <div class="health__foot">
+            <button id="health-action" class="pill-btn pill-btn--accent" type="button" hidden></button>
+            <button id="health-copy" class="pill-btn" type="button" disabled>Copy report</button>
+            <button id="health-again" class="pill-btn" type="button">Run again</button>
+          </div>
         </section>
 
         <div id="sections" class="sections"></div>

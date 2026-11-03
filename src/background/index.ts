@@ -216,6 +216,10 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
       .catch((e) => reply({ ok: false, error: String(e?.message ?? e) } satisfies DownloadResult));
     return true; // async reply
   }
+  if (msg.type === 'ping') {
+    reply({ ok: true });
+    return false;
+  }
   if (msg.type === 'checkUpdates') {
     checkForUpdates().then(reply);
     return true;

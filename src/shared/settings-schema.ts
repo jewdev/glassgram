@@ -42,6 +42,13 @@ export const DEFAULTS = {
   'video.rememberVolume': true,
   'video.loop': true,
 
+  // Focus mode
+  'focus.enabled': false,
+  'focus.limit': 30,
+  'focus.timer': true,
+  'focus.grayscale': 'never' as 'never' | 'limited' | 'always',
+  'focus.reelCounter': false,
+
   // Declutter
   'declutter.ads': true,
   'declutter.suggested': false,
@@ -114,7 +121,7 @@ export type SettingDef =
   | (Base<SettingKey> & { type: 'shortcut' });
 
 /** Icon names map to SVG paths in the options page. */
-export type SectionIcon = 'download' | 'eye' | 'feed' | 'play' | 'message' | 'link' | 'keyboard' | 'shield' | 'tools';
+export type SectionIcon = 'download' | 'eye' | 'feed' | 'focus' | 'play' | 'message' | 'link' | 'keyboard' | 'shield' | 'tools';
 
 export interface Section {
   id: string;
@@ -224,6 +231,44 @@ export const SECTIONS: Section[] = [
       { type: 'toggle', key: 'declutter.exploreTab', label: 'Hide Explore tab' },
       { type: 'toggle', key: 'declutter.threads', label: 'Hide Threads banners & links' },
       { type: 'toggle', key: 'feed.noDoubleTapLike', label: 'Disable double-click like', desc: 'Double-clicking a photo or video no longer likes it.' },
+    ],
+  },
+  {
+    id: 'focus',
+    title: 'Focus',
+    icon: 'focus',
+    half: 'everyday',
+    intro: 'A daily time budget for the Reels feed and Explore. Your feed, messages and reels people send you stay open.',
+    items: [
+      {
+        type: 'toggle',
+        key: 'focus.enabled',
+        label: 'Focus mode',
+        desc: 'Once your time is used up, Reels and Explore stop until midnight. You can always add 5 more minutes.',
+        quick: true,
+        note: 'Time counts only while a Reels or Explore page is on screen. It is stored in this browser and shared by all Instagram tabs.',
+      },
+      { type: 'number', key: 'focus.limit', label: 'Daily limit', min: 5, max: 240, step: 5, unit: 'min', dependsOn: 'focus.enabled' },
+      { type: 'toggle', key: 'focus.timer', label: 'Show time left', desc: 'A small timer at the bottom of Reels and Explore.', dependsOn: 'focus.enabled' },
+      {
+        type: 'select',
+        key: 'focus.grayscale',
+        label: 'Grayscale',
+        desc: 'A colorless Instagram is less pulling.',
+        dependsOn: 'focus.enabled',
+        options: [
+          { value: 'never', label: 'Off' },
+          { value: 'limited', label: 'On Reels & Explore' },
+          { value: 'always', label: 'Everywhere' },
+        ],
+      },
+      {
+        type: 'toggle',
+        key: 'focus.reelCounter',
+        label: 'Reel counter',
+        desc: 'A counter on every reel you watch that goes up with each new one: how many reels you have seen today. Resets at midnight.',
+        quick: true,
+      },
     ],
   },
   {

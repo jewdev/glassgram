@@ -95,3 +95,6 @@ body { width: 360px; padding: 12px; font-size: 14px; }
 /* ---------------- actions ---------------- */
 .actions { display: flex; gap: 8px; padding-top: 10px; }
 .actions .pill-btn { height: 36px; font-size: 13.5px; }
+
+.today { margin: 0 0 10px; padding: 10px 14px; border-radius: 18px; color: var(--ink-2); font-size: 13px; }
+.today strong { color: var(--ink); font-variant-numeric: tabular-nums; }

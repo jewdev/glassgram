@@ -8,6 +8,10 @@ export type Message =
   | { type: 'contextDownload' }
   | { type: 'zipProgress'; done: number; total: number; jobId?: string }
   | { type: 'checkUpdates' }
+  /** Settings page → content script: run the health check in this tab (replies with a HealthReport). */
+  | { type: 'healthCheck' }
+  /** Settings page → background: is the service worker answering? */
+  | { type: 'ping' }
   /** Stop the ZIPs this tab started. */
   | { type: 'cancelZip' }
   // background <-> offscreen

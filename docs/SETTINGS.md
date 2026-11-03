@@ -45,6 +45,18 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 
 </details>
 <details>
+<summary><b>🧘 Focus</b></summary>
+
+| Setting | Default | Notes |
+| :--- | :---: | :--- |
+| Focus mode | Off | A daily time budget for the Reels feed and Explore. Shared reels, your feed and DMs aren't limited |
+| Daily limit | 30 min | 5 to 240 min. Resets at midnight. **5 more minutes** adds time when it runs out |
+| Show time left | On | A timer at the bottom of Reels and Explore |
+| Grayscale | Off | On Reels & Explore, or everywhere |
+| Reel counter | Off | A counter on each reel that goes up with every new reel you watch. Counts each reel once a day, resets at midnight. Works without focus mode |
+
+</details>
+<details>
 <summary><b>🧹 Declutter</b></summary>
 
 | Setting | Default |

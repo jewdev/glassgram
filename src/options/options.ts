@@ -8,6 +8,7 @@ import { loadSettings, onSettingsChanged, resetSettings, sanitizeSettings, saveS
 import { SECTIONS, type Section, type SectionIcon, type SettingDef, type SettingKey, type Settings } from '../shared/settings-schema';
 import { SIGNING_KEY } from '../shared/signing-key';
 import { availableUpdate, between, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, RELEASES_URL, type Release, type UpdateState } from '../shared/updates';
+import { wireHealth } from './health';
 import { canSelfUpdate, forgetFolder, isBrave, savedFolder, selfUpdate, showInstallFolder, UpdateError, type Step } from './self-update';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -585,6 +586,7 @@ async function init() {
   render();
   wireActions();
   wireUpdates();
+  wireHealth();
   renderUpdates(await loadUpdateState());
   if (location.hash === '#update') $('update').scrollIntoView();
 

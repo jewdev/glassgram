@@ -73,6 +73,12 @@ function startCooldown() {
   chrome.storage.local.set({ [COOLDOWN_KEY]: cooldownUntil }).catch(() => {});
 }
 
+/** Milliseconds left in the rate-limit cooldown; 0 when none is active. */
+export async function cooldownLeft(): Promise<number> {
+  await cooldownLoaded;
+  return Math.max(0, cooldownUntil - Date.now());
+}
+
 /** Throws while a rate-limit cooldown is active, without touching the network. */
 async function assertNotCoolingDown() {
   await cooldownLoaded;

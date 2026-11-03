@@ -241,6 +241,42 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 .update-card__foot { display: flex; justify-content: flex-end; margin-top: -6px; }
 .update-card__foot .pill-btn { flex: none; }
 
+/* ---------- health check ---------- */
+#health { --warn: light-dark(#a35a00, #ffc46b); }
+.health {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: 16px;
+  background: var(--fill);
+  list-style: none;
+}
+.health__row { display: flex; gap: 12px; padding: 10px 0; }
+.health__row + .health__row { box-shadow: 0 -1px 0 var(--hairline); }
+.health__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+}
+.health__text { min-width: 0; }
+.health__text p { margin: 0; }
+.health__label { font-weight: 560; font-size: 14px; }
+.health__detail { color: var(--ink-2); font-size: 13.5px; max-width: 70ch; }
+.health__affects { margin-top: 2px !important; color: var(--ink-3); font-size: 12.5px; }
+.health__row.is-ok .health__mark, .health__icon.is-ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.health__row.is-warn .health__mark, .health__icon.is-warn, .health__icon.is-skip { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.health__row.is-fail .health__mark, .health__icon.is-fail { background: var(--risk-soft); color: var(--risk); }
+.health__row.is-skip .health__mark { background: var(--fill); color: var(--ink-3); }
+.health__row.is-skip .health__label { color: var(--ink-2); font-weight: 500; }
+.health__foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.health__foot .pill-btn { flex: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 .sections { display: flex; flex-direction: column; gap: 36px; }
 .half { display: flex; flex-direction: column; gap: 16px; }
 .half__title { margin: 0; padding: 0 6px; font-size: 20px; font-weight: 680; letter-spacing: -0.015em; }

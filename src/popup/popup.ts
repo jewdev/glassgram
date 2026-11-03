@@ -3,6 +3,7 @@ import { sectionIcon } from '../shared/icons';
 import { initTheme, setTheme, THEME_LABEL, THEME_ORDER, themeIcon, type ThemeChoice } from '../shared/theme';
 import type { Message } from '../shared/messages';
 import { loadSettings, saveSettings } from '../shared/settings';
+import { dayKey, FOCUS_KEY, formatLeft, REELS_KEY, reelsText, reelTally, today } from '../shared/focus';
 import { renderReleaseNotes } from '../shared/release-notes';
 import { SECTIONS, type SettingKey, type Settings } from '../shared/settings-schema';
 import { availableUpdate, loadUpdateState, newerThan, onUpdateStateChanged, patchUpdateState, type UpdateState } from '../shared/updates';
@@ -86,8 +87,25 @@ async function init() {
   tool('unfollowers', settings['account.unfollowers'], { type: 'openUnfollowers' });
   tool('unsent', settings['dm.keepUnsent'], { type: 'openUnsent' });
 
+  if (settings['focus.enabled'] || settings['focus.reelCounter']) renderToday(settings);
   renderUpdate(await loadUpdateState());
   onUpdateStateChanged(renderUpdate);
+}
+
+// ---------------- focus: today's reels and time ----------------
+async function renderToday(settings: Settings) {
+  const stored = await chrome.storage.local.get([FOCUS_KEY, REELS_KEY]).catch(() => ({}) as Record<string, unknown>);
+  const strong = (text: string) => Object.assign(document.createElement('strong'), { textContent: text });
+  const parts: (string | Node)[] = ['Today: '];
+  if (settings['focus.reelCounter']) parts.push(strong(reelsText(reelTally(stored[REELS_KEY], dayKey()).count)), ' watched');
+  if (settings['focus.enabled']) {
+    const used = today(stored[FOCUS_KEY], dayKey()).usedMs;
+    if (parts.length > 1) parts.push(', ');
+    parts.push(strong(used >= 60_000 ? formatLeft(used) : 'under a minute'), ' on Reels and Explore');
+  }
+  const box = $('focus-today');
+  box.replaceChildren(...parts);
+  box.hidden = false;
 }
 
 // ---------------- update banner ----------------

@@ -644,6 +644,8 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
     getUser: ({ username }) => fromStore((src) => findUser(src, String(username))),
     getReel: ({ id }) => fromStore((src) => findReel(src, String(id))),
     hasTemplate: ({ name }) => templates.has(name),
+    /** For the health check: is the Relay store reachable, and which query formats were captured. */
+    health: () => ({ relay: !!getRelaySource(), templates: [...templates.keys()] }),
     profilePosts: async ({ username, after }) => {
       const json = await replay('PolarisProfilePostsQuery', (v) => {
         const next: Record<string, unknown> = { ...v, username };
