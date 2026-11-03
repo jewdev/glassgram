@@ -121,6 +121,17 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, reply) => {
       .catch((e) => reply({ ok: false, error: String(e?.message ?? e) }));
     return true;
   }
+  if (msg.type === 'offscreen:mp3') {
+    const abort = new AbortController();
+    running.set(msg.jobId, abort);
+    // Loaded on first use: ZIP-only sessions never parse the encoder.
+    import('./mp3')
+      .then(({ videoToMp3 }) => videoToMp3(msg.url, abort.signal))
+      .then((url) => reply({ ok: true, url }))
+      .catch((e) => reply({ ok: false, error: abort.signal.aborted ? 'Cancelled' : String(e?.message ?? e) }))
+      .finally(() => running.delete(msg.jobId));
+    return true;
+  }
   if (msg.type === 'offscreen:cancel') cancelZip(msg.jobId);
   if (msg.type === 'offscreen:revoke') URL.revokeObjectURL(msg.url);
   return false;

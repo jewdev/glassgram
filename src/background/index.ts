@@ -94,7 +94,7 @@ async function ensureOffscreen() {
     .createDocument({
       url: OFFSCREEN_URL,
       reasons: [chrome.offscreen.Reason.BLOBS],
-      justification: 'Bundle downloaded Instagram media into a ZIP file',
+      justification: "Bundle downloaded Instagram media into a ZIP file, or save a video's sound as MP3",
     })
     .finally(() => (offscreenCreating = null));
   await offscreenCreating;
@@ -167,6 +167,36 @@ async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: numb
   }
 }
 
+type Mp3Reply = { ok: true; url: string } | { ok: false; error: string };
+
+/** A video's sound as MP3: the offscreen document decodes and encodes it, then it's downloaded like a ZIP part. */
+async function mp3AndDownload(job: DownloadJob, tabId?: number): Promise<DownloadResult> {
+  const jobId = crypto.randomUUID();
+  const entry = { tabId, cancelled: false };
+  zipJobs.set(jobId, entry); // tracked with the ZIPs: same Cancel, and the document stays open for it
+  try {
+    await ensureOffscreen();
+    const res = (await chrome.runtime.sendMessage({ type: 'offscreen:mp3', target: 'offscreen', url: job.url, jobId } satisfies Message)) as Mp3Reply;
+    if (!res?.ok) return { ok: false, error: res?.error ?? 'MP3 failed' };
+    if (entry.cancelled) {
+      revoke(res.url);
+      return { ok: false, error: 'Cancelled' };
+    }
+    try {
+      const id = await chrome.downloads.download({ url: res.url, filename: job.filename, conflictAction: 'uniquify' });
+      blobDownloads.set(id, () => revoke(res.url));
+    } catch (e) {
+      revoke(res.url);
+      throw e;
+    }
+    persist();
+    return { ok: true, count: 1 };
+  } finally {
+    zipJobs.delete(jobId);
+    closeOffscreenIfIdle();
+  }
+}
+
 // ---------------- messages ----------------
 // Job URLs come from content scripts, and some from attributes any script on the page can set
 // (data-ige-voice-url). Only Instagram's media hosts get fetched or downloaded, plus the JSON the
@@ -191,7 +221,9 @@ const BLOCKED: DownloadResult = { ok: false, error: 'Glassgram only downloads fr
 
 chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
   if ('target' in msg) return false; // meant for the offscreen document
-  const blocked = (msg.type === 'download' || msg.type === 'zip') && blockedJob(msg.jobs, msg.type === 'download');
+  const blocked =
+    ((msg.type === 'download' || msg.type === 'zip') && blockedJob(msg.jobs, msg.type === 'download')) ||
+    (msg.type === 'mp3' && blockedJob([msg.job], false));
   if (blocked) {
     console.warn('[IGE] blocked download from', blocked.url.slice(0, 100));
     reply(BLOCKED);
@@ -216,6 +248,12 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
       .then(reply)
       .catch((e) => reply({ ok: false, error: String(e?.message ?? e) } satisfies DownloadResult));
     return true; // async reply
+  }
+  if (msg.type === 'mp3') {
+    mp3AndDownload(msg.job, sender.tab?.id)
+      .then(reply)
+      .catch((e) => reply({ ok: false, error: String(e?.message ?? e) } satisfies DownloadResult));
+    return true;
   }
   if (msg.type === 'openOnInstagram') {
     openOnInstagram(msg.panel).catch((e) => console.warn('[IGE] open panel', e));

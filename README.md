@@ -93,6 +93,7 @@ press reload on the extension's card.
 ### ⬇️ Downloads
 
 - **Hover toolbar** on posts, reels and stories: download one or all, zoom photos full size, copy media URL or caption. Always the highest resolution.
+- **Video or sound**: on any reel, video or story, the download button lets you save just the sound as MP3. Converted on your computer.
 - **Filename templates** with folders, e.g. `Glassgram/{user}/{user}_{date}_{shortcode}_{index}`.
 - **ZIP or separate files** for carousels and story trays.
 - **Bulk profile download** of the latest N posts. Off by default.

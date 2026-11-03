@@ -3,6 +3,8 @@ import type { DownloadJob } from './types';
 export type Message =
   | { type: 'download'; jobs: DownloadJob[] }
   | { type: 'zip'; jobs: DownloadJob[]; zipName: string }
+  /** Save a video's sound as MP3: `job.url` is the video, `job.filename` ends in .mp3. */
+  | { type: 'mp3'; job: DownloadJob }
   | { type: 'openUnfollowers' }
   | { type: 'openUnsent' }
   | { type: 'contextDownload' }
@@ -18,6 +20,7 @@ export type Message =
   | { type: 'cancelZip' }
   // background <-> offscreen
   | { type: 'offscreen:zip'; jobs: DownloadJob[]; jobId: string; target: 'offscreen' }
+  | { type: 'offscreen:mp3'; url: string; jobId: string; target: 'offscreen' }
   | { type: 'offscreen:cancel'; jobId: string; target: 'offscreen' }
   | { type: 'offscreen:revoke'; url: string; target: 'offscreen' };
 

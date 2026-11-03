@@ -16,6 +16,7 @@ export const DEFAULTS = {
   'download.copyUrl': true,
   'download.copyCaption': true,
   'download.zoom': true,
+  'download.audio': true,
   'download.filename': 'Glassgram/{user}/{user}_{date}_{shortcode}_{index}',
   'download.mode': 'zip' as 'folder' | 'zip',
 
@@ -149,6 +150,7 @@ export const SECTIONS: Section[] = [
       { type: 'toggle', key: 'download.copyUrl', label: '"Copy media URL" button', dependsOn: 'download.enabled' },
       { type: 'toggle', key: 'download.copyCaption', label: '"Copy caption" button', dependsOn: 'download.enabled' },
       { type: 'toggle', key: 'download.zoom', label: '"View full size" button on photos', desc: 'Opens the photo in a viewer: wheel to zoom, drag to pan.', dependsOn: 'download.enabled' },
+      { type: 'toggle', key: 'download.audio', label: 'Video or sound choice on downloads', desc: 'On videos, the download button asks: the video, or just its sound as an MP3. The MP3 is made on your computer.' },
       { type: 'toggle', key: 'stories.download', label: 'Download stories & highlights', short: 'Download stories', desc: 'The current story or the whole tray, from the story viewer.', quick: true },
       { type: 'toggle', key: 'info.contextMenu', label: 'Right-click "Download Instagram media"', desc: 'Adds an entry to the browser\'s context menu on instagram.com.' },
       {

@@ -1,8 +1,11 @@
+import { send, type DownloadResult } from '../../shared/messages';
 import { toast, copyText } from '../ui/toast';
 import { openZoom } from '../ui/zoom';
 import { getHdProfilePic, getReelItems } from './api';
 import { dispatch, downloadPost, jobsForPost, profilePicFilename } from './download';
+import { renderFilename } from './filename';
 import { extFromUrl } from './media';
+import { getSettings } from './state';
 import { resolveTarget, type MediaContext, type Target } from './resolve';
 import { openStoryDetails } from '../features/story-details';
 
@@ -36,7 +39,30 @@ export const downloadAll = (ctx: MediaContext) =>
     return downloadPost(t.post);
   });
 
-export const copyMediaUrl = (ctx: MediaContext) => withTarget(ctx, (t) => copyText(t.post.items[shown(t)].url, 'Media URL copied'));
+/** The showing video's sound as MP3, converted in the offscreen document. */
+export const downloadAudio = (ctx: MediaContext) =>
+  withTarget(ctx, async (t) => {
+    const index = shown(t);
+    const item = t.post.items[index];
+    if (item.type !== 'video') return toast('Only videos have a sound to save');
+    const filename = renderFilename(
+      getSettings()['download.filename'],
+      { user: t.post.username, shortcode: t.post.shortcode, index: index + 1, id: item.id || t.post.id, takenAt: t.post.takenAt, type: 'audio' },
+      'mp3',
+    );
+    const busy = toast('Saving the sound as MP3…', 'info', 0);
+    try {
+      const res = await send<DownloadResult>({ type: 'mp3', job: { url: item.url, filename } });
+      if (!res?.ok) throw new Error(res?.error ?? 'MP3 failed');
+      busy.close();
+      toast('Saved MP3', 'success');
+    } catch (e) {
+      busy.close();
+      toast(`Couldn't save the sound: ${(e as Error).message}`, 'error', 5000);
+    }
+  });
+
+export const copyMediaUrl =(ctx: MediaContext) => withTarget(ctx, (t) => copyText(t.post.items[shown(t)].url, 'Media URL copied'));
 
 export const copyCaption = (ctx: MediaContext) =>
   withTarget(ctx, async (t) => {

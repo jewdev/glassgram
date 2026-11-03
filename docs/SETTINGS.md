@@ -12,6 +12,7 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | "Copy media URL" button | On | |
 | "Copy caption" button | On | |
 | "View full size" button on photos | On | Opens the photo in the zoom viewer. Story photos always have it |
+| Video or sound choice on downloads | On | The download button on videos asks: video, or sound only as MP3 (192 kbps, made on your computer). The `D` shortcut always saves the video |
 | Filename template | `Glassgram/{user}/{user}_{date}_{shortcode}_{index}` | Tokens: `{user}` `{shortcode}` `{index}` `{id}` `{date}` `{time}` `{type}` |
 | Saving several files | ZIP | One ZIP, or separate files in a folder |
 

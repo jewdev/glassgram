@@ -64,7 +64,7 @@
 }
 
 /* shared glass surface: translucent fill, blur, specular rim */
-.ige-toolbar, .ige-vbar, .ige-toast, .ige-modal, .ige-fab__menu, .ige-zoom__bar {
+.ige-toolbar, .ige-dlmenu, .ige-vbar, .ige-toast, .ige-modal, .ige-fab__menu, .ige-zoom__bar {
   -webkit-backdrop-filter: var(--ige-blur);
   backdrop-filter: var(--ige-blur);
   border: 1px solid var(--ige-rim-low);
@@ -129,6 +129,27 @@
 }
 .ige-toolbar.is-visible { opacity: 1; visibility: visible; transform: none; transition: opacity var(--ige-in), transform var(--ige-in); }
 .ige-toolbar .ige-btn:hover { background: rgb(255 255 255 / 0.22); }
+.ige-toolbar .ige-btn[aria-expanded='true'] { background: rgb(255 255 255 / 0.22); }
+
+/* "Video or sound?" menu under the toolbar's download button */
+.ige-dlmenu {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--ige-glass);
+  color: #fff;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px) scale(0.95);
+  transform-origin: top right;
+  transition: opacity var(--ige-out), transform var(--ige-out), visibility 0s linear 0.12s;
+}
+.ige-dlmenu.is-open { opacity: 1; visibility: visible; transform: none; transition: opacity var(--ige-in), transform var(--ige-in); }
+.ige-dlmenu .ige-menuitem { color: #fff; padding: 9px 10px; }
+.ige-dlmenu .ige-menuitem:hover, .ige-dlmenu .ige-menuitem:focus-visible { background: rgb(255 255 255 / 0.22); outline: none; }
 
 /* ---------- video bar ---------- */
 .ige-vbar {

@@ -1,9 +1,9 @@
-import { copyAvatarUrl, copyCaption, copyMediaUrl, downloadAll, downloadAvatar, downloadCurrent, hasMultiple, showStoryDetails, zoomAvatar, zoomMedia } from '../core/actions';
+import { copyAvatarUrl, copyCaption, copyMediaUrl, downloadAll, downloadAudio, downloadAvatar, downloadCurrent, hasMultiple, showStoryDetails, zoomAvatar, zoomMedia } from '../core/actions';
 import { extrasCount } from '../core/story-extras';
 import { onHover, type Hovered } from '../core/hover';
 import { contextFor, resolveTarget, type MediaContext } from '../core/resolve';
 import { getSettings } from '../core/state';
-import { h, iconButton, uiLayer } from '../ui/dom';
+import { h, icon, iconButton, ICONS, uiLayer } from '../ui/dom';
 import type { Feature } from './types';
 
 /** Space taken by a story's progress bars and header row, so the toolbar clears them. */
@@ -17,7 +17,9 @@ interface Buttons {
   details?: HTMLElement;
 }
 
-function buttonsFor(ctx: MediaContext): Buttons | null {
+type OpenPicker = (anchor: HTMLButtonElement, ctx: MediaContext) => void;
+
+function buttonsFor(ctx: MediaContext, openPicker: OpenPicker): Buttons | null {
   const s = getSettings();
   if (ctx.kind === 'avatar') {
     if (!s['profile.hdPic']) return null;
@@ -34,7 +36,16 @@ function buttonsFor(ctx: MediaContext): Buttons | null {
   if (isStory && !s['stories.download']) return details ? { btns: [details], details } : null;
   if (ctx.kind === 'post' && !s['download.enabled']) return null;
 
-  const btns: HTMLElement[] = [iconButton('download', isStory ? 'Download this story' : 'Download this media', () => downloadCurrent(ctx))];
+  // Videos: the download button asks what to save, the video or just its sound.
+  const pick = ctx.el instanceof HTMLVideoElement && s['download.audio'];
+  const dl: HTMLButtonElement = iconButton('download', pick ? 'Download…' : isStory ? 'Download this story' : 'Download this media', () =>
+    pick ? openPicker(dl, ctx) : downloadCurrent(ctx),
+  );
+  if (pick) {
+    dl.setAttribute('aria-haspopup', 'menu');
+    dl.setAttribute('aria-expanded', 'false');
+  }
+  const btns: HTMLElement[] = [dl];
   let all: HTMLElement | undefined;
   if (isStory || s['download.showAll']) {
     all = iconButton('downloadAll', isStory ? 'Download all stories in this tray' : 'Download all items', () => downloadAll(ctx), 'is-hidden ige-btn--late');
@@ -53,9 +64,54 @@ export const mediaToolbar: Feature = {
   isEnabled: (s) => s['download.enabled'] || s['stories.download'] || s['profile.hdPic'],
   start() {
     const bar = h('div', { class: 'ige-toolbar', role: 'toolbar', 'aria-label': 'Glassgram' });
-    uiLayer().append(bar);
+    // Beside the bar, not in it: the bar's backdrop blur would keep a nested menu from blurring the page.
+    const menu = h('div', { class: 'ige-dlmenu', role: 'menu', 'aria-label': 'Download' });
+    uiLayer().append(bar, menu);
     let boundEl: Element | null = null;
     let dwell: number | undefined;
+    let anchor: HTMLButtonElement | null = null;
+
+    const placeMenu = () => {
+      if (!anchor) return;
+      const r = anchor.getBoundingClientRect();
+      menu.style.top = `${r.bottom + 6}px`;
+      menu.style.right = `${Math.max(8, innerWidth - r.right)}px`;
+    };
+    const closeMenu = () => {
+      anchor?.setAttribute('aria-expanded', 'false');
+      anchor = null;
+      menu.classList.remove('is-open');
+    };
+    const item = (name: 'download' | 'music', label: string, run: () => void) =>
+      h('button', {
+        class: 'ige-menuitem',
+        type: 'button',
+        role: 'menuitem',
+        html: `${icon(ICONS[name], 16)}<span>${label}</span>`,
+        onClick: (e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeMenu();
+          run();
+        },
+      });
+    const openPicker: OpenPicker = (btn, ctx) => {
+      if (anchor === btn) return closeMenu();
+      closeMenu();
+      menu.replaceChildren(item('download', 'Video', () => downloadCurrent(ctx)), item('music', 'Sound only (MP3)', () => downloadAudio(ctx)));
+      anchor = btn;
+      btn.setAttribute('aria-expanded', 'true');
+      placeMenu();
+      menu.classList.add('is-open');
+      (menu.firstElementChild as HTMLElement | null)?.focus({ preventScroll: true });
+    };
+    // Clicks inside our shadow root reach the document retargeted to its host, so stop them on the menu
+    // and let any other click close it.
+    menu.addEventListener('click', (e) => e.stopPropagation());
+    const onDocClick = () => anchor && closeMenu();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && anchor && closeMenu();
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey, true);
 
     let isStory = false;
 
@@ -71,6 +127,7 @@ export const mediaToolbar: Feature = {
     const off = onHover((hv: Hovered | null) => {
       if (!hv) {
         bar.classList.remove('is-visible');
+        closeMenu();
         boundEl = null;
         clearTimeout(dwell);
         return;
@@ -78,9 +135,10 @@ export const mediaToolbar: Feature = {
       if (hv.el !== boundEl) {
         boundEl = hv.el;
         clearTimeout(dwell);
+        closeMenu();
         const ctx = contextFor(hv.el);
         isStory = ctx?.kind === 'story';
-        const b = ctx && buttonsFor(ctx);
+        const b = ctx && buttonsFor(ctx, openPicker);
         bar.replaceChildren(...(b?.btns ?? []));
         if (!ctx || !b?.btns.length) {
           bar.classList.remove('is-visible');
@@ -106,13 +164,19 @@ export const mediaToolbar: Feature = {
           }, 350);
         }
       }
-      if (bar.childElementCount) place(hv.rect);
+      if (bar.childElementCount) {
+        place(hv.rect);
+        placeMenu();
+      }
     });
 
     return () => {
       off();
       clearTimeout(dwell);
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey, true);
       bar.remove();
+      menu.remove();
     };
   },
 };
