@@ -102,6 +102,8 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | Unfollowers checker | Off | Opened from the popup or your own profile |
 | Wait between pages | 1 s | Spacing for the scan, plus up to 30% and a random 0.3 to 1 s |
 | Safety pause every 15 pages | 10 s | Give or take 5 s |
+| Wait between unfollows | 4 s | Plus up to 20%. Unfollowing stops on an action block and pauses requests for 10 min |
+| Safety pause every 5 unfollows | 5 min | |
 
 </details>
 

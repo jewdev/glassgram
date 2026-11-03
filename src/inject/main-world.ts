@@ -90,7 +90,10 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
   const shouldBlock = (url: string, body: string) => (s.anonStories && isSeenRequest(url, body)) || (s.dmHideSeen && isDmSeenRequest(url, body));
 
   // ---------------- request templates (bulk download) ----------------
-  const TEMPLATE_NAMES = new Set(['PolarisProfilePostsQuery', 'PolarisProfilePageContentQuery']);
+  // usePolarisUnfollowMutation: Instagram's own Unfollow button. Captured when a hook already sees it,
+  // so a doc_id Instagram rotated is picked up from the button instead of the built-in one.
+  const UNFOLLOW_OP = 'usePolarisUnfollowMutation';
+  const TEMPLATE_NAMES = new Set(['PolarisProfilePostsQuery', 'PolarisProfilePageContentQuery', UNFOLLOW_OP]);
   const templates = new Map<string, { url: string; body: string; headers: Record<string, string> }>();
   // Per-session tokens and the request counter from Instagram's latest requests, so a replay doesn't
   // carry stale ones from when its template was captured.
@@ -639,7 +642,135 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
     return json;
   }
 
+  // ---------------- unfollow ----------------
+  // The request instagram.com's Unfollow button sends, as davidarroyo1234/InstagramUnfollowers sends it.
+  // Instagram can rotate this id on a deploy; a captured template (above) wins over it.
+  const UNFOLLOW_DOC_ID = '27789106940691111';
+  const ASBD_FALLBACK = '359341';
+  const APP_ID = '936619743392459';
+
+  function cookie(name: string): string {
+    const hit = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`));
+    return hit ? hit.slice(name.length + 1) : '';
+  }
+
+  /** fb_dtsg / lsd: from Instagram's latest requests, else its module registry, else the inline page data. */
+  function sessionTokens(): { fb_dtsg?: string; lsd?: string; rev?: string } {
+    const out: { fb_dtsg?: string; lsd?: string; rev?: string } = { fb_dtsg: tokens.fb_dtsg, lsd: tokens.lsd };
+    try {
+      const req = (window as unknown as { require?: (m: string) => any }).require;
+      if (typeof req === 'function') {
+        out.fb_dtsg ||= req('DTSGInitialData')?.token;
+        out.lsd ||= req('LSD')?.token;
+        out.rev = String(req('SiteData')?.client_revision ?? '') || undefined;
+      }
+    } catch {
+      /* registry not reachable: read the page data */
+    }
+    if (!out.fb_dtsg || !out.lsd) {
+      for (const sc of document.scripts) {
+        const text = sc.textContent ?? '';
+        if (!text.includes('"token"')) continue;
+        out.fb_dtsg ||= /"DTSGInitialData",\[\],\{"token":"([^"]+)"/.exec(text)?.[1] ?? /"dtsg":\{"token":"([^"]+)"/.exec(text)?.[1];
+        out.lsd ||= /"LSD",\[\],\{"token":"([^"]+)"/.exec(text)?.[1];
+        out.rev ||= /"client_revision":(\d+)/.exec(text)?.[1];
+        if (out.fb_dtsg && out.lsd) break;
+      }
+    }
+    return out;
+  }
+
+  /** Instagram's checksum of fb_dtsg: "2" and the sum of its char codes. */
+  function jazoest(dtsg: string): string {
+    let sum = 0;
+    for (let i = 0; i < dtsg.length; i++) sum += dtsg.charCodeAt(i);
+    return `2${sum}`;
+  }
+
+  function findFriendshipStatus(node: unknown, depth = 0): Record<string, unknown> | undefined {
+    if (!node || typeof node !== 'object' || depth > 8) return undefined;
+    const fs = (node as Record<string, unknown>).friendship_status;
+    if (fs && typeof fs === 'object') return fs as Record<string, unknown>;
+    for (const v of Object.values(node)) {
+      const found = findFriendshipStatus(v, depth + 1);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  const BLOCKED_RE = /feedback_required|checkpoint|action_blocked|try again later|rate limit|please wait a few minutes/i;
+
+  /**
+   * Unfollows `id`. `following` is what Instagram's answer says about the follow afterwards, when it
+   * says anything; the content script checks the following list when it doesn't.
+   */
+  async function unfollow(id: string): Promise<{ outcome: 'ok' | 'blocked' | 'failed'; following?: boolean; detail: string }> {
+    const t = sessionTokens();
+    if (!t.fb_dtsg || !t.lsd) return { outcome: 'failed', detail: 'Session tokens not found on the page. Reload Instagram.' };
+    const tpl = templates.get(UNFOLLOW_OP);
+    const vars = { target_user_id: id, container_module: 'profile', nav_chain: 'PolarisProfilePostsTabRoot:profilePage:1:via_cold_start' };
+    let url = '/api/graphql';
+    let params: URLSearchParams;
+    let headers: Record<string, string>;
+    if (tpl) {
+      url = tpl.url;
+      params = new URLSearchParams(tpl.body);
+      const old = apply(natives.parse, JSON, [params.get('variables') ?? '{}']) as Record<string, unknown>;
+      params.set('variables', apply(natives.stringify, JSON, [{ ...old, target_user_id: id }]));
+      for (const [k, v] of Object.entries(tokens)) if (params.has(k)) params.set(k, v);
+      if (params.has('__req')) params.set('__req', (++lastReq).toString(36));
+      headers = { ...tpl.headers };
+      for (const k of Object.keys(headers)) if (/^x-fb-lsd$/i.test(k)) headers[k] = t.lsd;
+    } else {
+      params = new URLSearchParams({
+        av: cookie('ds_user_id'),
+        __d: 'www',
+        __user: '0',
+        __a: '1',
+        __comet_req: '7',
+        fb_dtsg: t.fb_dtsg,
+        jazoest: jazoest(t.fb_dtsg),
+        lsd: t.lsd,
+        fb_api_caller_class: 'RelayModern',
+        fb_api_req_friendly_name: UNFOLLOW_OP,
+        variables: apply(natives.stringify, JSON, [vars]),
+        server_timestamps: 'true',
+        doc_id: UNFOLLOW_DOC_ID,
+      });
+      if (t.rev) {
+        params.set('__rev', t.rev);
+        params.set('__spin_r', t.rev);
+      }
+      headers = {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-csrftoken': cookie('csrftoken'),
+        'x-fb-friendly-name': UNFOLLOW_OP,
+        'x-fb-lsd': t.lsd,
+        'x-ig-app-id': APP_ID,
+        'x-asbd-id': asbd || ASBD_FALLBACK,
+      };
+    }
+    const res = await nativeFetch(url, { method: 'POST', credentials: 'include', headers, body: params.toString() });
+    const text = await res.text().catch(() => '');
+    let data: any = null;
+    try {
+      data = apply(natives.parse, JSON, [text.startsWith('for (;;);') ? text.slice(9) : text]);
+    } catch {
+      /* not JSON: reported below */
+    }
+    const errText = `${apply(natives.stringify, JSON, [data?.errors ?? data?.error ?? ''])} ${data?.message ?? ''} ${data?.errorSummary ?? ''}`.trim();
+    if (res.status === 429 || data?.spam === true || BLOCKED_RE.test(errText)) return { outcome: 'blocked', detail: `HTTP ${res.status} ${errText}`.trim() };
+    // A 2xx alone proves nothing: Instagram answers unknown routes with a 200 HTML page.
+    if (!res.ok || !data || data.errors || data.error || data.status === 'fail' || !data.data) {
+      return { outcome: 'failed', detail: data ? `HTTP ${res.status} ${errText || 'no data'}` : `HTTP ${res.status}, not JSON` };
+    }
+    const fs = findFriendshipStatus(data.data);
+    const following = fs ? fs.following === true || fs.outgoing_request === true : undefined;
+    return { outcome: 'ok', following, detail: 'answered' };
+  }
+
   const ops: Record<string, (a: any) => unknown> = {
+    unfollow: ({ id }) => unfollow(String(id)),
     getMedia: ({ code }) => fromStore((src) => findMedia(src, String(code))),
     getUser: ({ username }) => fromStore((src) => findUser(src, String(username))),
     getReel: ({ id }) => fromStore((src) => findReel(src, String(id))),

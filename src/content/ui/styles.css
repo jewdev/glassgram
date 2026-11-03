@@ -360,6 +360,23 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 .ige-hist__head:first-child { margin-top: 4px; }
 .ige-hist__group { margin: 8px 8px 2px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ige-muted); }
 .ige-hist__none { margin: 2px 8px; font-size: 13px; }
+/* picking accounts to unfollow */
+.ige-btn--danger { padding: 0 16px; border-radius: 999px; background: var(--ige-danger); color: #fff; }
+.ige-btn--danger:hover:not(:disabled) { filter: brightness(1.08); }
+.ige-pickbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ige-pickrow { display: flex; align-items: center; gap: 8px; padding-left: 8px; border-radius: 10px; }
+.ige-pickrow:hover { background: var(--ige-soft); }
+.ige-pickrow input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--ige-danger); cursor: pointer; }
+.ige-pickrow input:disabled { cursor: default; }
+.ige-pickrow .ige-user { flex: 1; min-width: 0; padding-left: 4px; }
+.ige-pickrow .ige-user:hover { background: none; }
+.ige-pickrow.is-kept .ige-user { opacity: 0.6; }
+.ige-keep { flex: none; margin-right: 6px; padding: 0 10px; border-radius: 999px; font-size: 12px; color: var(--ige-muted); }
+.ige-keep:hover:not(:disabled) { background: var(--ige-hover); }
+.ige-keep.is-active { color: var(--ige-accent); }
+.ige-confirm { display: flex; flex-direction: column; gap: 6px; }
+.ige-confirm__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.ige-pickbar[hidden], .ige-confirm[hidden] { display: none; }
 
 /* ---------- zoom viewer ---------- */
 .ige-zoom {

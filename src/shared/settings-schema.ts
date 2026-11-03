@@ -94,6 +94,8 @@ export const DEFAULTS = {
   'account.unfollowers': false,
   'account.scanDelay': 1,
   'account.scanPause': 10,
+  'account.unfollowDelay': 4,
+  'account.unfollowPause': 5,
 };
 
 export type Settings = typeof DEFAULTS;
@@ -436,13 +438,15 @@ export const SECTIONS: Section[] = [
         type: 'toggle',
         key: 'account.unfollowers',
         label: 'Unfollowers checker',
-        desc: "Who doesn't follow you back, who unfollowed you since your last scan, plus CSV export. Open it from the popup or your profile.",
+        desc: "Who doesn't follow you back, who unfollowed you since your last scan, CSV export, and unfollowing the accounts you pick. Open it from the popup or your profile.",
         badge: 'risky',
         badgeHint: 'Reading whole follower lists takes many requests, and Instagram limits how fast that can happen. If it hits the limit, Instagram pauses your requests for a while. It ends by itself.',
         warning: "Reads your full follower lists page by page, the pattern of unfollower apps that Instagram watches for and rate-limits. Large accounts take a while; don't lower the delays.",
       },
       { type: 'number', key: 'account.scanDelay', label: 'Wait between pages', desc: 'Up to 30% more and a random 0.3 to 1 s are added on top.', min: 0.5, max: 30, step: 0.5, unit: 's', dependsOn: 'account.unfollowers' },
       { type: 'number', key: 'account.scanPause', label: 'Safety pause every 15 pages', desc: 'Give or take 5 s.', min: 5, max: 120, step: 1, unit: 's', dependsOn: 'account.unfollowers' },
+      { type: 'number', key: 'account.unfollowDelay', label: 'Wait between unfollows', desc: 'Up to 20% more is added on top.', min: 3, max: 60, step: 0.5, unit: 's', dependsOn: 'account.unfollowers' },
+      { type: 'number', key: 'account.unfollowPause', label: 'Safety pause every 5 unfollows', min: 1, max: 60, step: 1, unit: 'min', dependsOn: 'account.unfollowers' },
     ],
   },
 ];

@@ -411,3 +411,51 @@ export async function getFriendshipPage(userId: string, kind: 'followers' | 'fol
   const more = data.next_max_id != null && data.next_max_id !== '' && data.has_more !== false && users.length > 0;
   return { users, next: more ? String(data.next_max_id) : undefined };
 }
+
+// ---------- unfollow ----------
+export type UnfollowOutcome = 'unfollowed' | 'failed' | 'blocked';
+
+/**
+ * Whether `user` is still in your following list, by searching it the way Instagram's own following
+ * dialog does. Null when the lookup failed. A rate limit is thrown (ApiError.rateLimited).
+ */
+export async function isStillFollowing(user: { pk: string; username: string }): Promise<boolean | null> {
+  const me = myUserId();
+  if (!me) return null;
+  const qs = new URLSearchParams({ count: '12', query: user.username, search_surface: 'follow_list_page' });
+  try {
+    const data = await igGet<{ users?: { pk: string | number; pk_id?: string; username: string }[] }>(`/api/v1/friendships/${me}/following/?${qs}`, { ownRetry: true });
+    const name = user.username.toLowerCase();
+    return (data.users ?? []).some((u) => String(u.pk) === user.pk || String(u.pk_id ?? '') === user.pk || u.username.toLowerCase() === name);
+  } catch (e) {
+    if (e instanceof ApiError && e.rateLimited) throw e;
+    return null;
+  }
+}
+
+/**
+ * Unfollows `user` with the request Instagram's own Unfollow button sends. Only counts once Instagram
+ * confirms it: its answer says the follow is gone, or your following list no longer has the account.
+ * The caller paces calls and starts the cooldown on `blocked`.
+ */
+export async function unfollowUser(user: { pk: string; username: string }): Promise<{ outcome: UnfollowOutcome; detail: string }> {
+  await assertNotCoolingDown();
+  let r: { outcome: 'ok' | 'blocked' | 'failed'; following?: boolean; detail: string };
+  try {
+    r = await bridge('unfollow', { id: user.pk }, 30000);
+  } catch (e) {
+    return { outcome: 'failed', detail: (e as Error).message };
+  }
+  if (r.outcome !== 'ok') return { outcome: r.outcome, detail: r.detail };
+  if (r.following === true) return { outcome: 'failed', detail: 'Instagram answered, but still shows you following them.' };
+  if (r.following === false) return { outcome: 'unfollowed', detail: 'confirmed' };
+  let still: boolean | null;
+  try {
+    still = await isStillFollowing(user);
+  } catch {
+    return { outcome: 'blocked', detail: 'Instagram rate-limited the check after the unfollow.' };
+  }
+  if (still === true) return { outcome: 'failed', detail: 'Still in your following list.' };
+  if (still === null) return { outcome: 'failed', detail: 'Instagram answered, but the unfollow could not be confirmed.' };
+  return { outcome: 'unfollowed', detail: 'confirmed' };
+}

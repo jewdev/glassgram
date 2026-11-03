@@ -105,7 +105,7 @@ press reload on the extension's card.
 - **HD profile pictures** in a zoomable viewer.
 - **Story mentions & stickers**, including hidden mentions, hashtags, locations, links and music.
 - **Follow status badge**: *Follows you*, *Doesn't follow you back*, and more on click.
-- **Unfollowers checker** with search, CSV export and a history of who unfollowed you between scans. Off by default.
+- **Unfollowers checker** with search, CSV export, a history of who unfollowed you between scans, and unfollowing the accounts you pick (slowly, with safety pauses and a keep list). Off by default.
 - **No story auto-advance**. Off by default.
 
 ### 🧹 Feed and video

@@ -1,4 +1,4 @@
-import { ApiError, cooldownLeft, getFriendshipPage, myUserId, startCooldown, type FriendUser } from '../core/api';
+import { ApiError, cooldownLeft, getFriendshipPage, myUserId, startCooldown, unfollowUser, type FriendUser, type UnfollowOutcome } from '../core/api';
 import { getSettings } from '../core/state';
 import { h } from '../ui/dom';
 import { openModal } from '../ui/modal';
@@ -24,6 +24,7 @@ import {
   type MiniUser,
   type Snapshot,
 } from './unfollowers-history';
+import { UNFOLLOWS_BEFORE_PAUSE, clock, formatDuration, unfollowDelayMs, unfollowEtaMs } from './unfollow-pacing';
 
 type Kind = 'followers' | 'following';
 
@@ -34,6 +35,11 @@ interface Progress {
   done: Record<Kind, boolean>;
   /** Pages read so far per list; missing in progress saved by older versions. */
   pages?: Record<Kind, number>;
+  /**
+   * Ids unfollowed from this panel since the scan. Left out of the lists but kept in the scan itself,
+   * so the next scan lists them under "You unfollowed".
+   */
+  unfollowed?: string[];
   updatedAt: number;
 }
 
@@ -55,6 +61,13 @@ const storageKey = (uid: string) => `unfollowers:${uid}`;
 /** The last complete scan, kept while a rescan runs so the new one can be compared with it. */
 const baseKey = (uid: string) => `unfollowers:base:${uid}`;
 const historyKey = (uid: string) => `unfollowers:history:${uid}`;
+/** Accounts the user chose to keep: never selected for unfollowing. */
+const keepKey = (uid: string) => `unfollowers:keep:${uid}`;
+
+/** Tabs listing accounts you follow, so they can be picked for unfollowing. */
+const PICK_TABS: Tab[] = ['notBack', 'following'];
+/** The queue stops after this many unfollows in a row fail: something changed on Instagram's side. */
+const MAX_FAILS_IN_A_ROW = 3;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -95,13 +108,16 @@ export async function openUnfollowers() {
   const uid: string = me;
 
   let running = false;
+  let unfollowing = false;
   let cancelled = false;
   let tab: Tab = 'notBack';
   let query = '';
-  const stored = await chrome.storage.local.get([storageKey(uid), baseKey(uid), historyKey(uid)]);
+  const stored = await chrome.storage.local.get([storageKey(uid), baseKey(uid), historyKey(uid), keepKey(uid)]);
   let data: Progress = (stored[storageKey(uid)] as Progress | undefined) ?? emptyProgress();
   let base = stored[baseKey(uid)] as Snapshot | undefined;
   let history = (stored[historyKey(uid)] as HistoryEntry[] | undefined) ?? [];
+  const keep = new Set((stored[keepKey(uid)] as string[] | undefined) ?? []);
+  const selected = new Set<string>();
 
   const m = openModal('Unfollowers checker', { width: 560, onClose: () => (cancelled = true) });
   const status = h('p', { class: 'ige-muted', 'aria-live': 'polite' });
@@ -110,18 +126,26 @@ export async function openUnfollowers() {
   const list = h('div', { class: 'ige-userlist' });
   const runBtn = h('button', { class: 'ige-btn ige-btn--primary', type: 'button' }, 'Scan');
   const exportBtn = h('button', { class: 'ige-btn ige-btn--ghost', type: 'button' }, 'Export CSV');
-  m.body.append(status, tabs, search, list);
-  m.footer.append(exportBtn, runBtn);
+  const unfollowBtn = h('button', { class: 'ige-btn ige-btn--danger is-hidden', type: 'button' }, 'Unfollow');
+  const pickAllBtn = h('button', { class: 'ige-btn ige-btn--ghost ige-btn--sm', type: 'button' }, 'Select all');
+  const pickCount = h('span', { class: 'ige-muted', 'aria-live': 'polite' });
+  const pickBar = h('div', { class: 'ige-pickbar' }, pickAllBtn, pickCount);
+  const confirmBox = h('div', { class: 'ige-warn ige-confirm', role: 'alert' });
+  confirmBox.hidden = true;
+  m.body.append(status, tabs, search, pickBar, confirmBox, list);
+  m.footer.append(exportBtn, unfollowBtn, runBtn);
 
   const sets = () => {
     // By id or username, like the upstream script, so nobody is listed by mistake.
+    const gone = new Set(data.unfollowed ?? []);
+    const following = gone.size ? data.following.filter((u) => !gone.has(u.pk)) : data.following;
     const isFollower = userIndex(data.followers);
-    const isFollowing = userIndex(data.following);
+    const isFollowing = userIndex(following);
     return {
-      notBack: data.following.filter((u) => !isFollower(u)),
+      notBack: following.filter((u) => !isFollower(u)),
       fans: data.followers.filter((u) => !isFollowing(u)),
       followers: data.followers,
-      following: data.following,
+      following,
     } satisfies Record<Exclude<Tab, 'changes'>, FriendUser[]>;
   };
 
@@ -188,21 +212,75 @@ export async function openUnfollowers() {
       exportBtn.disabled = !history.some(hasChanges);
     } else {
       const users = all[tab].filter(matches(q));
+      const row = PICK_TABS.includes(tab) ? pickRow : userRow;
       list.replaceChildren(
         ...(users.length
-          ? users.slice(0, MAX_ROWS).map(userRow)
+          ? users.slice(0, MAX_ROWS).map((u) => row(u))
           : [h('p', { class: 'ige-muted ige-empty' }, data.updatedAt ? 'Nobody here.' : 'Press Scan to load your followers and following.')]),
         ...(users.length > MAX_ROWS ? [h('p', { class: 'ige-muted ige-empty' }, `Showing ${MAX_ROWS} of ${users.length}. Use search or export CSV for the rest.`)] : []),
       );
       exportBtn.disabled = !all[tab].length;
     }
-    if (!running) {
+    if (!running && !unfollowing) {
       status.textContent = data.updatedAt
-        ? `${complete() ? 'Last scan' : 'Partial scan'}: ${new Date(data.updatedAt).toLocaleString()} · ${data.followers.length} followers · ${data.following.length} following`
+        ? `${complete() ? 'Last scan' : 'Partial scan'}: ${new Date(data.updatedAt).toLocaleString()} · ${data.followers.length} followers · ${all.following.length} following`
         : 'Not scanned yet.';
       runBtn.textContent = complete() ? 'Rescan' : data.updatedAt ? 'Resume scan' : 'Scan';
     }
+    syncPick();
   };
+
+  /** Accounts that can be picked in the current tab and search: the ones not kept. */
+  const pickable = () =>
+    tab === 'notBack' || tab === 'following' ? sets()[tab].filter(matches(query.toLowerCase())).filter((u) => !keep.has(u.pk)) : [];
+
+  /** Selection bar and buttons, without rebuilding the list (so it keeps its scroll). */
+  function syncPick() {
+    pickBar.hidden = !PICK_TABS.includes(tab) || !data.updatedAt;
+    const can = pickable();
+    const allPicked = can.length > 0 && can.every((u) => selected.has(u.pk));
+    pickAllBtn.textContent = allPicked ? 'Clear selection' : `Select all${query ? ' shown' : ''} (${can.length})`;
+    pickAllBtn.disabled = unfollowing || !can.length;
+    pickCount.textContent = [selected.size && `${selected.size} selected`, keep.size && `${keep.size} kept`].filter(Boolean).join(' · ');
+    if (!unfollowing) {
+      unfollowBtn.textContent = `Unfollow ${selected.size}`;
+      unfollowBtn.classList.toggle('is-hidden', !selected.size);
+      unfollowBtn.disabled = running || !confirmBox.hidden;
+    }
+    runBtn.disabled = unfollowing;
+  }
+
+  function pickRow(u: FriendUser) {
+    const kept = keep.has(u.pk);
+    const box = h('input', {
+      type: 'checkbox',
+      checked: selected.has(u.pk),
+      disabled: kept || unfollowing,
+      'aria-label': `Select ${u.username}`,
+      onChange: () => {
+        if (box.checked) selected.add(u.pk);
+        else selected.delete(u.pk);
+        syncPick();
+      },
+    });
+    const keepBtn = h('button', {
+      class: `ige-btn ige-btn--sm ige-keep${kept ? ' is-active' : ''}`,
+      type: 'button',
+      'aria-pressed': String(kept),
+      title: kept ? 'Kept: never selected for unfollowing. Click to allow it again.' : 'Keep: never select this account for unfollowing',
+      disabled: unfollowing,
+      onClick: async () => {
+        if (keep.has(u.pk)) keep.delete(u.pk);
+        else {
+          keep.add(u.pk);
+          selected.delete(u.pk);
+        }
+        await chrome.storage.local.set({ [keepKey(uid)]: [...keep] });
+        render();
+      },
+    }, kept ? 'Kept' : 'Keep');
+    return h('div', { class: `ige-pickrow${kept ? ' is-kept' : ''}` }, box, userRow(u), keepBtn);
+  }
 
   const persist = () => chrome.storage.local.set({ [storageKey(uid)]: data });
 
@@ -311,6 +389,128 @@ export async function openUnfollowers() {
     }
   }
 
+  /** Asks first: how many, how long it takes, and that closing the panel stops it. While running, stops. */
+  async function askUnfollow() {
+    if (unfollowing) {
+      cancelled = true;
+      unfollowBtn.disabled = true;
+      unfollowBtn.textContent = 'Stopping…';
+      return;
+    }
+    const blocked = await cooldownLeft();
+    if (blocked) {
+      toast(`Instagram rate-limited Glassgram recently. Try again in ${Math.ceil(blocked / 60000)} min.`, 'error', 6000);
+      return;
+    }
+    const queue = sets().following.filter((u) => selected.has(u.pk) && !keep.has(u.pk));
+    if (!queue.length) return;
+    const s = getSettings();
+    const eta = unfollowEtaMs(queue.length, s['account.unfollowDelay'] * 1000, s['account.unfollowPause'] * 60000);
+    const n = `${queue.length} account${queue.length === 1 ? '' : 's'}`;
+    const cancel = h('button', { class: 'ige-btn ige-btn--ghost ige-btn--sm', type: 'button', onClick: hideConfirm }, 'Cancel');
+    const go = h('button', {
+      class: 'ige-btn ige-btn--danger ige-btn--sm',
+      type: 'button',
+      onClick: () => {
+        hideConfirm();
+        runUnfollow(queue);
+      },
+    }, `Unfollow ${n}`);
+    confirmBox.replaceChildren(
+      h('p', {}, h('strong', {}, `Unfollow ${n}?`)),
+      h('p', {},
+        `One every ${s['account.unfollowDelay']} s or so, with a ${s['account.unfollowPause']} min pause after every ${UNFOLLOWS_BEFORE_PAUSE}` +
+          `${eta ? `: about ${formatDuration(eta)} in all` : ''}. Keep this panel open, closing it stops the queue. ` +
+          'It also stops by itself if Instagram blocks the action.'),
+      h('div', { class: 'ige-confirm__actions' }, cancel, go),
+    );
+    if (queue.some((u) => u.is_private)) {
+      confirmBox.lastElementChild!.before(h('p', {}, 'Private accounts in the list need a new follow request if you change your mind.'));
+    }
+    confirmBox.hidden = false;
+    syncPick();
+    go.focus();
+  }
+
+  function hideConfirm() {
+    confirmBox.hidden = true;
+    confirmBox.replaceChildren();
+    syncPick();
+  }
+
+  /**
+   * One unfollow at a time, paced like davidarroyo1234/InstagramUnfollowers: the wait setting to 1.2
+   * times it between two, a long pause after every 5, none after the last. An action block stops the
+   * queue and pauses Glassgram's requests; 3 unconfirmed unfollows in a row stop it too.
+   */
+  async function runUnfollow(queue: FriendUser[]) {
+    if (unfollowing || running) return;
+    unfollowing = true;
+    cancelled = false;
+    unfollowBtn.textContent = 'Stop';
+    unfollowBtn.disabled = false;
+    render();
+    const s = getSettings();
+    const delay = s['account.unfollowDelay'] * 1000;
+    const pause = s['account.unfollowPause'] * 60000;
+    let done = 0;
+    const failed: string[] = [];
+    let failsInARow = 0;
+    let stopReason = '';
+    try {
+      for (let i = 0; i < queue.length && !cancelled; i++) {
+        const u = queue[i];
+        status.textContent = `Unfollowing ${u.username} (${i + 1} of ${queue.length})…`;
+        let outcome: UnfollowOutcome;
+        try {
+          outcome = (await unfollowUser(u)).outcome;
+        } catch (e) {
+          outcome = e instanceof ApiError && e.rateLimited ? 'blocked' : 'failed';
+        }
+        if (outcome === 'unfollowed') {
+          done++;
+          failsInARow = 0;
+          selected.delete(u.pk);
+          (data.unfollowed ??= []).push(u.pk);
+          await persist();
+        } else {
+          failed.push(u.username);
+          failsInARow++;
+        }
+        render();
+        if (outcome === 'blocked') {
+          startCooldown(BLOCKED_COOLDOWN_MS);
+          stopReason = `Instagram blocked the action, so Glassgram stopped and paused its requests for ${BLOCKED_COOLDOWN_MS / 60000} min. Give it longer than that before you try again.`;
+          break;
+        }
+        if (failsInARow >= MAX_FAILS_IN_A_ROW) {
+          stopReason = `${MAX_FAILS_IN_A_ROW} unfollows in a row could not be confirmed, so Glassgram stopped. Reload Instagram and try again later.`;
+          break;
+        }
+        if (i === queue.length - 1) break;
+        await wait(unfollowDelayMs(delay), (left) => `Unfollowed ${done} of ${queue.length}. Next in ${left} s…`);
+        if ((i + 1) % UNFOLLOWS_BEFORE_PAUSE === 0 && !cancelled) {
+          await wait(pause, (left) => `Safety pause, ${clock(left)} left · ${done} of ${queue.length} unfollowed`);
+        }
+      }
+    } finally {
+      unfollowing = false;
+      render();
+    }
+    const more = failed.length > 5 ? ` and ${failed.length - 5} more` : '';
+    const summary = `Unfollowed ${done} of ${queue.length}.${failed.length ? ` Not confirmed: ${failed.slice(0, 5).join(', ')}${more}.` : ''}`;
+    if (stopReason) toast(`${summary} ${stopReason}`, 'error', 10000);
+    else if (cancelled && done + failed.length < queue.length) toast(`Stopped. ${summary}`, 'info', 6000);
+    else toast(summary, failed.length ? 'error' : 'success', 6000);
+  }
+
+  pickAllBtn.addEventListener('click', () => {
+    const can = pickable();
+    if (can.length && can.every((u) => selected.has(u.pk))) for (const u of can) selected.delete(u.pk);
+    else for (const u of can) selected.add(u.pk);
+    render();
+  });
+  unfollowBtn.addEventListener('click', askUnfollow);
   runBtn.addEventListener('click', scan);
   search.addEventListener('input', () => {
     query = search.value;
