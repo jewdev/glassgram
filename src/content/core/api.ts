@@ -68,8 +68,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && COOLDOWN_KEY in changes) cooldownUntil = Number(changes[COOLDOWN_KEY].newValue) || 0;
 });
 
-function startCooldown() {
-  cooldownUntil = Date.now() + COOLDOWN_MS;
+/** Stops Glassgram's requests to Instagram for `ms` (30 min by default), across tabs and reloads. */
+export function startCooldown(ms = COOLDOWN_MS) {
+  cooldownUntil = Math.max(cooldownUntil, Date.now() + ms);
   chrome.storage.local.set({ [COOLDOWN_KEY]: cooldownUntil }).catch(() => {});
 }
 
@@ -88,8 +89,11 @@ async function assertNotCoolingDown() {
   }
 }
 
-/** Same-origin GET against instagram.com — session cookies are sent automatically. */
-export async function igGet<T>(path: string): Promise<T> {
+/**
+ * Same-origin GET against instagram.com — session cookies are sent automatically.
+ * With `ownRetry`, a rate limit is only reported: the caller retries and starts the cooldown itself.
+ */
+export async function igGet<T>(path: string, opts: { ownRetry?: boolean } = {}): Promise<T> {
   await assertNotCoolingDown();
   const res = await fetch(path, {
     credentials: 'include',
@@ -104,6 +108,7 @@ export async function igGet<T>(path: string): Promise<T> {
     }),
   });
   if (res.status === 429) {
+    if (opts.ownRetry) throw new ApiError('Instagram is rate-limiting requests.', 429, true);
     startCooldown();
     throw new ApiError(RATE_LIMIT_MSG, 429, true);
   }
@@ -118,7 +123,7 @@ export async function igGet<T>(path: string): Promise<T> {
   if (!res.ok || json.status === 'fail') {
     const msg: string = json.message ?? `Request failed (${res.status})`;
     const limited = isRateLimited(json);
-    if (limited) startCooldown();
+    if (limited && !opts.ownRetry) startCooldown();
     throw new ApiError(limited ? `Instagram blocked the request: ${msg}` : msg, res.status, limited);
   }
   return json as T;
@@ -393,14 +398,16 @@ export interface FriendUser {
   is_private?: boolean;
 }
 
+/** One page of a follower or following list. Rate limits are thrown, not cooled down: the scan retries. */
 export async function getFriendshipPage(userId: string, kind: 'followers' | 'following', maxId?: string) {
   const qs = new URLSearchParams({ count: '50' });
   if (maxId) qs.set('max_id', maxId);
-  const data = await igGet<{ users: FriendUser[]; next_max_id?: string | number; big_list?: boolean }>(
+  const data = await igGet<{ users: FriendUser[]; next_max_id?: string | number; has_more?: boolean; big_list?: boolean }>(
     `/api/v1/friendships/${userId}/${kind}/?${qs}`,
+    { ownRetry: true },
   );
-  return {
-    users: (data.users ?? []).map((u) => ({ ...u, pk: String(u.pk) })),
-    next: data.next_max_id != null && data.next_max_id !== '' ? String(data.next_max_id) : undefined,
-  };
+  const users = (data.users ?? []).map((u) => ({ ...u, pk: String(u.pk) }));
+  // Instagram sometimes leaves next_max_id in place at the very end of a list: has_more and an empty page end it too.
+  const more = data.next_max_id != null && data.next_max_id !== '' && data.has_more !== false && users.length > 0;
+  return { users, next: more ? String(data.next_max_id) : undefined };
 }

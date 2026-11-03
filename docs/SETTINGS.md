@@ -99,7 +99,8 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | Keep unsent messages | Off | Shown in the chat with an unsent mark, and listed in the popup |
 | Remember received messages for | 30 days | 1 day to forever. Unsent messages stay until you clear them |
 | Unfollowers checker | Off | Opened from the popup or your own profile |
-| Unfollowers scan delay | 2 to 4 s | Spacing for the scan |
+| Wait between pages | 1 s | Spacing for the scan, plus up to 30% and a random 0.3 to 1 s |
+| Safety pause every 15 pages | 10 s | Give or take 5 s |
 
 </details>
 

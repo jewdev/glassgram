@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../src/content/core/api', () => ({ getFriendshipPage: () => {}, jitter: () => 0, myUserId: () => 'me' }));
+vi.mock('../src/content/core/api', () => ({ ApiError: class {}, cooldownLeft: async () => 0, getFriendshipPage: () => {}, myUserId: () => 'me', startCooldown: () => {} }));
 vi.mock('../src/content/ui/dom', () => ({ h: () => ({}) }));
 vi.mock('../src/content/ui/modal', () => ({ openModal: () => ({}) }));
 vi.mock('../src/content/ui/toast', () => ({ toast: () => {} }));

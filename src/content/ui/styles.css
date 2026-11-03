@@ -335,6 +335,10 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 .ige-user__names { display: flex; flex-direction: column; min-width: 0; }
 .ige-user__names span { color: var(--ige-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ige-empty { padding: 24px 8px; text-align: center; }
+.ige-hist__head { margin: 14px 8px 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ige-hist__head:first-child { margin-top: 4px; }
+.ige-hist__group { margin: 8px 8px 2px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ige-muted); }
+.ige-hist__none { margin: 2px 8px; font-size: 13px; }
 
 /* ---------- zoom viewer ---------- */
 .ige-zoom {
