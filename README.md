@@ -12,6 +12,7 @@
 <p align="center">
   <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4c8bf5?style=flat-square">
   <img alt="Chromium browsers" src="https://img.shields.io/badge/Brave%20%C2%B7%20Chrome%20%C2%B7%20Edge-supported-2ea44f?style=flat-square">
+  <img alt="Firefox" src="https://img.shields.io/badge/Firefox%20128%2B-supported-2ea44f?style=flat-square">
   <a href="LICENSE"><img alt="GPL-3.0 license" src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square"></a>
 </p>
 
@@ -70,6 +71,12 @@ page yourself.
 Works in any Chromium browser with Manifest V3 (Brave, Chrome, Edge, Opera, Vivaldi) on Windows,
 macOS and Linux.
 
+### 🦊 Firefox
+
+Open **[glassgram.xpi](https://github.com/jewdev/glassgram/releases/latest/download/glassgram.xpi)** in
+Firefox 128 or later and confirm the install. Mozilla signs it, and Firefox installs new versions on its
+own. To get one right away, open `about:addons`, click the gear and pick **Check for Updates**.
+
 <details>
 <summary>🛠️ Build from source</summary>
 
@@ -85,6 +92,10 @@ npm run build
 
 Then load the `dist` folder with **Load unpacked** as above. To update, `git pull`, rebuild, and
 press reload on the extension's card.
+
+For Firefox, run `npm run build:firefox`, open `about:debugging#/runtime/this-firefox`, click **Load
+Temporary Add-on** and pick `dist-firefox/manifest.json`. Firefox removes a temporary add-on when it
+closes.
 
 </details>
 

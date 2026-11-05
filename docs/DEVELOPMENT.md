@@ -7,10 +7,23 @@ Release notes come from the Conventional Commit subjects since the previous tag 
 **Update now** (`src/options/self-update.ts`) installs the release's `.zip` asset only if GitHub lists a `sha256:` digest for it, the ZIP has `manifest.json` at its root, and that manifest's name and version match the release. Keep the workflow's `cd dist && zip -r` layout. Each update removes the old build's leftover files under `assets/` and nothing else.
 
 ```sh
-npm run dev        # dev build with hot reload (load dist/ the same way)
-npm run build      # typecheck and production build into dist/
-npm test           # unit tests
+npm run dev            # dev build with hot reload (load dist/ the same way)
+npm run build          # typecheck and production build into dist/
+npm run build:firefox  # the same for Firefox, into dist-firefox/
+npm test               # unit tests
 ```
+
+## Firefox
+
+One codebase, two builds: `vite build --mode firefox` changes only the manifest (`manifest.config.ts`) and the build target. The differences in code:
+
+- **Background:** Firefox has no extension service workers or offscreen documents. The background runs as an event page, which has a DOM, so it runs the ZIP and MP3 jobs (`src/offscreen/jobs.ts`) itself. Chrome hands them to the offscreen document. `IN_PAGE` in `src/background/index.ts` picks the path, and the Firefox build drops the offscreen code.
+- **Downloads:** Firefox refuses `data:` URLs in `downloads.download`, so the background turns them into blob URLs first.
+- **Network rules:** use string values (`'block'`), not `chrome.declarativeNetRequest.RuleActionType`. Firefox has no enum objects.
+- **Updates:** Firefox installs only Mozilla-signed add-ons. The release workflow's `firefox` job runs `scripts/sign-firefox.mjs`, which uploads the build to addons.mozilla.org as an unlisted add-on (no store listing, signed automatically), downloads the signed `glassgram.xpi`, and writes `updates.json`. Both go on the GitHub release. The manifest's `update_url` points at the latest release's `updates.json`, so Firefox updates by itself. The settings page's **Update now** opens the `.xpi` instead of the folder flow. The job is skipped until the `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` repo secrets exist (from https://addons.mozilla.org/developers/addon/api/key/).
+- **Add-on ID:** `glassgram@jewdev` (`GECKO_ID` in `manifest.config.ts`). Never change it: Firefox matches updates to installs by it.
+
+Check a Firefox build the way AMO will: `npx web-ext lint --self-hosted -s dist-firefox`.
 
 | Where | What it does |
 | :--- | :--- |
@@ -18,7 +31,7 @@ npm test           # unit tests
 | `src/shared/page-channel.ts` | The private channel between the content script and the page script |
 | `src/content/` | Content script, one file per feature in `features/` |
 | `src/content/core/selectors.ts` | Every assumption about Instagram's markup |
-| `src/background/` | Queues downloads and builds ZIPs in an offscreen document |
+| `src/background/` | Queues downloads and builds ZIPs in an offscreen document (Chrome) or itself (Firefox) |
 | `src/shared/settings-schema.ts` | Every setting, defined once. The settings page and popup are generated from it |
 
 Glassgram relies on Instagram's private web API, which can change at any time. When something breaks, the fix is usually in `src/content/core/selectors.ts` or `src/inject/main-world.ts`.

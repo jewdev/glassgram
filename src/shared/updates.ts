@@ -16,6 +16,8 @@ export interface Release {
   zipSha256?: string;
   /** The ZIP's Ed25519 signature, made in CI. One-click install needs it. */
   zipSigUrl?: string;
+  /** The Mozilla-signed Firefox add-on. */
+  xpiUrl?: string;
   publishedAt: string;
 }
 
@@ -66,7 +68,8 @@ export function parseReleases(json: unknown): Release[] {
   return (json as ApiRelease[])
     .filter((r) => r && !r.draft && !r.prerelease && /^v?\d/.test(r.tag_name ?? ''))
     .map((r) => {
-      const zip = r.assets?.find((a) => a.name.endsWith('.zip'));
+      // By name: a release can carry other ZIPs, and the Firefox add-on is a ZIP too.
+      const zip = r.assets?.find((a) => a.name === 'glassgram.zip');
       const sig = zip && r.assets?.find((a) => a.name === `${zip.name}.sig`);
       return {
         version: r.tag_name.replace(/^v/i, ''),
@@ -76,6 +79,7 @@ export function parseReleases(json: unknown): Release[] {
         zipUrl: zip?.browser_download_url,
         zipSha256: /^sha256:([0-9a-f]{64})$/i.exec(zip?.digest ?? '')?.[1].toLowerCase(),
         zipSigUrl: sig?.browser_download_url,
+        xpiUrl: r.assets?.find((a) => a.name.endsWith('.xpi'))?.browser_download_url,
         publishedAt: r.published_at ?? '',
       };
     })

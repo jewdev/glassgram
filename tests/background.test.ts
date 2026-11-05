@@ -253,3 +253,41 @@ describe('cancelling a ZIP', () => {
     expect(revoked()).toEqual(['blob:1']);
   });
 });
+
+describe('Firefox (no offscreen API: the background page runs the jobs)', () => {
+  /** Firefox's chrome namespace: everything the worker uses except chrome.offscreen. */
+  function firefox() {
+    const c = fakeChrome();
+    delete (c as Partial<FakeChrome>).offscreen;
+    return c;
+  }
+
+  beforeEach(() => {
+    let n = 0;
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => `blob:ff/${++n}`);
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+  });
+
+  it('builds a ZIP itself, forwards its progress to the tab and frees the blob once saved', async () => {
+    await startWorker(firefox());
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array(10))));
+    const res = await chrome.runtime.deliver({ type: 'zip', jobs: [job(1), job(2)], zipName: 'x.zip' }, { tab: { id: 7 } });
+    expect(res).toEqual({ ok: true, count: 2 });
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(7, { type: 'zipProgress', done: 2, total: 2 });
+    expect(chrome.downloads.list.map((d) => d.url)).toEqual(['blob:ff/1']);
+    await chrome.downloads.finish(1);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:ff/1');
+  });
+
+  it('saves a data: URL through a blob URL, which Firefox downloads accept', async () => {
+    await startWorker(firefox());
+    const url = 'data:application/json;charset=utf-8,%7B%7D';
+    await chrome.runtime.deliver({ type: 'download', jobs: [{ url, filename: 'Glassgram/x.json' }] });
+    await flush();
+    await flush();
+    expect(chrome.downloads.list.map((d) => d.url)).toEqual(['blob:ff/1']);
+    await chrome.downloads.finish(1);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:ff/1');
+  });
+});

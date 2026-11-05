@@ -43,6 +43,15 @@ describe('parseReleases', () => {
     expect(out[1].zipSigUrl).toBeUndefined();
   });
 
+  it('takes glassgram.zip as the ZIP, not another ZIP, and finds the Firefox add-on', () => {
+    const asset = (name: string) => ({ name, browser_download_url: name });
+    const [r] = parseReleases([
+      { tag_name: 'v2.0.0', html_url: 'u', draft: false, prerelease: false, assets: [asset('glassgram-firefox.zip'), asset('glassgram.zip'), asset('glassgram-2.0.0.xpi')] },
+    ]);
+    expect(r.zipUrl).toBe('glassgram.zip');
+    expect(r.xpiUrl).toBe('glassgram-2.0.0.xpi');
+  });
+
   it('ignores a non-array response', () => {
     expect(parseReleases({ message: 'rate limited' })).toEqual([]);
   });

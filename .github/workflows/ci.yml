@@ -23,4 +23,5 @@ jobs:
 
       - run: npm ci
       - run: npm run build # typecheck + build
+      - run: npm run build:firefox
       - run: npm test

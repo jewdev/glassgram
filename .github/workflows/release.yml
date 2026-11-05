@@ -35,9 +35,16 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npm run build:firefox
 
       - name: Zip dist
-        run: cd dist && zip -r ../glassgram.zip .
+        run: |
+          (cd dist && zip -r ../glassgram.zip .)
+          (cd dist-firefox && zip -r ../glassgram-firefox.zip .)
+
+      # Mozilla asks for the source of bundled add-ons.
+      - name: Zip source
+        run: git archive --format=zip -o source.zip HEAD
 
       # Shown inside the extension's "Update available" and "What's new" cards.
       - name: Write release notes
@@ -48,11 +55,53 @@ jobs:
           name: release
           path: |
             glassgram.zip
+            glassgram-firefox.zip
+            source.zip
             notes.md
           if-no-files-found: error
 
-  publish:
+  # Mozilla signs the Firefox build (unlisted: not in the store, no review queue). Skipped until the
+  # AMO_JWT_ISSUER and AMO_JWT_SECRET secrets exist. No npm in this job either.
+  firefox:
     needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+    env:
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.AMO_JWT_ISSUER != ''
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: env.AMO_JWT_ISSUER != ''
+        with:
+          name: release
+
+      - name: Sign with Mozilla
+        id: sign
+        if: env.AMO_JWT_ISSUER != ''
+        run: |
+          unzip -q glassgram-firefox.zip -d dist-firefox
+          node scripts/sign-firefox.mjs glassgram-firefox.zip source.zip
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.AMO_JWT_ISSUER != ''
+        with:
+          name: firefox
+          path: |
+            glassgram.xpi
+            updates.json
+          if-no-files-found: error
+
+  publish:
+    needs: [build, firefox]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -66,6 +115,12 @@ jobs:
         with:
           name: release
 
+      # glassgram.xpi and updates.json, unless the Firefox job was skipped.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.firefox.outputs.signed == 'true'
+        with:
+          name: firefox
+
       # One-click updates install only a ZIP signed with this key.
       - name: Sign ZIP
         run: node scripts/sign.mjs glassgram.zip
@@ -78,4 +133,6 @@ jobs:
           files: |
             glassgram.zip
             glassgram.zip.sig
+            glassgram.xpi
+            updates.json
           body_path: notes.md

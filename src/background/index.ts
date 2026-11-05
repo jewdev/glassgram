@@ -19,6 +19,13 @@ const active = new Set<number>();
 const blobDownloads = new Map<number, () => void>();
 let pumping = false;
 
+/**
+ * Chrome's worker has no DOM, so ZIP and MP3 jobs run in an offscreen document. Firefox has no
+ * offscreen API, but its background is a page with a DOM: it runs them itself. The MODE check lets
+ * the Firefox build drop the offscreen code; tests take the runtime check.
+ */
+const IN_PAGE = import.meta.env.MODE === 'firefox' || typeof chrome.offscreen === 'undefined';
+
 const ready = (async () => {
   try {
     const saved = (await chrome.storage.session.get(QUEUE_KEY))[QUEUE_KEY] as { queue: DownloadJob[]; active: number[]; blobs?: number[] } | undefined;
@@ -46,10 +53,15 @@ async function pump() {
   try {
     while (queue.length && active.size < MAX_CONCURRENT) {
       const job = queue.shift()!;
+      let blob = '';
       try {
-        const id = await chrome.downloads.download({ url: job.url, filename: job.filename, conflictAction: 'uniquify' });
+        // Firefox's downloads API refuses data: URLs (the unsent-messages export); a blob URL works.
+        if (IN_PAGE && job.url.startsWith('data:')) blob = URL.createObjectURL(await (await fetch(job.url)).blob());
+        const id = await chrome.downloads.download({ url: blob || job.url, filename: job.filename, conflictAction: 'uniquify' });
         if (id !== undefined) active.add(id);
+        if (id !== undefined && blob) blobDownloads.set(id, () => URL.revokeObjectURL(blob));
       } catch (e) {
+        if (blob) URL.revokeObjectURL(blob);
         console.warn('[IGE] download failed', job.filename, e);
       }
       persist();
@@ -78,12 +90,12 @@ ready.then(pump);
 // A document left open by a worker that stopped mid-ZIP holds blobs nobody will download.
 ready.then(closeOffscreenIfIdle);
 
-// ---------------- ZIP via offscreen document ----------------
+// ---------------- ZIP and MP3: offscreen document (Chrome) or this page (Firefox) ----------------
 const OFFSCREEN_URL = 'src/offscreen/offscreen.html';
 let offscreenCreating: Promise<void> | null = null;
 let offscreenClosing: Promise<void> | null = null;
 
-const offscreenOpen = async () => (await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] })).length > 0;
+const offscreenOpen = async () => !IN_PAGE && (await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] })).length > 0;
 
 async function ensureOffscreen() {
   await offscreenClosing;
@@ -101,8 +113,39 @@ async function ensureOffscreen() {
 }
 
 type ZipReply = { ok: true; urls: string[]; count: number } | { ok: false; error: string };
+type Mp3Reply = { ok: true; url: string } | { ok: false; error: string };
 
-const revoke = (url: string) => chrome.runtime.sendMessage({ type: 'offscreen:revoke', target: 'offscreen', url } satisfies Message).catch(() => {});
+const fail = (e: any) => ({ ok: false as const, error: String(e?.message ?? e) });
+const pageJobs = () => import('../offscreen/jobs');
+
+/** Where ZIP and MP3 jobs run, and where their blob URLs live. */
+const blobJobs = IN_PAGE
+  ? {
+      zip: (jobs: DownloadJob[], jobId: string): Promise<ZipReply> =>
+        pageJobs()
+          .then((m) => m.buildZip(jobs, jobId, undefined, (done, total) => forwardProgress(jobId, done, total)))
+          .then((r) => ({ ok: true as const, ...r }), fail),
+      mp3: (url: string, jobId: string): Promise<Mp3Reply> =>
+        pageJobs()
+          .then((m) => m.buildMp3(url, jobId))
+          .then((u) => ({ ok: true as const, url: u }), fail),
+      cancel: (jobId: string) => void pageJobs().then((m) => m.cancelJob(jobId)),
+      revoke: (url: string) => URL.revokeObjectURL(url),
+    }
+  : {
+      zip: async (jobs: DownloadJob[], jobId: string): Promise<ZipReply> => {
+        await ensureOffscreen();
+        return (await chrome.runtime.sendMessage({ type: 'offscreen:zip', target: 'offscreen', jobs, jobId } satisfies Message)) as ZipReply;
+      },
+      mp3: async (url: string, jobId: string): Promise<Mp3Reply> => {
+        await ensureOffscreen();
+        return (await chrome.runtime.sendMessage({ type: 'offscreen:mp3', target: 'offscreen', url, jobId } satisfies Message)) as Mp3Reply;
+      },
+      cancel: (jobId: string) => void chrome.runtime.sendMessage({ type: 'offscreen:cancel', target: 'offscreen', jobId } satisfies Message).catch(() => {}),
+      revoke: (url: string) => void chrome.runtime.sendMessage({ type: 'offscreen:revoke', target: 'offscreen', url } satisfies Message).catch(() => {}),
+    };
+
+const revoke = (url: string) => blobJobs.revoke(url);
 
 /** user_posts.zip → user_posts_part2.zip */
 function partName(zipName: string, i: number, parts: number) {
@@ -113,10 +156,13 @@ function partName(zipName: string, i: number, parts: number) {
 
 /** ZIPs being built: the tab that asked (for progress and Cancel), and whether it cancelled. */
 const zipJobs = new Map<string, { tabId?: number; cancelled: boolean }>();
+function forwardProgress(jobId: string, done: number, total: number) {
+  const tabId = zipJobs.get(jobId)?.tabId;
+  if (tabId !== undefined) chrome.tabs.sendMessage(tabId, { type: 'zipProgress', done, total } satisfies Message).catch(() => {});
+}
+
 chrome.runtime.onMessage.addListener((msg: Message) => {
-  if (msg.type !== 'zipProgress' || !msg.jobId) return false;
-  const tabId = zipJobs.get(msg.jobId)?.tabId;
-  if (tabId !== undefined) chrome.tabs.sendMessage(tabId, { type: 'zipProgress', done: msg.done, total: msg.total } satisfies Message).catch(() => {});
+  if (msg.type === 'zipProgress' && msg.jobId) forwardProgress(msg.jobId, msg.done, msg.total);
   return false;
 });
 
@@ -124,7 +170,7 @@ function cancelZips(tabId: number | undefined) {
   for (const [jobId, job] of zipJobs) {
     if (job.tabId !== tabId || job.cancelled) continue;
     job.cancelled = true;
-    chrome.runtime.sendMessage({ type: 'offscreen:cancel', target: 'offscreen', jobId } satisfies Message).catch(() => {});
+    blobJobs.cancel(jobId);
   }
 }
 
@@ -143,8 +189,7 @@ async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: numb
   const job = { tabId, cancelled: false };
   zipJobs.set(jobId, job); // before the document exists, so it isn't closed under this job
   try {
-    await ensureOffscreen();
-    const res = (await chrome.runtime.sendMessage({ type: 'offscreen:zip', target: 'offscreen', jobs, jobId } satisfies Message)) as ZipReply;
+    const res = await blobJobs.zip(jobs, jobId);
     if (!res?.ok) return { ok: false, error: res?.error ?? 'ZIP failed' };
     if (job.cancelled) {
       res.urls.forEach(revoke); // finished before the cancel reached it
@@ -167,16 +212,13 @@ async function zipAndDownload(jobs: DownloadJob[], zipName: string, tabId?: numb
   }
 }
 
-type Mp3Reply = { ok: true; url: string } | { ok: false; error: string };
-
 /** A video's sound as MP3: the offscreen document decodes and encodes it, then it's downloaded like a ZIP part. */
 async function mp3AndDownload(job: DownloadJob, tabId?: number): Promise<DownloadResult> {
   const jobId = crypto.randomUUID();
   const entry = { tabId, cancelled: false };
   zipJobs.set(jobId, entry); // tracked with the ZIPs: same Cancel, and the document stays open for it
   try {
-    await ensureOffscreen();
-    const res = (await chrome.runtime.sendMessage({ type: 'offscreen:mp3', target: 'offscreen', url: job.url, jobId } satisfies Message)) as Mp3Reply;
+    const res = await blobJobs.mp3(job.url, jobId);
     if (!res?.ok) return { ok: false, error: res?.error ?? 'MP3 failed' };
     if (entry.cancelled) {
       revoke(res.url);
@@ -374,21 +416,30 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 // ---------------- anonymous stories: backup network rule for the REST endpoint ----------------
 const DNR_RULE_ID = 1;
 const ANALYTICS_RULE_IDS = [2, 3];
-const { RuleActionType, ResourceType } = chrome.declarativeNetRequest;
-const BEACON_TYPES = [ResourceType.XMLHTTPREQUEST, ResourceType.PING, ResourceType.OTHER];
+// String values, not chrome.declarativeNetRequest.RuleActionType and friends: Firefox doesn't have
+// those enum objects.
+type Dnr = typeof chrome.declarativeNetRequest;
+const BLOCK = 'block' as Dnr['RuleActionType']['BLOCK'];
+const MODIFY_HEADERS = 'modifyHeaders' as Dnr['RuleActionType']['MODIFY_HEADERS'];
+const REMOVE = 'remove' as Dnr['HeaderOperation']['REMOVE'];
+const SET = 'set' as Dnr['HeaderOperation']['SET'];
+const XHR = 'xmlhttprequest' as Dnr['ResourceType']['XMLHTTPREQUEST'];
+const PING = 'ping' as Dnr['ResourceType']['PING'];
+const OTHER = 'other' as Dnr['ResourceType']['OTHER'];
+const BEACON_TYPES = [XHR, PING, OTHER];
 
 function analyticsRules(): chrome.declarativeNetRequest.Rule[] {
   return [
     {
       id: ANALYTICS_RULE_IDS[0],
       priority: 1,
-      action: { type: RuleActionType.BLOCK },
+      action: { type: BLOCK },
       condition: { regexFilter: '^https://www\\.instagram\\.com/(ajax/bz|ajax/qm/|logging/)', resourceTypes: BEACON_TYPES },
     },
     {
       id: ANALYTICS_RULE_IDS[1],
       priority: 1,
-      action: { type: RuleActionType.BLOCK },
+      action: { type: BLOCK },
       condition: { regexFilter: '^https://graph\\.instagram\\.com/logging_client_events', resourceTypes: BEACON_TYPES },
     },
   ];
@@ -396,7 +447,7 @@ function analyticsRules(): chrome.declarativeNetRequest.Rule[] {
 
 // ---------------- downloads: look like the page fetching its own media ----------------
 // Media we download (offscreen fetch, chrome.downloads) leaves from the extension, not from a tab:
-// without this the CDN sees `Origin: chrome-extension://<id>` and no Referer.
+// without this the CDN sees `Origin: chrome-extension://<id>` (moz-extension:// in Firefox) and no Referer.
 const CDN_RULE_ID = 4;
 const NO_TAB = -1; // chrome.tabs.TAB_ID_NONE
 
@@ -404,13 +455,13 @@ const cdnRule = (): chrome.declarativeNetRequest.Rule => ({
   id: CDN_RULE_ID,
   priority: 1,
   action: {
-    type: RuleActionType.MODIFY_HEADERS,
+    type: MODIFY_HEADERS,
     requestHeaders: [
-      { header: 'origin', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
-      { header: 'referer', operation: chrome.declarativeNetRequest.HeaderOperation.SET, value: 'https://www.instagram.com/' },
+      { header: 'origin', operation: REMOVE },
+      { header: 'referer', operation: SET, value: 'https://www.instagram.com/' },
     ],
   },
-  condition: { tabIds: [NO_TAB], requestDomains: ['cdninstagram.com', 'fbcdn.net'], resourceTypes: [ResourceType.XMLHTTPREQUEST, ResourceType.OTHER] },
+  condition: { tabIds: [NO_TAB], requestDomains: ['cdninstagram.com', 'fbcdn.net'], resourceTypes: [XHR, OTHER] },
 });
 
 async function syncDnr(s: Settings) {
@@ -427,10 +478,10 @@ async function syncDnr(s: Settings) {
           {
             id: DNR_RULE_ID,
             priority: 1,
-            action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
+            action: { type: BLOCK },
             condition: {
               regexFilter: '^https://(www\\.|i\\.)?instagram\\.com/api/v[12]/(stories/reel/seen|media/seen)',
-              resourceTypes: [chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST, chrome.declarativeNetRequest.ResourceType.OTHER],
+              resourceTypes: [XHR, OTHER],
             },
           },
         ]

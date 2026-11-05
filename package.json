@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:firefox": "tsc --noEmit && vite build --mode firefox",
+    "dev:firefox": "vite --mode firefox"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^3.0.0",

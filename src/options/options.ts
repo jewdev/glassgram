@@ -387,6 +387,8 @@ function renderThemeControl(current: ThemeChoice) {
 
 // ---------------- updates ----------------
 const CURRENT_VERSION = chrome.runtime.getManifest().version;
+/** Firefox installs Mozilla-signed updates itself: no folder or ZIP steps there. */
+const FIREFOX = location.protocol === 'moz-extension:';
 let checking = false;
 let installing = false;
 let folderAsked = false;
@@ -451,7 +453,11 @@ function renderUpdates(state: UpdateState) {
       }
     };
     $('update-skip').onclick = () => patchUpdateState({ skipped: update.version });
-    renderOneClick(update, state);
+    $('update-firefox').hidden = !FIREFOX;
+    $('update-oneclick').hidden = $('update-manual').hidden = FIREFOX;
+    // Opening the signed .xpi makes Firefox offer to install it; the release page if it has none.
+    if (FIREFOX) $('update-xpi').onclick = () => chrome.tabs.create({ url: update.xpiUrl ?? update.url });
+    else renderOneClick(update, state);
   }
 
   // "What's new" card after an update was installed.
