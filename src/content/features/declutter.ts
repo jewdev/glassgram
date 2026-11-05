@@ -6,7 +6,7 @@ import { getSettings } from '../core/state';
 import type { Feature } from './types';
 
 // We remember what each element is here, not on the element, and hide only what a toggle asks for
-// with an inline display:none. Nothing else is written to Instagram's DOM.
+// with inline styles. Nothing else is written to Instagram's DOM.
 type Kind = 'ad' | 'suggested' | 'sidebar' | 'stories' | 'reels' | 'explore' | 'threads';
 
 const SETTING_FOR: Record<Kind, keyof Settings> = {
@@ -23,8 +23,21 @@ const MAX_CHECKS = 6;
 
 /** Elements we recognized. */
 const kinds = new Map<Element, Kind>();
-/** Hidden elements → their own inline display, to put back. */
-const hidden = new Map<HTMLElement, [value: string, priority: string]>();
+/** Hidden elements → their own inline values of the properties we set, to put back. */
+const hidden = new Map<HTMLElement, Map<string, [value: string, priority: string]>>();
+
+/** display:none for most things. */
+const REMOVE: Record<string, string> = { display: 'none' };
+/**
+ * Feed posts live in Instagram's virtualized list, which stops mounting new posts once one
+ * measures 0px tall: the feed freezes, its bottom padding keeps growing and you scroll into
+ * blank space. So posts keep a 1px box instead of leaving the layout.
+ */
+const COLLAPSE: Record<string, string> = { height: '1px', 'min-height': '0', overflow: 'hidden', visibility: 'hidden', margin: '0', padding: '0', border: '0' };
+
+function stylesFor(kind: Kind): Record<string, string> {
+  return kind === 'ad' || kind === 'suggested' ? COLLAPSE : REMOVE;
+}
 /** Articles looked at, and how often (labels may render late). */
 let checks = new WeakMap<Element, number>();
 /** Nav links / sidebar anchors already handled. */
@@ -112,18 +125,24 @@ function tagHome() {
   }
 }
 
-function hide(el: HTMLElement) {
+function hide(el: HTMLElement, styles: Record<string, string>) {
   if (hidden.has(el)) return;
-  hidden.set(el, [el.style.getPropertyValue('display'), el.style.getPropertyPriority('display')]);
-  el.style.setProperty('display', 'none', 'important');
+  const prev = new Map<string, [string, string]>();
+  for (const [prop, value] of Object.entries(styles)) {
+    prev.set(prop, [el.style.getPropertyValue(prop), el.style.getPropertyPriority(prop)]);
+    el.style.setProperty(prop, value, 'important');
+  }
+  hidden.set(el, prev);
 }
 
 function show(el: HTMLElement) {
   const prev = hidden.get(el);
   if (!prev) return;
   hidden.delete(el);
-  if (prev[0]) el.style.setProperty('display', prev[0], prev[1]);
-  else el.style.removeProperty('display');
+  for (const [prop, [value, priority]] of prev) {
+    if (value) el.style.setProperty(prop, value, priority);
+    else el.style.removeProperty(prop);
+  }
 }
 
 function apply(s: Settings) {
@@ -132,7 +151,7 @@ function apply(s: Settings) {
       kinds.delete(el);
       hidden.delete(el as HTMLElement);
     } else if (el instanceof HTMLElement) {
-      if (s[SETTING_FOR[kind]]) hide(el);
+      if (s[SETTING_FOR[kind]]) hide(el, stylesFor(kind));
       else show(el);
     }
   }
