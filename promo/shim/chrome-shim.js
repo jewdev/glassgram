@@ -1,15 +1,49 @@
 // Minimal chrome.* stand-in so the built settings page and popup (dist/) run inside the promo
 // composition without being installed as an extension. Only the APIs those pages call exist here.
-// The embedding scene can seed settings through `window.parent.PROMO_SETTINGS[frameName]`.
+// The embedding scene can seed settings through `window.parent.PROMO_SETTINGS[frameName]`,
+// extension-local storage through `PROMO_LOCAL[frameName]`, and the installed version through
+// `PROMO_VERSION[frameName]` (to show the update card for a release that is already out). The
+// health check answers with the checks in `PROMO_HEALTH`.
 (() => {
-  const seed = (() => {
+  const fromParent = (key) => {
     try {
-      return window.parent?.PROMO_SETTINGS?.[window.name] ?? {};
+      return window.parent?.[key]?.[window.name];
     } catch {
-      return {};
+      return undefined;
+    }
+  };
+  const seed = fromParent('PROMO_SETTINGS') ?? {};
+  const sync = { settings: { 'ui.theme': 'dark', ...seed } };
+  const local = structuredClone(fromParent('PROMO_LOCAL') ?? {});
+
+  // The built manifest from dist/, read once, synchronously, like chrome.runtime.getManifest().
+  const manifest = (() => {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', '/manifest.json', false);
+      xhr.send();
+      return JSON.parse(xhr.responseText);
+    } catch {
+      return { version: '0.0.0' };
     }
   })();
-  const sync = { settings: { 'ui.theme': 'dark', ...seed } };
+  const version = fromParent('PROMO_VERSION');
+  if (version) manifest.version = version;
+
+  // An Instagram tab whose content script answers the health check (see src/content/health.ts).
+  const IG_TAB = { id: 1, windowId: 1, active: true, url: 'https://www.instagram.com/', lastAccessed: 1 };
+  const health = () => ({
+    version: manifest.version,
+    page: 'home',
+    at: Date.now(),
+    checks: (() => {
+      try {
+        return structuredClone(window.parent?.PROMO_HEALTH ?? []);
+      } catch {
+        return [];
+      }
+    })(),
+  });
   const listeners = new Set();
 
   const area = (store) => ({
@@ -34,15 +68,26 @@
   window.chrome = {
     storage: {
       sync: area(sync),
-      local: area({}),
+      local: area(local),
       onChanged: { addListener: (fn) => listeners.add(fn), removeListener: (fn) => listeners.delete(fn) },
     },
     tabs: {
-      query: async () => [{ id: 1, url: 'https://www.instagram.com/' }],
-      sendMessage: async () => undefined,
+      query: async () => [{ ...IG_TAB }],
+      sendMessage: async (_id, msg) => (msg?.type === 'healthCheck' ? health() : undefined),
       create: async () => undefined,
+      reload: async () => undefined,
+      onUpdated: { addListener: () => {}, removeListener: () => {} },
     },
-    runtime: { openOptionsPage: () => {}, getURL: (p) => p, id: 'promo' },
+    windows: { getLastFocused: async () => ({ id: 1 }) },
+    downloads: { download: async () => 1, show: () => {}, onChanged: { addListener: () => {} } },
+    runtime: {
+      openOptionsPage: () => {},
+      getURL: (p) => p,
+      id: 'promo',
+      getManifest: () => structuredClone(manifest),
+      reload: () => {},
+      sendMessage: async (msg) => (msg?.type === 'ping' ? { ok: true } : undefined),
+    },
   };
 
   // Deterministic rendering: the scene drives every change frame by frame, so no CSS motion of its own.

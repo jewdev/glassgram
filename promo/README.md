@@ -1,6 +1,6 @@
 # Glassgram promo video
 
-Source for `docs/glassgram-promo.mp4` (and `.webm`): a 90 second, 1920×1080 product video.
+Source for `docs/glassgram-promo.mp4` (and `.webm`): a 104 second, 1920×1080 product video.
 
 Every frame is rendered from HTML in headless Chromium, then encoded with FFmpeg. The soundtrack and
 sound effects are synthesized in code, so no stock footage, music, or samples are involved.
@@ -36,8 +36,12 @@ A full render takes a few minutes. Useful flags:
 
 - **Real:** the settings page and the toolbar popup are the built extension pages from `dist/`,
   running in iframes. A small `chrome.*` stand-in (`shim/chrome-shim.js`) replaces the extension
-  APIs, and the scenes flip the real switches. Glassgram's in-page UI (download toolbar, video bar,
-  image viewer, story panel, follow badge, unfollowers dialog, unsent-message mark and panel, voice
+  APIs, and the scenes flip the real switches and popup tiles. The update card shows the real
+  v1.6.0 release (notes and assets from GitHub) as a v1.5.0 install sees it, and the health check
+  runs for real against a stand-in Instagram tab that answers with what `src/content/health.ts`
+  reports on the home feed. Glassgram's in-page UI (download toolbar and its Video / MP3 menu,
+  video bar, image viewer, story panel, follow badge, unfollowers dialog with its history and
+  unfollow queue, focus timer and block screen, reel counter, unsent-message mark and panel, voice
   download button, toasts) uses the extension's own stylesheet
   (`src/content/ui/styles.css`), class names and icons. The icons are parsed from
   `src/content/ui/dom.ts` and `src/shared/icons.ts` at render time. Labels, toast texts, filename
@@ -54,7 +58,7 @@ A full render takes a few minutes. Useful flags:
 | :--- | :--- |
 | `index.html` | The 1920×1080 stage |
 | `src/timeline.js` | Scene timings, interaction beats and sound cues, shared by picture and sound |
-| `src/scenes/*.js` | One function per scene (`account.js`: unfollowers, unsent messages, small extras). Each one returns `{ root, update(t) }`, a pure function of time |
+| `src/scenes/*.js` | One function per scene (`account.js`: unfollowers, unsent messages, small extras; `focus.js`: focus mode and reel counter). Each one returns `{ root, update(t) }`, a pure function of time |
 | `src/ig.js` | Instagram UI recreation and the browser window frame |
 | `src/kit.js` | Captions, cursor, Glassgram UI helpers |
 | `src/art.js` | Procedural SVG artwork (landscapes, city, reel animation, avatars) |
@@ -66,10 +70,12 @@ To retime the video, edit `src/timeline.js`. The sound effects follow automatica
 
 ## Scene order
 
-Problem → Glassgram → Downloads → HD profile pictures → Story mentions → Follow badge → Unfollowers
-checker → Declutter + following-only feed → Video controls → Clean links + privacy settings → Keep
-unsent messages → Small extras (timestamps, copy comment, Save GIF, voice download, right-click,
-shortcuts) → Settings page + popup → Runs in your browser / open source → Call to action.
+Problem → Glassgram → Downloads → Sound only (MP3) → HD profile pictures → Story mentions → Follow
+badge → Unfollowers checker (scan history, keep list, unfollow queue) → Declutter + following-only
+feed → Video controls → Focus mode + reel counter → Clean links + privacy settings → Keep unsent
+messages → Small extras (timestamps, copy comment, Save GIF, voice download, right-click,
+shortcuts) → Settings page + popup tiles → Health check + one-click update → Runs in your browser /
+open source → Call to action.
 
 Features the README marks as not tested yet (anonymous live viewing) are not
 demonstrated; they only appear, with their *Not tested yet* tag, on the real settings page.

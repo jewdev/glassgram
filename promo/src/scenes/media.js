@@ -1,7 +1,7 @@
 import { h, prog, ease, kf, lerp, style, vis, clamp, pointIn } from '../lib.js';
-import { SCENES, DL, AV, ST, FO } from '../timeline.js';
+import { SCENES, DL, SO, AV, ST, FO } from '../timeline.js';
 import { caption, chips, cursor, ggButton, ggIcon, ggLayer, growIn } from '../kit.js';
-import { browserWindow, navRail, avatarEl, igIcon, profileHeader, PEOPLE } from '../ig.js';
+import { browserWindow, navRail, avatarEl, igIcon, profileHeader, reelStage, PEOPLE } from '../ig.js';
 import { lake, city, dunes, forest, cafe, ocean, toUrl } from '../art.js';
 
 const P = PEOPLE;
@@ -377,6 +377,90 @@ export function follow() {
       // camera: start close on the header, ease back
       const z = kf(t, [[start, 1.42], [FO.badge + 0.2, 1.36, ease.inOut], [end, 1.26, ease.inOut]]);
       style(prof.ig, { transformOrigin: '520px 40px', transform: `scale(${z})` });
+    },
+  };
+}
+
+// ======================= Sound only (MP3) =======================
+export function sound() {
+  const [start, end] = SCENES.sound;
+  const root = h('div');
+  const cap = caption({ eyebrow: 'Downloads', icon: 'download', title: ['Just the', '*sound.'], sub: 'On a reel, video or story, the download button asks: the video, or only its sound as an MP3. Converted on your computer.', x: 130, y: 300, width: 470 });
+  const win = browserWindow({ ...WIN, url: 'instagram.com/reels/DCk4Vn8sL/' });
+  style(win.el, { left: `${WIN.left}px`, top: `${WIN.top}px` });
+  const reel = reelStage({ w: WIN.w, h: WIN.h, who: P.luca, text: 'Night tram, Lisbon 🎧', likes: '31.7K', comments: '418', art: city({ w: 1080, h: 1920, seed: 8 }) });
+  reel.capt.append(h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', fontSize: '13px' }, html: `${igIcon('music', 13)}<span>Neon Harbour · Halcyon Drive</span>` }));
+  win.view.append(reel.ig);
+
+  // toolbar for a video (media-toolbar.ts): the download button opens "Video" / "Sound only (MP3)"
+  const layer = ggLayer(win.view);
+  const dl = ggButton('download', 'Download…');
+  const bar = h('div', { class: 'ige-toolbar', role: 'toolbar' }, dl, ggButton('link', 'Copy media URL'), ggButton('caption', 'Copy caption'));
+  const item = (name, label) => h('button', { class: 'ige-menuitem', type: 'button', role: 'menuitem', html: `${ggIcon(name, 16)}<span>${label}</span>` });
+  const videoItem = item('download', 'Video');
+  const soundItem = item('music', 'Sound only (MP3)');
+  const menu = h('div', { class: 'ige-dlmenu is-open', role: 'menu' }, videoItem, soundItem);
+  layer.append(bar, menu);
+  const toasts = toastEl(layer);
+  const bubble = h(
+    'div',
+    { class: 'dlb' },
+    h('div', { class: 'dlb__title' }, 'Recent download history'),
+    h('div', { class: 'dlb__row' }, h('span', { class: 'dlb__file', html: igIcon('music', 16) }), h('div', {}, h('div', { class: 'dlb__name' }, 'luca.mrtn_2026-11-03_DCk4Vn8sL_1.mp3'), h('div', { class: 'dlb__meta' }, '386 KB • Done'))),
+  );
+  win.el.append(bubble);
+  const cur = cursor(win.view);
+  root.append(cap.el, win.el);
+
+  return {
+    root,
+    update(t) {
+      cap.update(t, start + 0.25);
+      const vw = win.view.offsetWidth;
+      reel.media.style.transform = `scale(${1.04 + (t - start) * 0.012})`;
+      vis(bar, prog(t, SO.hover, SO.hover + 0.14));
+      placeToolbar(bar, reel.rect, vw);
+      const open = t >= SO.click && t < SO.pick + 0.1;
+      dl.style.background = open || Math.abs(t - SO.click) < 0.3 ? 'rgb(255 255 255 / 0.22)' : '';
+      dl.style.transform = `scale(${1 - 0.06 * clamp(1 - Math.abs(t - SO.click) / 0.08)})`;
+      // menu sits under the download button, right-aligned to it (placeMenu in media-toolbar.ts)
+      const r = rectIn(dl, win.view);
+      style(menu, { top: `${r.bottom + 6}px`, right: `${Math.max(8, vw - r.right)}px` });
+      const mp = Math.min(prog(t, SO.click + 0.02, SO.click + 0.2, ease.outQuart), 1 - prog(t, SO.pick + 0.08, SO.pick + 0.2));
+      vis(menu, mp);
+      menu.style.transform = `translateY(${(1 - mp) * -4}px) scale(${lerp(0.95, 1, mp)})`;
+      soundItem.style.background = t >= SO.item - 0.05 ? 'rgb(255 255 255 / 0.22)' : '';
+      soundItem.style.transform = `scale(${1 - 0.04 * clamp(1 - Math.abs(t - SO.pick) / 0.08)})`;
+
+      toasts.update(t, [
+        [SO.pick + 0.05, SO.saved - 0.05, 'Saving the sound as MP3…', 'info'],
+        [SO.saved, end + 0.5, 'Saved MP3', 'success'],
+      ]);
+      win.dl.hidden = t < SO.saved - 0.1;
+      const ring = win.dl.querySelector('.win__dlring');
+      const rp = Math.max(prog(t, SO.saved - 0.1, SO.saved + 0.5), 0);
+      style(ring, { opacity: String(t > SO.saved - 0.1 && rp < 1 ? 1 - rp : 0), transform: `scale(${1 + rp * 0.4})` });
+      const bp = prog(t, SO.saved + 0.05, SO.saved + 0.35, ease.outQuart);
+      vis(bubble, bp);
+      bubble.style.transform = `translateY(${(1 - bp) * -10}px) scale(${lerp(0.97, 1, bp)})`;
+
+      cur.update(t, {
+        path: [
+          [start + 0.3, { x: 360, y: 700 }],
+          [SO.hover, { x: reel.rect.left + reel.rect.width * 0.55, y: 360 }],
+          [SO.click - 0.25, () => pointIn(dl, win.view, 0.55, 0.6)],
+          [SO.click + 0.15, () => pointIn(dl, win.view, 0.55, 0.6)],
+          [SO.item, () => pointIn(soundItem, win.view, 0.4, 0.55)],
+          [SO.saved + 0.6, () => pointIn(soundItem, win.view, 0.4, 0.55)],
+          [end + 0.5, { x: reel.rect.left + reel.rect.width * 0.4, y: 460 }],
+        ],
+        clicks: [SO.click, SO.pick],
+        shapes: [[0, 'arrow'], [SO.click - 0.3, 'hand'], [SO.saved + 0.4, 'arrow']],
+        show: [start + 0.3, end + 1],
+      });
+      // camera: lean into the toolbar and its menu
+      const z = kf(t, [[start, 1], [SO.hover, 1], [SO.click, 1.1], [SO.saved, 1.1], [end + 0.5, 1.04]]);
+      style(win.el, { transformOrigin: '88% 22%', transform: `scale(${z})` });
     },
   };
 }

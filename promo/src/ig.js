@@ -167,3 +167,31 @@ export function profileHeader(p, { posts = '128', followers = '14.2K', following
     ),
   );
 }
+
+/**
+ * The Reels page inside a browser viewport of `w` × `h`: a 9:16 card centred right of the nav rail,
+ * with the action column and caption. `art` fills the card (HTML string or element).
+ */
+export function reelStage({ w, h: height, who, text, likes = '48.2K', comments = '612', art = '' }) {
+  const ch = height - 84 - 36;
+  const cw = Math.round((ch * 9) / 16);
+  const cl = Math.round((w - 74 - cw) / 2) + 74 - 30;
+  const media = h('div', { class: 'abs', style: { inset: '0' } });
+  if (typeof art === 'string') media.innerHTML = art;
+  else if (art) media.append(art);
+  const card = h('div', { class: 'ig-card', style: { left: `${cl}px`, top: '18px', width: `${cw}px`, height: `${ch}px`, borderRadius: '8px' } }, media);
+  const capt = h('div', { class: 'ig-reel__cap', style: { bottom: '120px' } }, h('div', { class: 'ig-reel__who' }, avatarEl(who, 32), who.user, h('em', {}, 'Follow')), h('div', {}, text));
+  card.append(capt);
+  const side = h(
+    'div',
+    { class: 'ig-reel__side', style: { left: `${cl + cw + 22}px`, bottom: '40px' } },
+    h('div', { html: igIcon('heart', 28) + `<span>${likes}</span>` }),
+    h('div', { html: igIcon('comment', 28) + `<span>${comments}</span>` }),
+    h('div', { html: igIcon('share', 26) }),
+    h('div', { html: igIcon('save', 26) }),
+    h('div', { html: igIcon('more', 26) }),
+    avatarEl(who, 30),
+  );
+  const ig = h('div', { class: 'ig' }, navRail({ active: 'reels' }), h('div', { style: { position: 'absolute', inset: '0' } }, card, side));
+  return { ig, card, media, capt, side, rect: { left: cl, top: 18, right: cl + cw, bottom: 18 + ch, width: cw, height: ch } };
+}

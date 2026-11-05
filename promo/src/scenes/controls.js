@@ -13,6 +13,50 @@ window.PROMO_SETTINGS = {
   popup: {},
 };
 
+// The settings scene shows the one-click update to v1.6.0 as a v1.5.0 install sees it: the real
+// release (notes, assets and digest from GitHub), held in the same storage the background check fills.
+const V160_NOTES = [
+  '## New',
+  '- **Unfollowers:** Select accounts and unfollow them',
+  "- **Download:** Save a video's sound as MP3",
+  '- **Unfollowers:** Scan history with who unfollowed you between scans',
+  '- **Popup:** Tile layout, feature icons, and tool buttons that work from any tab',
+  '- Focus mode, reel counter and a health check',
+].join('\n');
+const V160 = 'https://github.com/jewdev/glassgram/releases';
+window.PROMO_VERSION = { settings: '1.5.0' };
+window.PROMO_LOCAL = {
+  settings: {
+    updates: {
+      releases: [
+        {
+          version: '1.6.0',
+          name: 'v1.6.0',
+          notes: V160_NOTES,
+          url: `${V160}/tag/v1.6.0`,
+          zipUrl: `${V160}/download/v1.6.0/glassgram.zip`,
+          zipSha256: '29cedcba69ad7099440f0ca2885c9ed82a869791a859b446cf13ebf31225e0a8',
+          zipSigUrl: `${V160}/download/v1.6.0/glassgram.zip.sig`,
+          publishedAt: '2026-11-03T01:40:02Z',
+        },
+      ],
+      checkedAt: 0,
+    },
+  },
+};
+// What src/content/health.ts reports on the home feed with the default settings.
+window.PROMO_HEALTH = [
+  ['session', 'Logged in', 'ok', 'Instagram session found.'],
+  ['page', 'Page script', 'ok', 'Connected.'],
+  ['relay', "Instagram's page data", 'ok', 'Found and readable.'],
+  ['media', 'Post data', 'ok', 'Read the media of a post on screen (1 file).'],
+  ['feed', 'Post layout', 'ok', 'Recognized 4 of 4 posts on screen.'],
+  ['profile', 'Profile layout', 'skip', 'Open a profile to check this.'],
+  ['nav', 'Navigation', 'ok', 'Found the Reels and Explore links.'],
+  ['bulk', 'Bulk download', 'skip', 'Bulk download is off.'],
+  ['cooldown', 'Rate limit', 'ok', 'Not rate-limited.'],
+].map(([id, label, status, detail]) => ({ id, label, status, detail }));
+
 /** The built extension page (dist/), running for real inside an iframe with the chrome.* shim. */
 export function extFrame(name, src, w, height) {
   const iframe = h('iframe', { class: 'frame', name, src, width: String(w), height: String(height), style: { width: `${w}px`, height: `${height}px` } });
@@ -321,12 +365,31 @@ export function privacy() {
 }
 
 // ======================= Settings showcase =======================
+/** Tap a quick-toggle tile of the real popup on the video's clock (tile() in src/popup/popup.ts). */
+function driveTile(doc, label, t, t0) {
+  const lab = [...(doc?.querySelectorAll('.tile__label') ?? [])].find((el) => el.textContent === label);
+  const tile = lab?.closest('.tile');
+  if (!tile) return null;
+  tile.dataset.base ??= tile.getAttribute('aria-pressed');
+  const on = (tile.dataset.base === 'true') !== t >= t0;
+  if (tile.getAttribute('aria-pressed') !== String(on)) {
+    tile.setAttribute('aria-pressed', String(on));
+    tile.querySelector('.tile__state').textContent = on ? 'On' : 'Off';
+    const count = doc.getElementById('count');
+    const n = doc.querySelectorAll('#tiles .tile[aria-pressed="true"]').length;
+    if (count) count.textContent = `· ${n} on`;
+  }
+  tile.style.transform = `scale(${1 - 0.03 * clamp(1 - Math.abs(t - t0) / 0.12)})`;
+  return tile;
+}
+
 export function settings() {
   const [start, end] = SCENES.settings;
   const root = h('div');
   const capA = caption({ title: 'You choose what *Glassgram does.', x: 0, y: 58, width: 1920, size: 64 });
   const capB = caption({ title: 'Every feature has a *switch.', x: 0, y: 58, width: 1920, size: 64 });
-  capA.el.style.textAlign = capB.el.style.textAlign = 'center';
+  const capC = caption({ title: 'Checks itself. *Updates in one click.', x: 0, y: 58, width: 1920, size: 64 });
+  capA.el.style.textAlign = capB.el.style.textAlign = capC.el.style.textAlign = 'center';
   const win = browserWindow({ w: 1500, h: 860, url: 'chrome-extension://glassgram/src/options/index.html', title: 'Glassgram · Settings', favicon: 'gg' });
   style(win.el, { left: '210px', top: '190px' });
   const fr = extFrame('settings', '/src/options/index.html', 1500, 860 - 84);
@@ -336,18 +399,22 @@ export function settings() {
   const popWrap = h('div', { class: 'abs', style: { left: '1312px', top: '268px', width: '384px', height: '620px', borderRadius: '12px', overflow: 'hidden', background: '#080a12', boxShadow: '0 30px 70px -10px rgb(0 0 0 / 0.75), 0 0 0 1px rgb(255 255 255 / 0.1)' } }, pop.iframe);
   pop.iframe.style.position = 'static';
   const cur = cursor(root);
-  root.append(capA.el, capB.el, win.el, popWrap, cur.el);
+  root.append(capA.el, capB.el, capC.el, win.el, popWrap, cur.el);
 
   return {
     root,
     ready: Promise.all([fr.ready, pop.ready]),
     update(t) {
       capA.update(t, start + 0.15, SE.swap - 0.45);
-      capB.update(t, SE.swap);
+      capB.update(t, SE.swap, SE.back - 0.45);
+      capC.update(t, SE.back);
       const doc = fr.doc();
       const max = doc ? doc.scrollingElement.scrollHeight - doc.scrollingElement.clientHeight : 0;
-      scrollTo(doc, kf(t, [[start + 0.4, 0], [SE.popup + 0.2, max * 0.92, ease.inOut]]));
-      const pp = prog(t, SE.popup, SE.popup + 0.3, ease.outQuart);
+      // down through every section, then back up to the update card for the last part
+      const top = Math.max(0, secTop(doc, 'update') - 24);
+      scrollTo(doc, kf(t, [[start + 0.4, top], [SE.popup + 0.2, max * 0.92, ease.inOut], [SE.back, max * 0.92], [SE.back + 0.7, top, ease.inOut]]));
+
+      const pp = Math.min(prog(t, SE.popup, SE.popup + 0.3, ease.outQuart), 1 - prog(t, SE.popupClose, SE.popupClose + 0.2));
       style(popWrap, { opacity: String(pp), transform: `translateY(${(1 - pp) * -10}px) scale(${lerp(0.96, 1, pp)})`, transformOrigin: '90% 0', visibility: pp ? 'visible' : 'hidden' });
       const pdoc = pop.doc();
       if (pdoc) {
@@ -359,17 +426,42 @@ export function settings() {
           pop.iframe.style.height = `${hgt}px`;
         }
       }
-      const swEl = driveSwitch(pdoc, 'feed.followingOnly', t, SE.popupToggle);
+      const tile = driveTile(pdoc, 'Following feed', t, SE.popupToggle);
+
+      // the health check, run for real against the shim's Instagram tab ("Run again" runs the same check)
+      const card = doc?.getElementById('health');
+      if (card) {
+        if (t >= SE.health && card.hidden && !card.dataset.running) {
+          card.dataset.running = '1';
+          doc.getElementById('health-again').click();
+        } else if (t < SE.health && !card.hidden) {
+          card.hidden = true;
+          delete card.dataset.running;
+          doc.getElementById('health-status').textContent = 'Not checked yet';
+        }
+        if (t < SE.health) delete card.dataset.running;
+        const hp = prog(t, SE.health + 0.05, SE.health + 0.4, ease.outQuart);
+        style(card, { opacity: String(hp), transform: `translateY(${(1 - hp) * 10}px)` });
+      }
+      const runBtn = doc?.getElementById('health-run');
+      if (runBtn) runBtn.style.filter = Math.abs(t - SE.health) < 0.18 ? 'brightness(1.6)' : '';
+      const install = doc?.getElementById('update-install');
+      if (install) install.style.boxShadow = t >= SE.update ? `0 0 0 ${3 * prog(t, SE.update, SE.update + 0.25)}px rgb(157 156 255 / 0.55)` : '';
+
       const icon = win.el.querySelector('.win__gg');
       cur.update(t, {
         path: [
           [start + 0.5, { x: 1400, y: 980 }],
           [SE.popup - 0.12, () => pointIn(icon, root)],
           [SE.popup + 0.3, () => pointIn(icon, root)],
-          [SE.popupToggle - 0.12, () => pointIn(swEl ?? popWrap, root, 0.5, 0.55)],
-          [end + 0.5, () => pointIn(swEl ?? popWrap, root, 0.2, 1.8)],
+          [SE.popupToggle - 0.12, () => pointIn(tile ?? popWrap, root, 0.5, 0.55)],
+          [SE.popupClose + 0.1, () => pointIn(tile ?? popWrap, root, 0.5, 0.55)],
+          [SE.health - 0.12, () => pointIn(runBtn ?? win.view, root, 0.5, 0.55)],
+          [SE.health + 0.3, () => pointIn(runBtn ?? win.view, root, 0.5, 0.55)],
+          [SE.update, () => pointIn(install ?? win.view, root, 0.5, 0.6)],
+          [end + 0.5, () => pointIn(install ?? win.view, root, 0.5, 0.6)],
         ],
-        clicks: [SE.popup - 0.05, SE.popupToggle],
+        clicks: [SE.popup - 0.05, SE.popupToggle, SE.health],
         shapes: [[0, 'arrow'], [SE.popup - 0.3, 'hand']],
         show: [start + 0.5, end + 1],
       });

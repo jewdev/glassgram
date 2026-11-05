@@ -257,7 +257,7 @@ function impact(t0, amp) {
   }
 }
 riser(3.9, 6.0, 0.4);
-riser(67.5, CT.brand, 0.32);
+riser(SCENES.extras[0], CT.brand, 0.32);
 
 // intro pulse: a muted root note on every beat keeps the problem scene moving
 {

@@ -30,18 +30,6 @@ function showModal(m, t, t0, t1 = Infinity) {
   m.panel.style.transform = `scale(${lerp(0.97, 1, p)})`;
 }
 
-/** Instagram's toolbar download bubble, with the saved file name. */
-function downloadChip(win, name) {
-  const chip = h(
-    'div',
-    { class: 'abs', style: { right: '86px', top: '56px', zIndex: '40', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px', background: '#2b2d33', boxShadow: '0 20px 50px -10px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.08)', font: '500 14px/1.3 var(--text)', color: '#e8eaf0' } },
-    h('span', { style: { display: 'grid', placeItems: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgb(94 227 154 / 0.16)', color: 'var(--ok)', font: '700 11px/1 var(--text)' } }, 'CSV'),
-    h('div', {}, h('div', {}, name), h('div', { style: { color: '#9aa0ae', fontSize: '12px' } }, '2.1 KB · Done')),
-  );
-  win.el.append(chip);
-  return chip;
-}
-
 // ======================= Unfollowers checker =======================
 const FAKE = [
   ['pixel.harbor', 'Pixel Harbor', 3, 'wave'],
@@ -50,43 +38,84 @@ const FAKE = [
   ['kai.outdoors', 'Kai Brennan', 44, 'peak'],
   ['nightbus.club', 'Night Bus Club', 58, 'dot'],
   ['lena.draws', 'Lena Vogel', 71, 'cup'],
-  ['studio.kalma', 'Studio Kalma', 77, 'dot'],
   ['the.slow.lane', 'The Slow Lane', 86, 'wave'],
   ['odd.ceramics', 'Odd Ceramics', 99, 'leaf'],
 ].map(([user, name, seed, motif]) => ({ user, name, pic: toUrl(avatar(seed, motif)) }));
+/** Unfollowed you since the scan before (so they are also in "Don't follow back"), then picked to unfollow. */
+const LOST = [0, 2, 6];
+const KEPT = 1;
+
+/** userRow() in src/content/features/unfollowers.ts. */
+const userRow = (u) => h('a', { class: 'ige-user' }, h('img', { src: u.pic, alt: '' }), h('span', { class: 'ige-user__names' }, h('strong', {}, u.user), h('span', {}, u.name)));
 
 export function unfollowers() {
   const [start, end] = SCENES.unfollowers;
   const root = h('div');
-  const cap = caption({ eyebrow: 'Account', icon: 'tools', title: ['See who doesn’t', '*follow you back.'], sub: 'Scan your followers and following, search the results, export them as CSV. Off by default.', x: 130, y: 300, width: 560, size: 70 });
+  const cap = caption({ eyebrow: 'Account', icon: 'tools', title: ['See who', '*unfollowed you.'], sub: 'Each scan is compared with the last one. Pick accounts and unfollow them slowly, with safety pauses and a keep list. Off by default.', x: 130, y: 280, width: 560, size: 70 });
   const win = browserWindow({ ...WIN, url: `instagram.com/${P.you.user}/` });
   style(win.el, { left: `${WIN.left}px`, top: `${WIN.top}px` });
-  const prof = profilePage(P.you, { posts: '86', followers: '1,284', following: '731', bio: ['Photos, mostly.'] });
+  const prof = profilePage(P.you, { posts: '86', followers: '1,282', following: '731', bio: ['Photos, mostly.'] });
   prof.header.querySelectorAll('.ig-btn').forEach((b, i) => (b.textContent = ['Edit profile', 'View archive'][i]));
   win.view.append(prof.ig);
   const layer = ggLayer(win.view);
 
-  // markup from src/content/features/unfollowers.ts
+  // markup from openUnfollowers() in src/content/features/unfollowers.ts
   const m = modal('Unfollowers checker', 560);
   const status = h('p', { class: 'ige-muted' });
-  const tabs = h('div', { class: 'ige-tabs' });
+  const tabs = h('div', { class: 'ige-tabs', role: 'tablist' });
   const search = h('input', { class: 'ige-input', type: 'search', placeholder: 'Search username or name' });
-  const list = h('div', { class: 'ige-userlist', style: { height: '300px', minHeight: '0' } });
+  const list = h('div', { class: 'ige-userlist', style: { height: '286px', minHeight: '0' } });
   const runBtn = h('button', { class: 'ige-btn ige-btn--primary', type: 'button' }, 'Scan');
   const exportBtn = h('button', { class: 'ige-btn ige-btn--ghost', type: 'button' }, 'Export CSV');
-  m.body.append(status, tabs, search, list);
-  m.footer.append(exportBtn, runBtn);
+  const unfollowBtn = h('button', { class: 'ige-btn ige-btn--danger is-hidden', type: 'button' }, 'Unfollow');
+  const pickAllBtn = h('button', { class: 'ige-btn ige-btn--ghost ige-btn--sm', type: 'button' }, 'Select all');
+  const pickCount = h('span', { class: 'ige-muted' });
+  const pickBar = h('div', { class: 'ige-pickbar' }, pickAllBtn, pickCount);
+  const cancelBtn = h('button', { class: 'ige-btn ige-btn--ghost ige-btn--sm', type: 'button' }, 'Cancel');
+  const goBtn = h('button', { class: 'ige-btn ige-btn--danger ige-btn--sm', type: 'button' }, 'Unfollow 3 accounts');
+  // askUnfollow() with the defaults: 3 accounts, 4 s apart → 2 waits × 4 s × 1.1 ≈ 9 s
+  const confirmBox = h(
+    'div',
+    { class: 'ige-warn ige-confirm', role: 'alert' },
+    h('p', {}, h('strong', {}, 'Unfollow 3 accounts?')),
+    h('p', {}, 'One every 4 s or so, with a 5 min pause after every 5: about 9 s in all. Keep this panel open, closing it stops the queue. It also stops by itself if Instagram blocks the action.'),
+    h('div', { class: 'ige-confirm__actions' }, cancelBtn, goBtn),
+  );
+  m.body.append(status, tabs, search, pickBar, confirmBox, list);
+  m.footer.append(exportBtn, unfollowBtn, runBtn);
   layer.append(m.root);
-  const rows = FAKE.map((u) => h('a', { class: 'ige-user' }, h('img', { src: u.pic, alt: '' }), h('span', { class: 'ige-user__names' }, h('strong', {}, u.user), h('span', {}, u.name))));
-  const empty = h('p', { class: 'ige-muted ige-empty' }, 'Press Scan to load your followers and following.');
-  const TABS = [["Don't follow back", 23], ["You don't follow", 576], ['Followers', 1284], ['Following', 731]];
-  const tabEls = TABS.map(([label], i) => h('button', { class: `ige-tab${i === 0 ? ' is-active' : ''}`, type: 'button' }, `${label} `, h('span', { class: 'ige-badge' }, '0')));
+  const toasts = toastEl(layer); // above the dialog backdrop, like the real stack
+
+  const TABS = ["Don't follow back", "You don't follow", 'Followers', 'Following', 'Changes'];
+  const tabEls = TABS.map((label) => h('button', { class: 'ige-tab', type: 'button', role: 'tab' }, `${label} `, h('span', { class: 'ige-badge' }, '0')));
   tabs.append(...tabEls);
-  const chip = downloadChip(win, 'instagram_notBack_2026-10-06.csv');
+
+  // "Don't follow back": pick rows (pickRow())
+  const boxes = [];
+  const keeps = [];
+  const pickRows = FAKE.map((u) => {
+    const box = h('input', { type: 'checkbox' });
+    const keep = h('button', { class: 'ige-btn ige-btn--sm ige-keep', type: 'button' }, 'Keep');
+    boxes.push(box);
+    keeps.push(keep);
+    return h('div', { class: 'ige-pickrow' }, box, userRow(u), keep);
+  });
+  // "Changes": the scan history, newest first (renderChanges())
+  const changes = [
+    h('p', { class: 'ige-hist__head' }, h('strong', {}, '11/4/2026, 9:41:07 PM'), ' · 1282 followers (−2) · 731 following (±0)'),
+    h('p', { class: 'ige-hist__group' }, 'Unfollowed you (3)'),
+    ...LOST.map((i) => userRow(FAKE[i])),
+    h('p', { class: 'ige-hist__group' }, 'New followers (1)'),
+    userRow({ user: P.fern.user, name: P.fern.name, pic: P.fern.pic }),
+    h('p', { class: 'ige-hist__head' }, h('strong', {}, '10/28/2026, 8:15:44 PM'), ' · First scan: 1284 followers · 731 following'),
+  ];
+  const empty = h('p', { class: 'ige-muted ige-empty' }, 'Press Scan to load your followers and following.');
   const cur = cursor(win.view);
   root.append(cap.el, win.el);
-  const QUERY = 'studio';
   let lastKey = '';
+
+  // the unfollow queue on the video's clock: [starts, confirmed] per picked account
+  const Q = LOST.map((_, i) => [UF.go + 0.05 + i * 0.62, UF.go + 0.45 + i * 0.62]);
 
   return {
     root,
@@ -94,52 +123,100 @@ export function unfollowers() {
       cap.update(t, start + 0.2);
       showModal(m, t, UF.open);
       const loaded = t >= UF.loaded;
-      // scan progress, the way unfollowers.ts reports it page by page
-      const fol = Math.round(731 * prog(t, UF.scan + 0.1, UF.scan + 0.55, ease.linear));
-      const fwr = Math.round(1284 * prog(t, UF.scan + 0.6, UF.loaded - 0.05, ease.linear));
+      const tab = loaded && t >= UF.changes && t < UF.back ? 4 : 0;
+      const kept = t >= UF.keep;
+      const picked = LOST.filter((_, i) => t >= UF.picks[i]);
+      const confirming = t >= UF.unfollow + 0.05 && t < UF.go;
+      const done = Q.filter(([, b]) => t >= b).length;
+      const unfollowing = t >= UF.go;
+      const gone = new Set(LOST.slice(0, done));
+
+      // scan progress, followers first, then following (ORDER in unfollowers.ts)
+      const fwr = Math.round(1282 * prog(t, UF.scan + 0.1, UF.scan + 0.6, ease.linear));
+      const fol = Math.round(731 * prog(t, UF.scan + 0.62, UF.loaded - 0.05, ease.linear));
       if (t < UF.scan) status.textContent = 'Not scanned yet.';
-      else if (!loaded) status.textContent = fwr > 0 ? `Loading followers… ${fwr}` : `Loading following… ${fol}`;
-      else status.textContent = 'Last scan: 10/6/2026, 9:41:07 PM · 1284 followers · 731 following';
+      else if (!loaded) status.textContent = fol > 0 ? `Loading following… ${fol}` : `Loading followers… ${fwr}`;
+      else if (!unfollowing) status.textContent = 'Last scan: 11/4/2026, 9:41:07 PM · 1282 followers · 731 following';
+      else {
+        const active = Q.findIndex(([a, b]) => t >= a && t < b);
+        status.textContent = active >= 0 ? `Unfollowing ${FAKE[LOST[active]].user} (${active + 1} of 3)…` : `Unfollowed ${done} of 3. Next in ${done === 1 ? 4 : 5} s…`;
+      }
       runBtn.textContent = t < UF.scan ? 'Scan' : loaded ? 'Rescan' : 'Pause';
+      runBtn.disabled = unfollowing;
+      const counts = loaded ? [23 - done, 574, 1282, 731 - done, 3] : [0, 0, fwr, fol, 0];
       tabEls.forEach((el, i) => {
-        const n = !loaded ? (i === 3 ? fol : i === 2 ? fwr : 0) : TABS[i][1];
-        el.lastChild.textContent = String(n);
+        el.classList.toggle('is-active', i === tab);
+        el.lastChild.textContent = String(counts[i]);
+        el.style.background = (Math.abs(t - UF.changes) < 0.2 && i === 4) || (Math.abs(t - UF.back) < 0.2 && i === 0) ? 'var(--ige-hover)' : '';
       });
-      const typed = QUERY.slice(0, Math.floor(clamp((t - UF.type) / 0.5) * QUERY.length + 0.001));
-      search.value = t >= UF.type ? typed : '';
-      search.style.outline = t >= UF.type - 0.15 ? '2px solid var(--ige-accent)' : '';
-      const shown = loaded ? FAKE.map((u, i) => [u, i]).filter(([u]) => !typed || u.user.includes(typed) || u.name.toLowerCase().includes(typed)) : [];
-      const key = shown.map(([, i]) => i).join(',') + (loaded ? '' : 'e');
+      // the tab row scrolls so "Changes" is in view while it is used
+      tabs.scrollLeft = kf(t, [[UF.changes - 0.5, 0], [UF.changes - 0.15, 400], [UF.back - 0.5, 400], [UF.back - 0.2, 0]]);
+
+      pickBar.hidden = !loaded || tab !== 0;
+      pickAllBtn.textContent = `Select all (${23 - done - (kept ? 1 : 0)})`;
+      pickAllBtn.disabled = unfollowing;
+      const sel = picked.length - done;
+      pickCount.textContent = [sel && `${sel} selected`, kept && '1 kept'].filter(Boolean).join(' · ');
+      confirmBox.hidden = !confirming;
+      list.style.height = confirming ? '190px' : '286px'; // keeps the taller dialog inside the window
+      goBtn.style.filter = Math.abs(t - UF.go) < 0.18 ? 'brightness(1.15)' : '';
+      unfollowBtn.classList.toggle('is-hidden', !picked.length);
+      unfollowBtn.textContent = unfollowing ? 'Stop' : `Unfollow ${picked.length}`;
+      unfollowBtn.disabled = confirming;
+      exportBtn.disabled = !loaded;
+
+      boxes.forEach((b, i) => {
+        b.checked = picked.includes(i) && !gone.has(i);
+        b.disabled = (kept && i === KEPT) || unfollowing;
+      });
+      pickRows[KEPT].classList.toggle('is-kept', kept);
+      keeps[KEPT].classList.toggle('is-active', kept);
+      keeps[KEPT].textContent = kept ? 'Kept' : 'Keep';
+      keeps.forEach((k) => (k.disabled = unfollowing));
+      keeps[KEPT].style.background = Math.abs(t - UF.keep) < 0.2 ? 'var(--ige-hover)' : '';
+
+      const key = !loaded ? 'e' : tab === 4 ? 'c' : `p${done}`;
       if (key !== lastKey) {
-        list.replaceChildren(...(loaded ? shown.map(([, i]) => rows[i]) : [empty]));
+        list.replaceChildren(...(key === 'e' ? [empty] : key === 'c' ? changes : pickRows.filter((_, i) => !gone.has(i))));
+        list.scrollTop = 0;
         lastKey = key;
       }
-      rows.forEach((r, i) => {
-        const p = prog(t, UF.loaded + 0.05 + i * 0.05, UF.loaded + 0.35 + i * 0.05, ease.outQuart);
-        style(r, { opacity: String(p), transform: `translateY(${(1 - p) * 10}px)` });
+      const rise = (els, t0) =>
+        els.forEach((r, i) => {
+          const p = prog(t, t0 + i * 0.05, t0 + 0.3 + i * 0.05, ease.outQuart);
+          style(r, { opacity: String(p), transform: `translateY(${(1 - p) * 10}px)` });
+        });
+      if (tab === 4) rise(changes, UF.changes + 0.05);
+      else rise(pickRows, t < UF.changes ? UF.loaded + 0.05 : UF.back + 0.05);
+      // the row being unfollowed dims until Instagram confirms
+      Q.forEach(([a, b], i) => {
+        if (t >= a && t < b) pickRows[LOST[i]].style.opacity = String(1 - 0.5 * prog(t, a, b));
       });
-      exportBtn.disabled = !loaded;
-      exportBtn.style.background = Math.abs(t - UF.export) < 0.2 ? 'var(--ige-hover)' : '';
-      const cp = prog(t, UF.export + 0.2, UF.export + 0.45, ease.outQuart);
-      style(chip, { opacity: String(cp), transform: `translateY(${(1 - cp) * -8}px)`, visibility: cp ? 'visible' : 'hidden' });
-      win.dl.hidden = t < UF.export + 0.15;
+      toasts.update(t, [[UF.loaded + 0.1, UF.changes + 1.2, 'Scan complete: 3 unfollowed you, 1 new follower.', 'success']]);
 
+      const at = (el, fx = 0.5, fy = 0.55) => () => pointIn(el, win.view, fx, fy);
       cur.update(t, {
         path: [
           [start + 0.3, { x: 820, y: 600 }],
-          [UF.scan - 0.12, () => pointIn(runBtn, win.view, 0.5, 0.55)],
-          [UF.loaded, () => pointIn(runBtn, win.view, 0.5, 0.55)],
-          [UF.type - 0.15, () => pointIn(search, win.view, 0.35, 0.55)],
-          [UF.export - 0.6, () => pointIn(search, win.view, 0.4, 0.6)],
-          [UF.export - 0.1, () => pointIn(exportBtn, win.view, 0.5, 0.55)],
+          [UF.scan - 0.12, at(runBtn)],
+          [UF.loaded, at(runBtn)],
+          [UF.changes - 0.12, at(tabEls[4], 0.4)],
+          [UF.changes + 0.6, at(tabEls[4], 0.4)],
+          [UF.back - 0.12, at(tabEls[0], 0.4)],
+          [UF.keep - 0.12, at(keeps[KEPT])],
+          ...LOST.map((i, k) => [UF.picks[k] - 0.08, at(boxes[i])]),
+          [UF.unfollow - 0.12, at(unfollowBtn)],
+          [UF.unfollow + 0.2, at(unfollowBtn)],
+          [UF.go - 0.12, at(goBtn)],
+          [end + 0.5, () => pointIn(goBtn, win.view, 0.5, 2.5)],
         ],
-        clicks: [UF.scan, UF.type - 0.15, UF.export],
+        clicks: [UF.scan, UF.changes, UF.back, UF.keep, ...UF.picks, UF.unfollow, UF.go],
         shapes: [[0, 'hand']],
         show: [start + 0.3, end + 1],
       });
       // camera: push in on the dialog so its 13px text reads
-      const z = kf(t, [[start, 1.0], [UF.scan, 1.12], [end + 0.5, 1.18, ease.linear]]);
-      const origin = '550px 378px';
+      const z = kf(t, [[start, 1.0], [UF.scan, 1.1], [end + 0.5, 1.14, ease.linear]]);
+      const origin = '550px 400px';
       style(prof.ig, { transformOrigin: origin, transform: `scale(${z})` });
       style(layer, { transformOrigin: origin, transform: `scale(${z})` });
     },
