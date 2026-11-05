@@ -502,11 +502,11 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 .ige-follow-badge[role='button'] { cursor: pointer; }
 .ige-follow-badge[role='button']:hover { filter: brightness(0.95); }
 .ige-follow-badge[role='button']:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-:host-context(html.__fb-dark-mode) .ige-follow-badge[role='button']:hover { filter: brightness(1.2); }
-:host-context(html.__fb-dark-mode) .ige-follow-badge { background: #2a2d32; color: #c9ced6; }
-:host-context(html.__fb-dark-mode) .ige-follow-badge--mutual { background: #123d25; color: #8de0ad; }
-:host-context(html.__fb-dark-mode) .ige-follow-badge--follower { background: #10304f; color: #9cc9ff; }
-:host-context(html.__fb-dark-mode) .ige-follow-badge--notback { background: #45250f; color: #ffbf8f; }
+.ige-follow-badge[data-ig-theme='dark'][role='button']:hover { filter: brightness(1.2); }
+.ige-follow-badge[data-ig-theme='dark'] { background: #2a2d32; color: #c9ced6; }
+.ige-follow-badge--mutual[data-ig-theme='dark'] { background: #123d25; color: #8de0ad; }
+.ige-follow-badge--follower[data-ig-theme='dark'] { background: #10304f; color: #9cc9ff; }
+.ige-follow-badge--notback[data-ig-theme='dark'] { background: #45250f; color: #ffbf8f; }
 
 /* ---------- focus mode ---------- */
 .ige-focus-veil {

@@ -52,9 +52,19 @@ let motion = true;
 /** Top elements of our shadow roots; they carry the theme and the animations setting. */
 const themed = new Set<HTMLElement>();
 
+/** Instagram's own theme, for UI that sits inline in its page (the follow badge). */
+const igTheme = () => (document.documentElement.classList.contains('__fb-dark-mode') ? 'dark' : 'light');
+let igThemeWatched = false;
+
 function applyLook(el: HTMLElement) {
   el.setAttribute('data-theme', theme);
   el.setAttribute('data-motion', motion ? 'on' : 'off');
+  // Not :host-context(html.__fb-dark-mode): Firefox has no :host-context().
+  el.setAttribute('data-ig-theme', igTheme());
+  if (!igThemeWatched) {
+    igThemeWatched = true;
+    new MutationObserver(refreshLook).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
 }
 
 function refreshLook() {
