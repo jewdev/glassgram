@@ -34,7 +34,7 @@
 ## See Glassgram in action
 
 <!-- markdownlint-disable-next-line MD034 -- GitHub embeds the video only from a bare URL -->
-https://github.com/user-attachments/assets/7901fa6e-2934-4989-9c95-73bea4ea19a2
+https://github.com/user-attachments/assets/abb1b6a7-bf13-4582-89c4-b036c513649f
 
 <sub>The Instagram pages in the video are a recreation with fictional accounts. The Glassgram pages are real.</sub>
 
