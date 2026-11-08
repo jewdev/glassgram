@@ -64,7 +64,7 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | :--- | :---: |
 | Hide sponsored posts | On |
 | Hide "Suggested for you" posts | Off |
-| Hide suggested accounts sidebar | Off |
+| Hide suggested accounts | Off |
 | Hide stories tray on home | Off |
 | Hide Reels tab | Off |
 | Hide Explore tab | Off |

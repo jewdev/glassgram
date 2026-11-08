@@ -233,7 +233,7 @@ export const SECTIONS: Section[] = [
       },
       { type: 'toggle', key: 'declutter.ads', label: 'Hide sponsored posts', short: 'Hide ads', quick: true },
       { type: 'toggle', key: 'declutter.suggested', label: 'Hide suggested posts & reels' },
-      { type: 'toggle', key: 'declutter.sidebarSuggestions', label: 'Hide suggested accounts sidebar' },
+      { type: 'toggle', key: 'declutter.sidebarSuggestions', label: 'Hide suggested accounts' },
       { type: 'toggle', key: 'declutter.storiesTray', label: 'Hide stories tray on Home' },
       { type: 'toggle', key: 'declutter.reelsTab', label: 'Hide Reels tab' },
       { type: 'toggle', key: 'declutter.exploreTab', label: 'Hide Explore tab' },

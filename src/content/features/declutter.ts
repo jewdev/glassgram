@@ -125,6 +125,22 @@ function tagHome() {
   }
 }
 
+function tagProfile() {
+  if (currentRoute().kind !== 'profile') return;
+  const main = document.querySelector(SEL.main);
+  if (!main || has('sidebar', main)) return;
+  // Private profiles (and public ones after Follow) show a "Suggested for you" carousel under the
+  // header. Climb from the heading to the block that sits next to the profile header.
+  const heading = [...main.querySelectorAll('h1, h2, h3, h4, h5, h6, span')].find(
+    (el) => !seen.has(el) && el.childElementCount === 0 && SUGGESTED_WORDS.includes(el.textContent?.trim() ?? '') && !el.closest(SEL.article),
+  );
+  if (!heading) return;
+  seen.add(heading);
+  let block: Element = heading;
+  while (block.parentElement && block.parentElement !== main && !block.parentElement.querySelector('header')) block = block.parentElement;
+  if (block !== heading && block.parentElement !== main) kinds.set(block, 'sidebar');
+}
+
 function hide(el: HTMLElement, styles: Record<string, string>) {
   if (hidden.has(el)) return;
   const prev = new Map<string, [string, string]>();
@@ -165,6 +181,7 @@ export const declutter: Feature = {
       tagFeed();
       tagNav();
       tagHome();
+      tagProfile();
       apply(getSettings());
     });
     return () => {
