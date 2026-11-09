@@ -19,6 +19,8 @@ export const SEL = {
 
 /** Words Instagram uses to label ads / suggestions (a few common locales). */
 export const SPONSORED_WORDS = ['Sponsored', 'Paid partnership', 'Gesponsert', 'Sponsorisé', 'Patrocinado', 'Sponsorizzato', 'Реклама', 'ממומן', 'Gesponsord', 'Sponsorlu'];
+/** The label on ad reels in the Reels tab (a few common locales). */
+export const REEL_AD_WORDS = ['Ad', 'Anzeige', 'Publicité', 'Anuncio', 'Annuncio', 'Advertentie', 'Реклама', 'מודעה', 'ממומן', 'Reklam', 'Sponsored'];
 export const SUGGESTED_WORDS = ['Suggested for you', 'Suggested posts', 'Suggested reels', 'Vorgeschlagen für dich', 'Suggestions pour vous', 'Sugerencias para ti', 'Suggeriti per te', 'הצעות בשבילך'];
 
 /** aria-labels of the story viewer's play/pause toggle icon (a few common locales). */

@@ -123,7 +123,7 @@ closes.
 
 ### 🧹 Feed and video
 
-- **Declutter**: hide ads, suggested posts and accounts, stories tray, Reels and Explore tabs, Threads links.
+- **Declutter**: hide ads (and skip ad reels), suggested posts and accounts, stories tray, Reels and Explore tabs, Threads links.
 - **Following-only feed**, **no double-click likes**.
 - **Focus mode**: a daily time limit for Reels and Explore, a time-left timer and optional grayscale. Off by default.
 - **Reel counter** on every reel: how many reels you've watched today. Off by default.

@@ -65,7 +65,7 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 
 | Setting | Default |
 | :--- | :---: |
-| Hide sponsored posts | On |
+| Hide sponsored posts | On (also skips ad reels on the Reels tab) |
 | Hide "Suggested for you" posts | Off |
 | Mute words & accounts | Empty (Home feed only. Comma-separated; `@name` mutes an account, words match whole words in the post) |
 | Hide suggested accounts | Off |

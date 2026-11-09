@@ -236,7 +236,7 @@ export const SECTIONS: Section[] = [
         desc: 'Home always opens the chronological feed of accounts you follow.',
         quick: true,
       },
-      { type: 'toggle', key: 'declutter.ads', label: 'Hide sponsored posts', short: 'Hide ads', quick: true },
+      { type: 'toggle', key: 'declutter.ads', label: 'Hide sponsored posts', short: 'Hide ads', desc: 'Also skips ad reels on the Reels tab.', quick: true },
       { type: 'toggle', key: 'declutter.suggested', label: 'Hide suggested posts & reels' },
       {
         type: 'text',
