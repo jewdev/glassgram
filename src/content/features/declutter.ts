@@ -37,6 +37,33 @@ const REMOVE: Record<string, string> = { display: 'none' };
  */
 const COLLAPSE: Record<string, string> = { height: '1px', 'min-height': '0', overflow: 'hidden', visibility: 'hidden', margin: '0', padding: '0', border: '0' };
 
+/**
+ * Firefox's scroll anchoring pulls the feed back up, again and again, while posts in it are
+ * collapsed (measured: the browser scrolls, not Instagram, and the jumps stop without anchoring).
+ * Chromium's doesn't, so only Firefox turns anchoring off, and only on Home while posts may collapse.
+ */
+const FIREFOX = chrome.runtime.getURL('').startsWith('moz-extension:');
+const COLLAPSE_KINDS: Kind[] = ['ad', 'suggested', 'muted'];
+let anchorOff: { el: HTMLElement; value: string; priority: string }[] | undefined;
+
+function syncAnchoring(s: Settings, on = true) {
+  if (!FIREFOX) return;
+  const want = on && currentRoute().kind === 'home' && COLLAPSE_KINDS.some((k) => !!s[SETTING_FOR[k]]);
+  if (want && !anchorOff) {
+    anchorOff = [document.documentElement, document.body].filter(Boolean).map((el) => {
+      const prev = { el, value: el.style.getPropertyValue('overflow-anchor'), priority: el.style.getPropertyPriority('overflow-anchor') };
+      el.style.setProperty('overflow-anchor', 'none', 'important');
+      return prev;
+    });
+  } else if (!want && anchorOff) {
+    for (const { el, value, priority } of anchorOff) {
+      if (value) el.style.setProperty('overflow-anchor', value, priority);
+      else el.style.removeProperty('overflow-anchor');
+    }
+    anchorOff = undefined;
+  }
+}
+
 function stylesFor(kind: Kind): Record<string, string> {
   return kind === 'ad' || kind === 'suggested' || kind === 'muted' ? COLLAPSE : REMOVE;
 }
@@ -72,6 +99,11 @@ function soleWrapper(el: Element): Element {
 function tagFeed() {
   for (const art of document.querySelectorAll<HTMLElement>(SEL.article)) {
     if (kinds.has(art)) continue;
+    // Never collapse a post that starts above the screen: the page would shift up under you. Instagram's
+    // feed also unmounts posts you scrolled past and mounts them again as new elements, so in a run
+    // of suggested posts each collapse made it mount more above, and the feed kept jumping back.
+    // Posts below are hidden before you reach them; one you already scrolled past stays as it is.
+    if (!art.closest(SEL.dialog) && art.getBoundingClientRect().top < 0) continue;
     const n = checks.get(art) ?? 0;
     if (n >= MAX_CHECKS) continue;
     checks.set(art, n + 1);
@@ -200,6 +232,7 @@ export const declutter: Feature = {
   start() {
     const off = onDomChange(() => {
       syncMute(getSettings());
+      syncAnchoring(getSettings());
       tagFeed();
       tagNav();
       tagHome();
@@ -214,10 +247,12 @@ export const declutter: Feature = {
       seen = new WeakSet();
       muteText = '';
       mute = parseMuteList('');
+      syncAnchoring(getSettings(), false);
     };
   },
   onSettings(s) {
     syncMute(s);
+    syncAnchoring(s);
     tagFeed();
     apply(s);
   },
