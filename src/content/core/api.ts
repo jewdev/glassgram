@@ -3,7 +3,7 @@ import type { ResolvedPost } from '../../shared/types';
 import { linksExpireAt, normalizeMedia, type ApiMedia } from './media';
 import { bridge, bridgeSafe, onPage } from './bridge';
 import { randomPageId, restHeaders } from './headers';
-import { isRateLimited } from './rate-limit';
+import { isChallengeUrl, isRateLimited } from './rate-limit';
 import { shortcodeToPk } from './shortcode';
 import { extractStoryExtras } from './story-extras';
 
@@ -111,6 +111,11 @@ export async function igGet<T>(path: string, opts: { ownRetry?: boolean } = {}):
     if (opts.ownRetry) throw new ApiError('Instagram is rate-limiting requests.', 429, true);
     startCooldown();
     throw new ApiError(RATE_LIMIT_MSG, 429, true);
+  }
+  // A checkpoint answers with a redirect to its page: keep away like on a rate limit.
+  if (res.redirected && isChallengeUrl(res.url)) {
+    if (!opts.ownRetry) startCooldown();
+    throw new ApiError('Instagram wants you to confirm your account. Open instagram.com, finish its check, then try again.', res.status, true);
   }
   if (res.status === 401) throw new ApiError('Instagram refused the request. Make sure you are logged in.', 401);
   const text = await res.text();

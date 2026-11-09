@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isRateLimited } from '../src/content/core/rate-limit';
+import { isChallengeUrl, isRateLimited } from '../src/content/core/rate-limit';
 
 describe('isRateLimited', () => {
   it("flags Instagram's slow-down answers", () => {
     expect(isRateLimited({ message: 'feedback_required', feedback_title: 'Try Again Later' })).toBe(true);
     expect(isRateLimited({ message: 'checkpoint_required' })).toBe(true);
+    expect(isRateLimited({ message: 'challenge_required' })).toBe(true);
     expect(isRateLimited({ message: 'Please wait a few minutes before you try again.' })).toBe(true);
     expect(isRateLimited({ message: 'Something odd', spam: true })).toBe(true);
   });
@@ -16,5 +17,15 @@ describe('isRateLimited', () => {
     expect(isRateLimited({ message: 'checkpoint_url missing' })).toBe(false);
     expect(isRateLimited({})).toBe(false);
     expect(isRateLimited(null)).toBe(false);
+  });
+});
+
+describe('isChallengeUrl', () => {
+  it("spots Instagram's checkpoint pages", () => {
+    expect(isChallengeUrl('https://www.instagram.com/challenge/?next=/api/v1/x/')).toBe(true);
+    expect(isChallengeUrl('https://www.instagram.com/accounts/suspended/?next=%2F')).toBe(true);
+    expect(isChallengeUrl('https://www.instagram.com/accounts/login/?next=%2F')).toBe(false);
+    expect(isChallengeUrl('https://www.instagram.com/challenge_fan/')).toBe(false);
+    expect(isChallengeUrl('not a url')).toBe(false);
   });
 });

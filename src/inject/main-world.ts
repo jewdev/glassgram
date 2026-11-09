@@ -625,6 +625,9 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
   }
 
   // ---------------- RPC for the content script ----------------
+  /** Instagram sent the request to its "verify it's you" or suspended-account page. */
+  const checkpointed = (res: Response) => res.redirected && /^https:\/\/[^/]+\/(challenge|accounts\/suspended)\//.test(res.url);
+
   async function replay(name: string, patch: (vars: Record<string, unknown>) => Record<string, unknown>) {
     const t = templates.get(name);
     if (!t) throw new Error(`NO_TEMPLATE:${name}`);
@@ -635,7 +638,7 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
     const headers = { ...t.headers };
     for (const k of Object.keys(headers)) if (/^x-fb-lsd$/i.test(k) && tokens.lsd) headers[k] = tokens.lsd;
     const res = await nativeFetch(t.url, { method: 'POST', credentials: 'include', headers, body: params.toString() });
-    if (res.status === 429) throw new Error('RATE_LIMITED');
+    if (res.status === 429 || checkpointed(res)) throw new Error('RATE_LIMITED');
     const text = await res.text();
     const json = apply(natives.parse, JSON, [text.startsWith('for (;;);') ? text.slice(9) : text]);
     if (json.errors?.length && !json.data) throw new Error(json.errors[0].message ?? 'GraphQL error');
@@ -698,7 +701,7 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
     return undefined;
   }
 
-  const BLOCKED_RE = /feedback_required|checkpoint|action_blocked|try again later|rate limit|please wait a few minutes/i;
+  const BLOCKED_RE = /feedback_required|checkpoint|challenge_required|action_blocked|try again later|rate limit|please wait a few minutes/i;
 
   /**
    * Unfollows `id`. `following` is what Instagram's answer says about the follow afterwards, when it
@@ -759,7 +762,7 @@ import { apply, defineProperty, disguise, dispatchLater, later, natives, nativeF
       /* not JSON: reported below */
     }
     const errText = `${apply(natives.stringify, JSON, [data?.errors ?? data?.error ?? ''])} ${data?.message ?? ''} ${data?.errorSummary ?? ''}`.trim();
-    if (res.status === 429 || data?.spam === true || BLOCKED_RE.test(errText)) return { outcome: 'blocked', detail: `HTTP ${res.status} ${errText}`.trim() };
+    if (res.status === 429 || checkpointed(res) || data?.spam === true || BLOCKED_RE.test(errText)) return { outcome: 'blocked', detail: `HTTP ${res.status} ${errText}`.trim() };
     // A 2xx alone proves nothing: Instagram answers unknown routes with a 200 HTML page.
     if (!res.ok || !data || data.errors || data.error || data.status === 'fail' || !data.data) {
       return { outcome: 'failed', detail: data ? `HTTP ${res.status} ${errText || 'no data'}` : `HTTP ${res.status}, not JSON` };
