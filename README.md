@@ -127,7 +127,7 @@ closes.
 - **Following-only feed**, **no double-click likes**.
 - **Focus mode**: a daily time limit for Reels and Explore, a time-left timer and optional grayscale. Off by default.
 - **Reel counter** on every reel: how many reels you've watched today. Off by default.
-- **Video controls**: seek, speed, volume, loop, picture in picture, autoplay off.
+- **Video controls**: seek, speed, volume, loop, picture in picture, autoplay off, and next reel when one ends (off by default).
 
 ### 🔒 Privacy and links
 

@@ -42,6 +42,7 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | Disable double-click like | On | |
 | Video control bar | On | Seek, speed, volume, loop, picture in picture (Chromium; Firefox has its own button), fullscreen |
 | Disable video autoplay | Off | Stories still play |
+| Next reel when one ends | Off | Reels tab only. Waits while comments are open; Focus mode still stops it at your limit |
 | Default playback speed | 1× | 0.5× to 3× |
 | Remember volume | On | |
 | Loop videos | On | |

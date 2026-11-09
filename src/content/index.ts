@@ -18,6 +18,7 @@ import { noDoubleTap } from './features/no-double-tap';
 import { mediaToolbar } from './features/media-toolbar';
 import { profileTools } from './features/profile-tools';
 import { reelCounter } from './features/reel-counter';
+import { reelsAutoScroll } from './features/reels-autoscroll';
 import { shortcuts } from './features/shortcuts';
 import { storyNoAdvance } from './features/story-no-advance';
 import { timestamps } from './features/timestamps';
@@ -44,6 +45,7 @@ const FEATURES: Feature[] = [
   followingFeed,
   noDoubleTap,
   noAutoplay,
+  reelsAutoScroll,
   copyComment,
   commentMedia,
   storyNoAdvance,

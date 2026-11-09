@@ -42,6 +42,7 @@ export const DEFAULTS = {
   // Video
   'video.enabled': true,
   'video.noAutoplay': false,
+  'video.autoScroll': false,
   'video.speed': '1',
   'video.rememberVolume': true,
   'video.loop': true,
@@ -307,6 +308,7 @@ export const SECTIONS: Section[] = [
       { type: 'toggle', key: 'video.rememberVolume', label: 'Remember volume', dependsOn: 'video.enabled' },
       { type: 'toggle', key: 'video.loop', label: 'Loop videos', dependsOn: 'video.enabled' },
       { type: 'toggle', key: 'video.noAutoplay', label: 'Disable autoplay', desc: "Videos wait until you click them. Stories still play." },
+      { type: 'toggle', key: 'video.autoScroll', label: 'Next reel when one ends', desc: 'On the Reels tab, moves to the next reel when the one playing finishes, so you can watch hands-free. It stays put while the comments are open, and Focus mode still stops it at your daily limit.' },
     ],
   },
   {
