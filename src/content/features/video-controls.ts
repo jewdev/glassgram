@@ -1,8 +1,10 @@
 import { onHover } from '../core/hover';
+import { contextFor, resolveTarget } from '../core/resolve';
 import { currentRoute } from '../core/router';
 import { isOwnUi } from '../core/selectors';
 import { getSettings } from '../core/state';
 import { h, icon, ICONS, uiLayer } from '../ui/dom';
+import { toast } from '../ui/toast';
 import type { Feature } from './types';
 
 const VOLUME_KEY = 'video.volume';
@@ -155,9 +157,12 @@ export const videoControls: Feature = {
     const vol = h('input', { class: 'ige-range ige-vbar__vol', type: 'range', min: '0', max: '1', step: '0.05', value: '1', 'aria-label': 'Volume' });
     const loopBtn = h('button', { class: 'ige-btn ige-btn--sm', type: 'button', title: 'Loop', html: icon(ICONS.loop, 16) });
 
+    // Firefox has no picture-in-picture API (it puts its own PiP button on videos), so no button there.
+    const pipSupported = 'pictureInPictureEnabled' in document && document.pictureInPictureEnabled;
+    const pipBtn = h('button', { class: 'ige-btn ige-btn--sm', type: 'button', title: 'Picture in picture', html: icon(ICONS.pip, 16) });
     const fsBtn = h('button', { class: 'ige-btn ige-btn--sm', type: 'button', title: 'Fullscreen', html: icon(ICONS.fullscreen, 16) });
 
-    const bar = h('div', { class: 'ige-vbar' }, playBtn, time, seek, speed, muteBtn, vol, loopBtn, fsBtn);
+    const bar = h('div', { class: 'ige-vbar' }, playBtn, time, seek, speed, muteBtn, vol, loopBtn, ...(pipSupported ? [pipBtn] : []), fsBtn);
     uiLayer().append(bar);
 
     const render = () => {
@@ -174,6 +179,7 @@ export const videoControls: Feature = {
         speed.value = rate;
       }
       loopBtn.classList.toggle('is-active', video.loop);
+      pipBtn.classList.toggle('is-active', !!pipSource && pipSource === video);
     };
 
     const events = ['timeupdate', 'play', 'pause', 'volumechange', 'ratechange', 'durationchange', 'loadedmetadata'];
@@ -190,7 +196,11 @@ export const videoControls: Feature = {
     bar.addEventListener('mousedown', stop);
     bar.addEventListener('keydown', stop);
 
-    playBtn.addEventListener('click', () => video && (video.paused ? video.play().catch(() => {}) : video.pause()));
+    playBtn.addEventListener('click', () => {
+      if (!video) return;
+      if (video.paused) video.play().catch(() => {});
+      else video.pause();
+    });
     seek.addEventListener('input', () => {
       seeking = true;
       if (video?.duration) video.currentTime = (Number(seek.value) / 1000) * video.duration;
@@ -249,6 +259,115 @@ export const videoControls: Feature = {
       v.style.setProperty('object-fit', 'contain', 'important');
       v.requestFullscreen().catch(restoreFullscreen);
     });
+    // Picture in picture plays Glassgram's own copy of the video (the post's MP4, as downloads get it)
+    // in a hidden element of ours. Instagram pauses its videos when they scroll away or the tab is
+    // hidden, and keeps pausing them; it can't reach ours. Its own video is paused meanwhile, and
+    // picks up where the copy left off when PiP closes.
+    /** Instagram's video in PiP (or our copy's source), and our copy. */
+    let pipSource: HTMLVideoElement | null = null;
+    let pipCopy: HTMLVideoElement | null = null;
+    const session = 'mediaSession' in navigator ? navigator.mediaSession : undefined;
+    /** The PiP window's play/pause go to the media session, where Instagram may have its own handlers. */
+    const setSessionHandlers = (target: HTMLVideoElement | null) => {
+      try {
+        session?.setActionHandler('play', target ? () => void target.play().catch(() => {}) : null);
+        session?.setActionHandler('pause', target ? () => target.pause() : null);
+      } catch {
+        /* action not supported */
+      }
+    };
+    const onLeavePip = () => {
+      const copy = pipCopy;
+      const source = pipSource;
+      pipCopy = null;
+      pipSource = null;
+      setSessionHandlers(null);
+      if (copy) {
+        const wasPlaying = !copy.paused && !copy.ended;
+        if (source?.isConnected && Number.isFinite(copy.currentTime)) {
+          source.currentTime = copy.currentTime;
+          if (wasPlaying) source.play().catch(() => {});
+        }
+        copy.pause();
+        copy.removeAttribute('src');
+        copy.load();
+        copy.remove();
+      }
+      render();
+    };
+    /** Our copy of `v`, loaded and at the same spot, or null when its file can't be found or played. */
+    const makeCopy = async (v: HTMLVideoElement): Promise<HTMLVideoElement | null> => {
+      const ctx = contextFor(v);
+      if (!ctx || ctx.kind === 'avatar') return null;
+      const t = await resolveTarget(ctx).catch(() => null);
+      const item = t && t.index >= 0 ? t.post.items[t.index] : undefined;
+      if (item?.type !== 'video' || !item.url) return null;
+      const copy = h('video', { class: 'ige-pip-copy', playsinline: '', preload: 'auto' });
+      copy.src = item.url;
+      copy.muted = v.muted;
+      copy.volume = v.volume;
+      copy.loop = wantsLoop(v);
+      uiLayer().append(copy);
+      const ready = await new Promise<boolean>((resolve) => {
+        const done = (ok: boolean) => {
+          clearTimeout(timer);
+          copy.removeEventListener('loadedmetadata', onMeta);
+          copy.removeEventListener('error', onErr);
+          resolve(ok);
+        };
+        const onMeta = () => done(true);
+        const onErr = () => done(false);
+        const timer = setTimeout(() => done(false), 4000);
+        copy.addEventListener('loadedmetadata', onMeta);
+        copy.addEventListener('error', onErr);
+      });
+      if (!ready) {
+        copy.remove();
+        return null;
+      }
+      copy.currentTime = v.currentTime;
+      copy.playbackRate = v.playbackRate > 0 ? v.playbackRate : 1;
+      return copy;
+    };
+    pipBtn.addEventListener('click', async () => {
+      const v = video;
+      if (!v) return;
+      if (document.pictureInPictureElement && (pipSource === v || document.pictureInPictureElement === v)) {
+        await document.exitPictureInPicture().catch(() => {});
+        return;
+      }
+      if (pipCopy || pipSource) {
+        await document.exitPictureInPicture().catch(() => {});
+        onLeavePip();
+      }
+      pipBtn.disabled = true;
+      try {
+        const copy = await makeCopy(v);
+        if (copy) {
+          await copy.requestPictureInPicture();
+          pipCopy = copy;
+          pipSource = v;
+          copy.addEventListener('leavepictureinpicture', onLeavePip, { once: true });
+          setSessionHandlers(copy);
+          await copy.play().catch(() => {});
+          v.pause();
+        } else {
+          // No file of our own: Instagram's video itself, which it pauses once it's out of view.
+          v.disablePictureInPicture = false;
+          await v.requestPictureInPicture();
+          pipSource = v;
+          v.addEventListener('leavepictureinpicture', onLeavePip, { once: true });
+        }
+      } catch (e) {
+        pipCopy?.remove();
+        console.debug('[IGE] picture in picture failed', e);
+        toast("Couldn't open picture in picture. Try again.", 'error');
+      } finally {
+        pipBtn.disabled = false;
+        render();
+      }
+    });
+
     const onFullscreen = () => {
       if (!document.fullscreenElement) restoreFullscreen();
     };
@@ -272,6 +391,8 @@ export const videoControls: Feature = {
 
     return () => {
       off();
+      if (pipSource && document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+      onLeavePip();
       bind(null);
       chrome.storage.onChanged.removeListener(onStorage);
       document.removeEventListener('play', onPlay, true);

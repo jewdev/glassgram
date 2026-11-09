@@ -296,7 +296,7 @@ export const SECTIONS: Section[] = [
     icon: 'play',
     half: 'everyday',
     items: [
-      { type: 'toggle', key: 'video.enabled', label: 'Video control bar', short: 'Video controls', desc: 'Seek bar, speed, volume and loop when you hover a video.', quick: true },
+      { type: 'toggle', key: 'video.enabled', label: 'Video control bar', short: 'Video controls', desc: 'Seek bar, speed, volume, loop, picture in picture and fullscreen when you hover a video. Firefox has its own picture-in-picture button.', quick: true },
       {
         type: 'select',
         key: 'video.speed',

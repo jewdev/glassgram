@@ -591,3 +591,6 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 }
 /* Animations turned off in the settings sidebar (data-motion is set in dom.ts). */
 [data-motion='off'], [data-motion='off'] *, [data-motion='off'] *::before, [data-motion='off'] *::after { transition: none !important; animation: none !important; }
+
+/* Our copy of a video for picture in picture: playing, but not shown on the page. */
+.ige-pip-copy { position: fixed; left: 0; top: 0; width: 2px; height: 2px; opacity: 0; pointer-events: none; }

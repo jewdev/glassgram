@@ -40,7 +40,7 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | :--- | :---: | :--- |
 | Following-only feed | Off | Home opens the Following feed |
 | Disable double-click like | On | |
-| Video control bar | On | Seek, speed, volume, loop |
+| Video control bar | On | Seek, speed, volume, loop, picture in picture (Chromium; Firefox has its own button), fullscreen |
 | Disable video autoplay | Off | Stories still play |
 | Default playback speed | 1× | 0.5× to 3× |
 | Remember volume | On | |
