@@ -6,6 +6,8 @@ export interface Route {
   username?: string;
   storyId?: string;
   highlightId?: string;
+  /** Your saved posts: 'all', or a collection's id. */
+  saved?: string;
 }
 
 const RESERVED = new Set([
@@ -29,6 +31,8 @@ export function parseRoute(pathname: string): Route {
   if (RESERVED.has(a)) return { kind: 'other' };
   // /{user}/p/{code}/ and /{user}/reel/{code}/
   if ((b === 'p' || b === 'reel') && c) return { kind: b === 'p' ? 'post' : 'reel', shortcode: c, username: a };
+  // /{user}/saved/ and /{user}/saved/all-posts/: everything; /{user}/saved/{name}/{id}/: one collection.
+  if (b === 'saved') return { kind: 'profile', username: a, saved: parts[3] && /^\d+$/.test(parts[3]) ? parts[3] : 'all' };
   return { kind: 'profile', username: a };
 }
 

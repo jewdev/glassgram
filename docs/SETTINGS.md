@@ -27,8 +27,10 @@ Every Glassgram setting and its default. Open the settings page from the extensi
 | HD profile picture | On | Zoom, download, copy URL |
 | Follow status badge | On | Next to the username. Click it for details |
 | Don't auto-advance stories | Off | Each story stops at its end |
-| Bulk download profile posts | Off | The floating button on profiles |
+| Bulk download profile posts | Off | The floating button on profiles. **List only (CSV)** saves links, authors, dates and captions without media |
 | Bulk delay between requests | 1.5 to 3.5 s | Spacing for bulk download |
+| Download saved posts | Off | The floating button on your Saved tab: all saved posts or the open collection. **List only (CSV)** saves links, authors, dates and captions without media |
+| Saved posts delay between requests | 1.5 to 3.5 s | Spacing for saved posts download |
 
 </details>
 <details>

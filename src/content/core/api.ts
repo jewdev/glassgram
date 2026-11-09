@@ -394,6 +394,24 @@ export async function getUserFeedPage(username: string, cursor?: string) {
   }
 }
 
+interface SavedResponse {
+  items?: { media?: ApiMedia }[];
+  more_available?: boolean;
+  next_max_id?: string | number;
+}
+
+/**
+ * One page of your saved posts (`collection` 'all') or of one collection, with the request
+ * instagram.com's own Saved page sends.
+ */
+export async function getSavedPage(collection: string, maxId?: string) {
+  const base = collection === 'all' ? '/api/v1/feed/saved/posts/' : `/api/v1/feed/collection/${encodeURIComponent(collection)}/posts/`;
+  const data = await igGet<SavedResponse>(maxId ? `${base}?${new URLSearchParams({ max_id: maxId })}` : base);
+  const posts = (data.items ?? []).map((it) => it.media ?? null).filter(hasMedia).map((m) => normalizeMedia(m));
+  const more = data.more_available === true && data.next_max_id != null && data.next_max_id !== '' && posts.length > 0;
+  return { posts, next: more ? String(data.next_max_id) : undefined };
+}
+
 export interface FriendUser {
   pk: string;
   username: string;

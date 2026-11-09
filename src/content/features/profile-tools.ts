@@ -2,16 +2,16 @@ import { getUserId, myUserId } from '../core/api';
 import { currentRoute, onRouteChange, type Route } from '../core/router';
 import { getSettings } from '../core/state';
 import { h, icon, ICONS, uiLayer } from '../ui/dom';
-import { openBulkDownload } from './bulk-download';
+import { openBulkDownload, openSavedDownload } from './bulk-download';
 import { openUnfollowers } from './unfollowers';
 import type { Feature } from './types';
 
 let refresh: (() => void) | undefined;
 
-/** Floating action button on profile pages: bulk download + unfollowers checker. */
+/** Floating action button on profile pages: bulk download, saved posts download, unfollowers checker. */
 export const profileTools: Feature = {
   id: 'profile-tools',
-  isEnabled: (s) => s['bulk.enabled'] || s['account.unfollowers'],
+  isEnabled: (s) => s['bulk.enabled'] || s['saved.enabled'] || s['account.unfollowers'],
   start() {
     const menu = h('div', { class: 'ige-fab__menu', role: 'menu' });
     const fab = h('button', { class: 'ige-fab__btn', type: 'button', title: 'Glassgram tools', 'aria-haspopup': 'menu', html: icon(ICONS.spark, 20) });
@@ -38,7 +38,12 @@ export const profileTools: Feature = {
       const s = getSettings();
       const username = r.username;
       const items: HTMLElement[] = [];
-      if (s['bulk.enabled']) {
+      if (r.saved) {
+        // Instagram shows the Saved tab only on your own profile.
+        const saved = r.saved;
+        const label = saved === 'all' ? 'Download saved posts' : 'Download this collection';
+        if (s['saved.enabled']) items.push(h('button', { class: 'ige-menuitem', type: 'button', role: 'menuitem', onClick: () => (toggle(false), openSavedDownload(saved)), html: `${icon(ICONS.grid, 16)}<span>${label}</span>` }));
+      } else if (s['bulk.enabled']) {
         items.push(h('button', { class: 'ige-menuitem', type: 'button', role: 'menuitem', onClick: () => (toggle(false), openBulkDownload(username)), html: `${icon(ICONS.grid, 16)}<span>Download all posts</span>` }));
       }
       if (s['account.unfollowers']) {

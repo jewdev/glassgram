@@ -108,7 +108,8 @@ closes.
 - **Video or sound**: on any reel, video or story, the download button lets you save just the sound as MP3. Converted on your computer.
 - **Filename templates** with folders, e.g. `Glassgram/{user}/{user}_{date}_{shortcode}_{index}`.
 - **ZIP or separate files** for carousels and story trays.
-- **Bulk profile download** of the latest N posts. Off by default.
+- **Bulk profile download** of the latest N posts, or just a list of them as CSV. Off by default.
+- **Saved posts download** of everything you saved or one collection, or just a list as CSV. Off by default.
 - **Right-click download** and **voice message download** in chats.
 - **Keep unsent messages**: when someone unsends a message, it stays visible with an unsent mark, and the list can be saved to a file. Off by default.
 
