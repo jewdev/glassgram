@@ -58,6 +58,7 @@ export const DEFAULTS = {
   'declutter.exploreTab': false,
   'declutter.threads': true,
   'declutter.storiesTray': false,
+  'declutter.muteWords': '',
 
   // Shortcuts
   'shortcuts.enabled': true,
@@ -233,6 +234,13 @@ export const SECTIONS: Section[] = [
       },
       { type: 'toggle', key: 'declutter.ads', label: 'Hide sponsored posts', short: 'Hide ads', quick: true },
       { type: 'toggle', key: 'declutter.suggested', label: 'Hide suggested posts & reels' },
+      {
+        type: 'text',
+        key: 'declutter.muteWords',
+        label: 'Mute words & accounts',
+        placeholder: 'spoiler, giveaway, @someaccount',
+        help: 'Hides posts in your Home feed that mention a word or come from an account. Separate entries with commas; start accounts with @. Words match whole words in the post, ignoring case. Leave empty to mute nothing.',
+      },
       { type: 'toggle', key: 'declutter.sidebarSuggestions', label: 'Hide suggested accounts' },
       { type: 'toggle', key: 'declutter.storiesTray', label: 'Hide stories tray on Home' },
       { type: 'toggle', key: 'declutter.reelsTab', label: 'Hide Reels tab' },

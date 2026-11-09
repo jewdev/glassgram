@@ -1,4 +1,5 @@
 import { renderFilename } from '../content/core/filename';
+import { parseMuteList } from '../content/core/mute';
 import { controlFor, switchControl } from '../shared/controls';
 import { sectionIcon } from '../shared/icons';
 import type { Message } from '../shared/messages';
@@ -55,21 +56,45 @@ function showStatus(text: string, error: boolean) {
 const flashSaved = () => showStatus('Saved', false);
 const showNotice = (text: string) => showStatus(text, true);
 
+// ---------------- mute list status ----------------
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
+
+/** What the mute list hides, in words: "Muting 2 accounts and 1 word." */
+function muteSummary(text: string): string {
+  const { accounts, words } = parseMuteList(text);
+  const parts = [accounts.size && plural(accounts.size, 'account'), words.length && plural(words.length, 'word')].filter(Boolean);
+  return parts.length ? `Muting ${parts.join(' and ')}.` : 'Nothing muted.';
+}
+
+/** The line under the mute field: saving, saved (with what's muted), or a failed save. */
+function setMuteStatus(state: 'idle' | 'saving' | 'saved' | 'error') {
+  const line = document.getElementById('mute-status');
+  if (!line) return;
+  const summary = muteSummary(settings['declutter.muteWords']);
+  line.dataset.state = state;
+  line.textContent =
+    state === 'saving' ? 'Saving…' : state === 'saved' ? `Saved. ${summary}` : state === 'error' ? "Couldn't save. Try again." : summary;
+}
+
 /** Debounced save: text inputs fire on every keystroke and storage.sync has write quotas. */
 function change(key: SettingKey, value: Settings[SettingKey]) {
   (settings as Record<SettingKey, unknown>)[key] = value;
   (pending as Record<SettingKey, unknown>)[key] = value;
   refreshState();
   if (key === 'download.filename') renderPreview();
+  if (key === 'declutter.muteWords') setMuteStatus('saving');
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(async () => {
     const patch = pending;
     pending = {};
+    const mute = 'declutter.muteWords' in patch;
     try {
       await saveSettings(patch);
       flashSaved();
+      if (mute) setMuteStatus('saved');
     } catch {
       showNotice("Couldn't save. Try again.");
+      if (mute) setMuteStatus('error');
     }
   }, 250);
 }
@@ -139,6 +164,14 @@ function settingRow(def: SettingDef, sub: boolean): HTMLElement {
       const prev = el('code', 'preview');
       prev.id = 'filename-preview';
       row.append(prev);
+    }
+    if (def.key === 'declutter.muteWords') {
+      const status = el('p', 'row__status');
+      status.id = 'mute-status';
+      status.setAttribute('role', 'status');
+      status.dataset.state = 'idle';
+      status.textContent = muteSummary(settings['declutter.muteWords']);
+      row.append(status);
     }
   }
   return row;

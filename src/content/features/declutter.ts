@@ -1,4 +1,5 @@
 import type { Settings } from '../../shared/settings-schema';
+import { isEmpty, isMuted, parseMuteList, postAuthor, type MuteList } from '../core/mute';
 import { onDomChange } from '../core/observer';
 import { currentRoute } from '../core/router';
 import { SEL, SPONSORED_WORDS, SUGGESTED_WORDS } from '../core/selectors';
@@ -7,11 +8,12 @@ import type { Feature } from './types';
 
 // We remember what each element is here, not on the element, and hide only what a toggle asks for
 // with inline styles. Nothing else is written to Instagram's DOM.
-type Kind = 'ad' | 'suggested' | 'sidebar' | 'stories' | 'reels' | 'explore' | 'threads';
+type Kind = 'ad' | 'suggested' | 'muted' | 'sidebar' | 'stories' | 'reels' | 'explore' | 'threads';
 
 const SETTING_FOR: Record<Kind, keyof Settings> = {
   ad: 'declutter.ads',
   suggested: 'declutter.suggested',
+  muted: 'declutter.muteWords',
   sidebar: 'declutter.sidebarSuggestions',
   reels: 'declutter.reelsTab',
   explore: 'declutter.exploreTab',
@@ -36,7 +38,7 @@ const REMOVE: Record<string, string> = { display: 'none' };
 const COLLAPSE: Record<string, string> = { height: '1px', 'min-height': '0', overflow: 'hidden', visibility: 'hidden', margin: '0', padding: '0', border: '0' };
 
 function stylesFor(kind: Kind): Record<string, string> {
-  return kind === 'ad' || kind === 'suggested' ? COLLAPSE : REMOVE;
+  return kind === 'ad' || kind === 'suggested' || kind === 'muted' ? COLLAPSE : REMOVE;
 }
 /** Articles looked at, and how often (labels may render late). */
 let checks = new WeakMap<Element, number>();
@@ -75,7 +77,26 @@ function tagFeed() {
     checks.set(art, n + 1);
     if (hasExactLabel(art, SPONSORED_WORDS)) kinds.set(art, 'ad');
     else if (hasExactLabel(art, SUGGESTED_WORDS)) kinds.set(art, 'suggested');
+    // Mute is for the Home feed only: a post you open yourself (popup, post page, profile) stays visible.
+    else if (!isEmpty(mute) && currentRoute().kind === 'home' && !art.closest(SEL.dialog) && isMuted(mute, postAuthor(art), art.textContent ?? '')) kinds.set(art, 'muted');
   }
+}
+
+let muteText = '';
+let mute: MuteList = parseMuteList('');
+
+/** On a new mute list, forget which posts were muted and look at every post again. */
+function syncMute(s: Settings) {
+  const text = s['declutter.muteWords'];
+  if (text === muteText) return;
+  muteText = text;
+  mute = parseMuteList(text);
+  for (const [el, kind] of kinds) {
+    if (kind !== 'muted') continue;
+    kinds.delete(el);
+    if (el instanceof HTMLElement) show(el);
+  }
+  checks = new WeakMap();
 }
 
 function tagNav() {
@@ -178,6 +199,7 @@ export const declutter: Feature = {
   isEnabled: (s) => Object.values(SETTING_FOR).some((k) => s[k]),
   start() {
     const off = onDomChange(() => {
+      syncMute(getSettings());
       tagFeed();
       tagNav();
       tagHome();
@@ -190,7 +212,13 @@ export const declutter: Feature = {
       kinds.clear();
       checks = new WeakMap();
       seen = new WeakSet();
+      muteText = '';
+      mute = parseMuteList('');
     };
   },
-  onSettings: apply,
+  onSettings(s) {
+    syncMute(s);
+    tagFeed();
+    apply(s);
+  },
 };

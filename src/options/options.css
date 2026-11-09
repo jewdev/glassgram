@@ -319,6 +319,9 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 .row__label { font-weight: 560; cursor: pointer; }
 .row__desc { margin: 2px 0 0; color: var(--ink-2); font-size: 13.5px; max-width: 60ch; }
 .row__help { grid-column: 1 / -1; margin: 0; color: var(--ink-2); font-size: 13px; max-width: 70ch; }
+.row__status { grid-column: 1 / -1; margin: 0; color: var(--ink-3); font-size: 13px; font-weight: 600; transition: color 0.22s var(--ease); }
+.row__status[data-state='saved'] { color: var(--ok); }
+.row__status[data-state='error'] { color: var(--risk); }
 
 .row--text { grid-template-columns: 1fr; }
 .row--sub { padding: 10px 12px 10px 24px; }
