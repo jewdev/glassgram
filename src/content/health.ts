@@ -50,6 +50,14 @@ function feedLayout(route: Route): HealthCheck {
   const label = 'Post layout';
   if (route.kind !== 'home' && route.kind !== 'post') return check('feed', label, 'skip', 'Open your feed or a post to check this.');
   const articles = [...document.querySelectorAll(SEL.article)];
+  // Post pages have no <article> any more: Glassgram reads the post from the address instead.
+  if (!articles.length && route.kind === 'post' && route.shortcode) {
+    const main = document.querySelector(SEL.main);
+    if (!main?.querySelector('img, video')) return check('feed', label, 'skip', 'The post has not loaded yet. Wait a moment, then check again.');
+    return main.querySelector(SEL.time)
+      ? check('feed', label, 'ok', 'Found the post on this page.')
+      : check('feed', label, 'warn', 'Found the post, but not its date.', ['Exact timestamps']);
+  }
   if (!articles.length) {
     return document.querySelector(SEL.postLink)
       ? check('feed', label, 'fail', "Posts are on screen, but not where Glassgram looks for them.", ['Download toolbar', 'Hide ads', 'Exact timestamps'])
