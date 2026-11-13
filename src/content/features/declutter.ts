@@ -2,7 +2,7 @@ import type { Settings } from '../../shared/settings-schema';
 import { isEmpty, isMuted, parseMuteList, postAuthor, type MuteList } from '../core/mute';
 import { onDomChange } from '../core/observer';
 import { currentRoute } from '../core/router';
-import { SEL, SPONSORED_WORDS, SUGGESTED_WORDS } from '../core/selectors';
+import { SEL, shortcodeInRoot, SPONSORED_WORDS, SUGGESTED_WORDS } from '../core/selectors';
 import { getSettings } from '../core/state';
 import type { Feature } from './types';
 
@@ -38,16 +38,15 @@ const REMOVE: Record<string, string> = { display: 'none' };
 const COLLAPSE: Record<string, string> = { height: '1px', 'min-height': '0', overflow: 'hidden', visibility: 'hidden', margin: '0', padding: '0', border: '0' };
 
 /**
- * Firefox's scroll anchoring pulls the feed back up, again and again, while posts in it are
- * collapsed (measured: the browser scrolls, not Instagram, and the jumps stop without anchoring).
- * Chromium's doesn't, so only Firefox turns anchoring off, and only on Home while posts may collapse.
+ * Scroll anchoring pulls the feed back while posts in it are collapsed, in Chrome and Firefox alike.
+ * Measured in Chrome: Instagram swaps the posts you scrolled past for a spacer of exactly their height,
+ * yet the browser still scrolled the page back by about one post. With anchoring off every scroll moved
+ * exactly as far as the wheel did. So Home turns anchoring off while ads, suggested or muted posts may collapse.
  */
-const FIREFOX = chrome.runtime.getURL('').startsWith('moz-extension:');
 const COLLAPSE_KINDS: Kind[] = ['ad', 'suggested', 'muted'];
 let anchorOff: { el: HTMLElement; value: string; priority: string }[] | undefined;
 
 function syncAnchoring(s: Settings, on = true) {
-  if (!FIREFOX) return;
   const want = on && currentRoute().kind === 'home' && COLLAPSE_KINDS.some((k) => !!s[SETTING_FOR[k]]);
   if (want && !anchorOff) {
     anchorOff = [document.documentElement, document.body].filter(Boolean).map((el) => {
@@ -67,6 +66,14 @@ function syncAnchoring(s: Settings, on = true) {
 function stylesFor(kind: Kind): Record<string, string> {
   return kind === 'ad' || kind === 'suggested' || kind === 'muted' ? COLLAPSE : REMOVE;
 }
+/**
+ * Feed posts we collapsed, by shortcode. Instagram's feed unmounts posts you scrolled past and mounts
+ * them again as new elements when you scroll back up. It remembers them as 1px tall, so a copy that
+ * comes back at full height pushes the page down under you. A remembered post is collapsed again
+ * the moment it is mounted, before the browser lays it out, wherever it is on the screen.
+ */
+const collapsedPosts = new Map<string, Kind>();
+
 /** Articles looked at, and how often (labels may render late). */
 let checks = new WeakMap<Element, number>();
 /** Nav links / sidebar anchors already handled. */
@@ -98,7 +105,7 @@ function soleWrapper(el: Element): Element {
 
 function tagFeed() {
   for (const art of document.querySelectorAll<HTMLElement>(SEL.article)) {
-    if (kinds.has(art)) continue;
+    if (kinds.has(art) || restore(art)) continue;
     // Never collapse a post that starts above the screen: the page would shift up under you. Instagram's
     // feed also unmounts posts you scrolled past and mounts them again as new elements, so in a run
     // of suggested posts each collapse made it mount more above, and the feed kept jumping back.
@@ -111,6 +118,33 @@ function tagFeed() {
     else if (hasExactLabel(art, SUGGESTED_WORDS)) kinds.set(art, 'suggested');
     // Mute is for the Home feed only: a post you open yourself (popup, post page, profile) stays visible.
     else if (!isEmpty(mute) && currentRoute().kind === 'home' && !art.closest(SEL.dialog) && isMuted(mute, postAuthor(art), art.textContent ?? '')) kinds.set(art, 'muted');
+  }
+}
+
+/** Tag a remounted post we collapsed before. True when it was one. */
+function restore(art: HTMLElement): boolean {
+  if (!collapsedPosts.size || art.closest(SEL.dialog)) return false;
+  const code = shortcodeInRoot(art);
+  const kind = code && collapsedPosts.get(code);
+  if (!kind) return false;
+  kinds.set(art, kind);
+  return true;
+}
+
+/** Runs on every mutation (not throttled), so a remounted post never gets laid out at full height. */
+function restoreMounted(records: MutationRecord[]) {
+  if (!collapsedPosts.size) return;
+  const s = getSettings();
+  for (const r of records) {
+    for (const node of r.addedNodes) {
+      if (!(node instanceof HTMLElement)) continue;
+      const arts = node.matches(SEL.article) ? [node] : node.querySelectorAll<HTMLElement>(SEL.article);
+      for (const art of arts) {
+        if (kinds.has(art) || !restore(art)) continue;
+        const kind = kinds.get(art)!;
+        if (s[SETTING_FOR[kind]]) hide(art, stylesFor(kind));
+      }
+    }
   }
 }
 
@@ -128,6 +162,7 @@ function syncMute(s: Settings) {
     kinds.delete(el);
     if (el instanceof HTMLElement) show(el);
   }
+  for (const [code, kind] of collapsedPosts) if (kind === 'muted') collapsedPosts.delete(code);
   checks = new WeakMap();
 }
 
@@ -220,8 +255,14 @@ function apply(s: Settings) {
       kinds.delete(el);
       hidden.delete(el as HTMLElement);
     } else if (el instanceof HTMLElement) {
-      if (s[SETTING_FOR[kind]]) hide(el, stylesFor(kind));
-      else show(el);
+      if (s[SETTING_FOR[kind]]) {
+        const fresh = !hidden.has(el);
+        hide(el, stylesFor(kind));
+        if (fresh && stylesFor(kind) === COLLAPSE && el.matches(SEL.article) && !el.closest(SEL.dialog)) {
+          const code = shortcodeInRoot(el);
+          if (code) collapsedPosts.set(code, kind);
+        }
+      } else show(el);
     }
   }
 }
@@ -239,8 +280,12 @@ export const declutter: Feature = {
       tagProfile();
       apply(getSettings());
     });
+    const mounts = new MutationObserver(restoreMounted);
+    mounts.observe(document.documentElement, { childList: true, subtree: true });
     return () => {
       off();
+      mounts.disconnect();
+      collapsedPosts.clear();
       for (const el of [...hidden.keys()]) show(el);
       kinds.clear();
       checks = new WeakMap();
