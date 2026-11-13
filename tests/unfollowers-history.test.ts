@@ -7,6 +7,7 @@ import {
   historyCsv,
   isUnseen,
   longPauseMs,
+  newFollowersText,
   pageDelayMs,
   retryWaitS,
   snapshot,
@@ -111,5 +112,13 @@ describe('isUnseen', () => {
     expect(isUnseen([changed], undefined)).toBe(true);
     expect(isUnseen([changed], 1)).toBe(true);
     expect(isUnseen([changed], 2)).toBe(false);
+  });
+});
+
+describe('newFollowersText', () => {
+  it('uses the singular for one follower only', () => {
+    expect(newFollowersText(1)).toBe('1 new follower');
+    expect(newFollowersText(0)).toBe('0 new followers');
+    expect(newFollowersText(3)).toBe('3 new followers');
   });
 });

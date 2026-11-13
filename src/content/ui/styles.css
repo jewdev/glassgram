@@ -335,7 +335,7 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 .ige-pill { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: var(--ige-warn-bg); color: var(--ige-warn-fg); font-size: 12px; font-weight: 600; }
 
 /* tabs + user list */
-.ige-tabs { display: flex; gap: 4px; overflow-x: auto; }
+.ige-tabs { display: flex; flex-shrink: 0; gap: 4px; overflow-x: auto; }
 .ige-tab {
   flex: none;
   padding: 7px 12px;

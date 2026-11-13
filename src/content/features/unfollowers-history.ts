@@ -123,6 +123,9 @@ export const CHANGE_LABELS = {
 } as const satisfies Record<keyof Pick<HistoryEntry, 'lost' | 'gained' | 'unfollowed' | 'followed'>, string>;
 
 export type ChangeKind = keyof typeof CHANGE_LABELS;
+
+/** "1 new follower", "3 new followers". */
+export const newFollowersText = (n: number) => `${n} new follower${n === 1 ? '' : 's'}`;
 export const CHANGE_KINDS = Object.keys(CHANGE_LABELS) as ChangeKind[];
 
 /** Spreadsheet cell, with names other people chose kept from running as formulas. */

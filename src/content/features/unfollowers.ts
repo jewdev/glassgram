@@ -17,6 +17,7 @@ import {
   historyCsv,
   isUnseen,
   longPauseMs,
+  newFollowersText,
   pageDelayMs,
   retryWaitS,
   snapshot,
@@ -141,7 +142,7 @@ export async function openUnfollowers() {
   const pickBar = h('div', { class: 'ige-pickbar' }, pickAllBtn, pickCount);
   const confirmBox = h('div', { class: 'ige-warn ige-confirm', role: 'alert' });
   confirmBox.hidden = true;
-  m.body.append(status, summary, tabs,search, pickBar, confirmBox, list);
+  m.body.append(status, summary, tabs, search, pickBar, confirmBox, list);
   m.footer.append(exportBtn, unfollowBtn, runBtn);
 
   const sets = () => {
@@ -167,10 +168,13 @@ export async function openUnfollowers() {
     }
     const out: Node[] = [];
     const kinds = kindFilter ? [kindFilter] : CHANGE_KINDS;
+    // A summary chip counts the newest scan only, so its list shows that scan and nothing older.
+    const entries = kindFilter ? history.slice(0, 1) : history;
     if (kindFilter) {
+      const since = history[0].prevAt !== undefined ? new Date(history[0].prevAt).toLocaleDateString() : '';
       out.push(
         h('div', { class: 'ige-pickbar ige-hist__filter' },
-          h('strong', {}, `${CHANGE_LABELS[kindFilter]}, all scans`),
+          h('strong', {}, since ? `${CHANGE_LABELS[kindFilter]} since your scan on ${since}` : CHANGE_LABELS[kindFilter]),
           h('button', {
             class: 'ige-btn ige-btn--ghost ige-btn--sm',
             type: 'button',
@@ -183,7 +187,7 @@ export async function openUnfollowers() {
       );
     }
     let rows = 0;
-    for (const e of history) {
+    for (const e of entries) {
       const when = new Date(e.at).toLocaleString();
       if (e.prevAt === undefined) {
         if (!q && !kindFilter) out.push(h('p', { class: 'ige-hist__head' }, h('strong', {}, when), ` · First scan: ${e.followers} followers · ${e.following} following`));
@@ -228,7 +232,7 @@ export async function openUnfollowers() {
     const fresh = isUnseen(history, seenAt);
     summary.classList.toggle('is-new', fresh);
     const since = new Date(latest.prevAt).toLocaleDateString();
-    const chip = (kind: ChangeKind, text: string) => {
+    const chip = (kind: ChangeKind, text: (n: number) => string) => {
       const n = latest[kind].length;
       return h('button', {
         class: `ige-summary__chip${kind === 'lost' ? ' ige-summary__chip--lost' : ''}`,
@@ -242,7 +246,7 @@ export async function openUnfollowers() {
           markSeen();
           render();
         },
-      }, `${n} ${text}`);
+      }, text(n));
     };
     const own = [latest.unfollowed.length && `You unfollowed ${latest.unfollowed.length}`, latest.followed.length && `You followed ${latest.followed.length}`].filter(Boolean);
     summary.replaceChildren(
@@ -253,8 +257,8 @@ export async function openUnfollowers() {
       ...(hasChanges(latest)
         ? [
             h('div', { class: 'ige-summary__chips' },
-              chip('lost', 'unfollowed you'),
-              chip('gained', latest.gained.length === 1 ? 'new follower' : 'new followers'),
+              chip('lost', (n) => `${n} unfollowed you`),
+              chip('gained', newFollowersText),
             ),
           ]
         : []),
@@ -265,7 +269,6 @@ export async function openUnfollowers() {
   const render = () => {
     const all = sets();
     const latest = history[0];
-    if (tab === 'changes') markSeen();
     renderSummary();
     const count = (id: Tab) => (id === 'changes' ? (latest?.prevAt !== undefined ? latest.lost.length : 0) : all[id].length);
     const unseen = isUnseen(history, seenAt);
@@ -280,6 +283,8 @@ export async function openUnfollowers() {
           onClick: () => {
             tab = t.id;
             kindFilter = null;
+            // Seen when you open the tab, not on every redraw: a scan that ends while the tab is open stays New.
+            if (tab === 'changes') markSeen();
             render();
           },
         },
@@ -291,7 +296,7 @@ export async function openUnfollowers() {
     const q = query.toLowerCase();
     if (tab === 'changes') {
       list.replaceChildren(...renderChanges(q));
-      exportBtn.disabled = kindFilter ? !history.some((e) => e[kindFilter!].length) : !history.some(hasChanges);
+      exportBtn.disabled = kindFilter ? !history[0]?.[kindFilter].length : !history.some(hasChanges);
     } else {
       const users = all[tab].filter(matches(q));
       const row = PICK_TABS.includes(tab) ? pickRow : userRow;
@@ -406,7 +411,7 @@ export async function openUnfollowers() {
     if (entry.prevAt === undefined) return toast('Scan complete. The next scan will show who unfollowed you.', 'success', 5000);
     const parts = [
       entry.lost.length && `${entry.lost.length} unfollowed you`,
-      entry.gained.length && `${entry.gained.length} new follower${entry.gained.length === 1 ? '' : 's'}`,
+      entry.gained.length && newFollowersText(entry.gained.length),
     ].filter(Boolean);
     toast(parts.length ? `Scan complete: ${parts.join(', ')}.` : hasChanges(entry) ? 'Scan complete. See Changes.' : 'Scan complete. No changes since last time.', 'success', 6000);
   }
@@ -600,7 +605,7 @@ export async function openUnfollowers() {
   });
   exportBtn.addEventListener('click', () => {
     const day = new Date().toISOString().slice(0, 10);
-    if (tab === 'changes') saveCsv(`instagram_${kindFilter ?? 'changes'}_${day}.csv`, historyCsv(history, kindFilter ? [kindFilter] : undefined));
+    if (tab === 'changes') saveCsv(`instagram_${kindFilter ?? 'changes'}_${day}.csv`, kindFilter ? historyCsv(history.slice(0, 1), [kindFilter]) : historyCsv(history));
     else saveCsv(`instagram_${tab}_${day}.csv`, csv(sets()[tab]));
   });
   render();
