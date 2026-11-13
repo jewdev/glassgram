@@ -15,11 +15,13 @@ import {
   diffScans,
   hasChanges,
   historyCsv,
+  isUnseen,
   longPauseMs,
   pageDelayMs,
   retryWaitS,
   snapshot,
   userIndex,
+  type ChangeKind,
   type HistoryEntry,
   type MiniUser,
   type Snapshot,
@@ -61,6 +63,8 @@ const storageKey = (uid: string) => `unfollowers:${uid}`;
 /** The last complete scan, kept while a rescan runs so the new one can be compared with it. */
 const baseKey = (uid: string) => `unfollowers:base:${uid}`;
 const historyKey = (uid: string) => `unfollowers:history:${uid}`;
+/** Time of the newest scan whose changes the user has looked at. */
+const seenKey = (uid: string) => `unfollowers:seen:${uid}`;
 /** Accounts the user chose to keep: never selected for unfollowing. */
 const keepKey = (uid: string) => `unfollowers:keep:${uid}`;
 
@@ -112,7 +116,10 @@ export async function openUnfollowers() {
   let cancelled = false;
   let tab: Tab = 'notBack';
   let query = '';
-  const stored = await chrome.storage.local.get([storageKey(uid), baseKey(uid), historyKey(uid), keepKey(uid)]);
+  /** Changes tab narrowed to one kind of change, picked from the summary card. */
+  let kindFilter: ChangeKind | null = null;
+  const stored = await chrome.storage.local.get([storageKey(uid), baseKey(uid), historyKey(uid), keepKey(uid), seenKey(uid)]);
+  let seenAt = stored[seenKey(uid)] as number | undefined;
   let data: Progress = (stored[storageKey(uid)] as Progress | undefined) ?? emptyProgress();
   let base = stored[baseKey(uid)] as Snapshot | undefined;
   let history = (stored[historyKey(uid)] as HistoryEntry[] | undefined) ?? [];
@@ -121,6 +128,8 @@ export async function openUnfollowers() {
 
   const m = openModal('Unfollowers checker', { width: 560, onClose: () => (cancelled = true) });
   const status = h('p', { class: 'ige-muted', 'aria-live': 'polite' });
+  const summary = h('div', { class: 'ige-summary' });
+  summary.hidden = true;
   const tabs = h('div', { class: 'ige-tabs', role: 'tablist' });
   const search = h('input', { class: 'ige-input', type: 'search', placeholder: 'Search username or name', 'aria-label': 'Search' });
   const list = h('div', { class: 'ige-userlist' });
@@ -132,7 +141,7 @@ export async function openUnfollowers() {
   const pickBar = h('div', { class: 'ige-pickbar' }, pickAllBtn, pickCount);
   const confirmBox = h('div', { class: 'ige-warn ige-confirm', role: 'alert' });
   confirmBox.hidden = true;
-  m.body.append(status, tabs, search, pickBar, confirmBox, list);
+  m.body.append(status, summary, tabs,search, pickBar, confirmBox, list);
   m.footer.append(exportBtn, unfollowBtn, runBtn);
 
   const sets = () => {
@@ -157,15 +166,31 @@ export async function openUnfollowers() {
       return [h('p', { class: 'ige-muted ige-empty' }, 'Changes show up here from your second full scan on. Each scan is compared with the one before it.')];
     }
     const out: Node[] = [];
+    const kinds = kindFilter ? [kindFilter] : CHANGE_KINDS;
+    if (kindFilter) {
+      out.push(
+        h('div', { class: 'ige-pickbar ige-hist__filter' },
+          h('strong', {}, `${CHANGE_LABELS[kindFilter]}, all scans`),
+          h('button', {
+            class: 'ige-btn ige-btn--ghost ige-btn--sm',
+            type: 'button',
+            onClick: () => {
+              kindFilter = null;
+              render();
+            },
+          }, 'Show all changes'),
+        ),
+      );
+    }
     let rows = 0;
     for (const e of history) {
       const when = new Date(e.at).toLocaleString();
       if (e.prevAt === undefined) {
-        if (!q) out.push(h('p', { class: 'ige-hist__head' }, h('strong', {}, when), ` · First scan: ${e.followers} followers · ${e.following} following`));
+        if (!q && !kindFilter) out.push(h('p', { class: 'ige-hist__head' }, h('strong', {}, when), ` · First scan: ${e.followers} followers · ${e.following} following`));
         continue;
       }
-      const groups = CHANGE_KINDS.map((kind) => ({ kind, users: e[kind].filter(matches(q)) })).filter((g) => g.users.length);
-      if (q && !groups.length) continue;
+      const groups = kinds.map((kind) => ({ kind, users: e[kind].filter(matches(q)) })).filter((g) => g.users.length);
+      if ((q || kindFilter) && !groups.length) continue;
       out.push(
         h('p', { class: 'ige-hist__head' },
           h('strong', {}, when),
@@ -184,13 +209,66 @@ export async function openUnfollowers() {
         }
       }
     }
-    return out.length ? out : [h('p', { class: 'ige-muted ige-empty' }, 'Nobody here.')];
+    return out.length > (kindFilter ? 1 : 0) ? out : [...out, h('p', { class: 'ige-muted ige-empty' }, 'Nobody here.')];
+  };
+
+  /** Remembers that the newest scan's changes were looked at. */
+  const markSeen = () => {
+    const latest = history[0];
+    if (!latest || latest.at === seenAt) return;
+    seenAt = latest.at;
+    void chrome.storage.local.set({ [seenKey(uid)]: seenAt });
+  };
+
+  /** What changed since the scan before the last one, with links to each list. */
+  const renderSummary = () => {
+    const latest = history[0];
+    summary.hidden = !latest || latest.prevAt === undefined;
+    if (!latest || latest.prevAt === undefined) return;
+    const fresh = isUnseen(history, seenAt);
+    summary.classList.toggle('is-new', fresh);
+    const since = new Date(latest.prevAt).toLocaleDateString();
+    const chip = (kind: ChangeKind, text: string) => {
+      const n = latest[kind].length;
+      return h('button', {
+        class: `ige-summary__chip${kind === 'lost' ? ' ige-summary__chip--lost' : ''}`,
+        type: 'button',
+        disabled: !n,
+        onClick: () => {
+          tab = 'changes';
+          kindFilter = kind;
+          query = '';
+          search.value = '';
+          markSeen();
+          render();
+        },
+      }, `${n} ${text}`);
+    };
+    const own = [latest.unfollowed.length && `You unfollowed ${latest.unfollowed.length}`, latest.followed.length && `You followed ${latest.followed.length}`].filter(Boolean);
+    summary.replaceChildren(
+      h('p', { class: 'ige-summary__head' },
+        hasChanges(latest) ? `Since your scan on ${since}` : `No changes since your scan on ${since}`,
+        ...(fresh ? [h('span', { class: 'ige-summary__new' }, 'New')] : []),
+      ),
+      ...(hasChanges(latest)
+        ? [
+            h('div', { class: 'ige-summary__chips' },
+              chip('lost', 'unfollowed you'),
+              chip('gained', latest.gained.length === 1 ? 'new follower' : 'new followers'),
+            ),
+          ]
+        : []),
+      ...(own.length ? [h('p', { class: 'ige-muted ige-summary__own' }, own.join(' · '))] : []),
+    );
   };
 
   const render = () => {
     const all = sets();
     const latest = history[0];
+    if (tab === 'changes') markSeen();
+    renderSummary();
     const count = (id: Tab) => (id === 'changes' ? (latest?.prevAt !== undefined ? latest.lost.length : 0) : all[id].length);
+    const unseen = isUnseen(history, seenAt);
     tabs.replaceChildren(
       ...TABS.map((t) =>
         h('button', {
@@ -201,15 +279,19 @@ export async function openUnfollowers() {
           title: t.id === 'changes' ? 'The number is how many unfollowed you since the scan before the last one' : undefined,
           onClick: () => {
             tab = t.id;
+            kindFilter = null;
             render();
           },
-        }, `${t.label} `, h('span', { class: 'ige-badge' }, String(count(t.id)))),
+        },
+        `${t.label} `,
+        h('span', { class: 'ige-badge' }, String(count(t.id))),
+        ...(t.id === 'changes' && unseen ? [h('span', { class: 'ige-dot', title: 'New changes' })] : [])),
       ),
     );
     const q = query.toLowerCase();
     if (tab === 'changes') {
       list.replaceChildren(...renderChanges(q));
-      exportBtn.disabled = !history.some(hasChanges);
+      exportBtn.disabled = kindFilter ? !history.some((e) => e[kindFilter!].length) : !history.some(hasChanges);
     } else {
       const users = all[tab].filter(matches(q));
       const row = PICK_TABS.includes(tab) ? pickRow : userRow;
@@ -518,7 +600,7 @@ export async function openUnfollowers() {
   });
   exportBtn.addEventListener('click', () => {
     const day = new Date().toISOString().slice(0, 10);
-    if (tab === 'changes') saveCsv(`instagram_changes_${day}.csv`, historyCsv(history));
+    if (tab === 'changes') saveCsv(`instagram_${kindFilter ?? 'changes'}_${day}.csv`, historyCsv(history, kindFilter ? [kindFilter] : undefined));
     else saveCsv(`instagram_${tab}_${day}.csv`, csv(sets()[tab]));
   });
   render();

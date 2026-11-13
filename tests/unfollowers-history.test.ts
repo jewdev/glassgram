@@ -5,6 +5,7 @@ import {
   diffScans,
   hasChanges,
   historyCsv,
+  isUnseen,
   longPauseMs,
   pageDelayMs,
   retryWaitS,
@@ -85,5 +86,30 @@ describe('history', () => {
     const rows = historyCsv([e]).split('\r\n');
     expect(rows[0]).toBe('scan_date,change,username,full_name,profile_url');
     expect(rows[1]).toBe(`"2026-01-02T00:00:00.000Z","Unfollowed you","x","'=cmd","https://www.instagram.com/x/"`);
+  });
+
+  it('exports only the kinds asked for', () => {
+    const e = diffScans(snapshot(1, [u('1', 'gone')], []), snapshot(2, [u('2', 'fresh')], []));
+    const rows = historyCsv([e], ['lost']).split('\r\n');
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toContain('"gone"');
+  });
+});
+
+describe('isUnseen', () => {
+  const changed = diffScans(snapshot(1, [u('1')], []), snapshot(2, [], []));
+  const quiet = diffScans(snapshot(1, [u('1')], []), snapshot(2, [u('1')], []));
+  const first = diffScans(undefined, snapshot(1, [u('1')], []));
+
+  it('is false with no scans, a first scan only, or no changes', () => {
+    expect(isUnseen([], undefined)).toBe(false);
+    expect(isUnseen([first], undefined)).toBe(false);
+    expect(isUnseen([quiet, first], undefined)).toBe(false);
+  });
+
+  it('is true until the newest scan has been looked at', () => {
+    expect(isUnseen([changed], undefined)).toBe(true);
+    expect(isUnseen([changed], 1)).toBe(true);
+    expect(isUnseen([changed], 2)).toBe(false);
   });
 });

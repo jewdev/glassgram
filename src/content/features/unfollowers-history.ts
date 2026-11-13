@@ -128,11 +128,17 @@ export const CHANGE_KINDS = Object.keys(CHANGE_LABELS) as ChangeKind[];
 /** Spreadsheet cell, with names other people chose kept from running as formulas. */
 export const csvCell = (v: string) => `"${(/^[=+\-@\t\r]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`;
 
-export function historyCsv(history: HistoryEntry[]): string {
+/** True when the newest scan has changes the user has not looked at yet. */
+export function isUnseen(history: HistoryEntry[], seenAt: number | undefined): boolean {
+  const latest = history[0];
+  return !!latest && latest.prevAt !== undefined && hasChanges(latest) && latest.at > (seenAt ?? 0);
+}
+
+export function historyCsv(history: HistoryEntry[], kinds: readonly ChangeKind[] = CHANGE_KINDS): string {
   const rows: string[] = [];
   for (const e of history) {
     const date = new Date(e.at).toISOString();
-    for (const kind of CHANGE_KINDS) {
+    for (const kind of kinds) {
       for (const u of e[kind]) {
         rows.push([date, CHANGE_LABELS[kind], u.username, u.full_name ?? '', `https://www.instagram.com/${u.username}/`].map(csvCell).join(','));
       }

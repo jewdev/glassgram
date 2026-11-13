@@ -360,6 +360,30 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 .ige-hist__head:first-child { margin-top: 4px; }
 .ige-hist__group { margin: 8px 8px 2px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ige-muted); }
 .ige-hist__none { margin: 2px 8px; font-size: 13px; }
+.ige-hist__filter { margin: 4px 8px 0; }
+.ige-summary { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--ige-line); border-radius: 10px; background: var(--ige-soft); font-size: 13px; }
+.ige-summary[hidden] { display: none; }
+.ige-summary.is-new { border-color: var(--ige-accent); }
+.ige-summary__head { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; }
+.ige-summary__new { padding: 1px 7px; border-radius: 999px; background: var(--ige-accent); color: var(--ige-accent-fg); font-size: 11px; font-weight: 700; }
+.ige-summary__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ige-summary__chip {
+  padding: 6px 12px;
+  border: 1px solid var(--ige-line);
+  border-radius: 999px;
+  background: var(--ige-bg);
+  color: var(--ige-fg);
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.ige-summary__chip:hover:not(:disabled) { border-color: var(--ige-fg); }
+.ige-summary__chip:focus-visible { outline: 2px solid var(--ige-accent); outline-offset: 1px; }
+.ige-summary__chip:disabled { opacity: 0.55; cursor: default; }
+.ige-summary__chip--lost:not(:disabled) { border-color: var(--ige-danger); color: var(--ige-danger); }
+.ige-summary__own { margin: 0; font-size: 12px; }
+.ige-dot { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: var(--ige-accent); vertical-align: middle; }
 /* picking accounts to unfollow */
 .ige-btn--danger { padding: 0 16px; border-radius: 999px; background: var(--ige-danger); color: #fff; }
 .ige-btn--danger:hover:not(:disabled) { filter: brightness(1.08); }
