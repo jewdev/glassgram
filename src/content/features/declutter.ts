@@ -64,7 +64,7 @@ function syncAnchoring(s: Settings, on = true) {
 }
 
 function stylesFor(kind: Kind): Record<string, string> {
-  return kind === 'ad' || kind === 'suggested' || kind === 'muted' ? COLLAPSE : REMOVE;
+  return COLLAPSE_KINDS.includes(kind) ? COLLAPSE : REMOVE;
 }
 /**
  * Feed posts we collapsed, by shortcode. Instagram's feed unmounts posts you scrolled past and mounts
@@ -73,6 +73,21 @@ function stylesFor(kind: Kind): Record<string, string> {
  * the moment it is mounted, before the browser lays it out, wherever it is on the screen.
  */
 const collapsedPosts = new Map<string, Kind>();
+/** Newest kept; the feed only remounts posts near where you are. */
+const MAX_REMEMBERED = 500;
+/** Collapsed articles whose shortcode is already in collapsedPosts. */
+let remembered = new WeakSet<Element>();
+
+/** Save a collapsed feed post's shortcode once it has one (the time link can render after the label). */
+function remember(el: HTMLElement, kind: Kind) {
+  if (remembered.has(el) || el.closest(SEL.dialog) || currentRoute().kind !== 'home') return;
+  const code = shortcodeInRoot(el);
+  if (!code) return;
+  remembered.add(el);
+  collapsedPosts.delete(code);
+  collapsedPosts.set(code, kind);
+  if (collapsedPosts.size > MAX_REMEMBERED) collapsedPosts.delete(collapsedPosts.keys().next().value!);
+}
 
 /** Articles looked at, and how often (labels may render late). */
 let checks = new WeakMap<Element, number>();
@@ -121,30 +136,42 @@ function tagFeed() {
   }
 }
 
-/** Tag a remounted post we collapsed before. True when it was one. */
+/**
+ * Tag a remounted post we collapsed before. True when it was one. Home feed only: the same post
+ * opened as a page or a popup stays visible.
+ */
 function restore(art: HTMLElement): boolean {
-  if (!collapsedPosts.size || art.closest(SEL.dialog)) return false;
+  if (!collapsedPosts.size || art.closest(SEL.dialog) || currentRoute().kind !== 'home') return false;
   const code = shortcodeInRoot(art);
   const kind = code && collapsedPosts.get(code);
   if (!kind) return false;
   kinds.set(art, kind);
+  remembered.add(art);
   return true;
 }
 
 /** Runs on every mutation (not throttled), so a remounted post never gets laid out at full height. */
 function restoreMounted(records: MutationRecord[]) {
-  if (!collapsedPosts.size) return;
+  if (!collapsedPosts.size || currentRoute().kind !== 'home') return;
   const s = getSettings();
+  const arts = new Set<HTMLElement>();
   for (const r of records) {
+    // The post itself, or content (such as the time link with the shortcode) added inside one already mounted.
+    const host = r.target instanceof Element ? r.target.closest<HTMLElement>(SEL.article) : null;
+    if (host) {
+      if (r.addedNodes.length) arts.add(host);
+      continue;
+    }
     for (const node of r.addedNodes) {
       if (!(node instanceof HTMLElement)) continue;
-      const arts = node.matches(SEL.article) ? [node] : node.querySelectorAll<HTMLElement>(SEL.article);
-      for (const art of arts) {
-        if (kinds.has(art) || !restore(art)) continue;
-        const kind = kinds.get(art)!;
-        if (s[SETTING_FOR[kind]]) hide(art, stylesFor(kind));
-      }
+      if (node.matches(SEL.article)) arts.add(node);
+      else if (node.firstElementChild) for (const a of node.querySelectorAll<HTMLElement>(SEL.article)) arts.add(a);
     }
+  }
+  for (const art of arts) {
+    if (kinds.has(art) || !restore(art)) continue;
+    const kind = kinds.get(art)!;
+    if (s[SETTING_FOR[kind]]) hide(art, stylesFor(kind));
   }
 }
 
@@ -163,6 +190,7 @@ function syncMute(s: Settings) {
     if (el instanceof HTMLElement) show(el);
   }
   for (const [code, kind] of collapsedPosts) if (kind === 'muted') collapsedPosts.delete(code);
+  remembered = new WeakSet();
   checks = new WeakMap();
 }
 
@@ -256,12 +284,8 @@ function apply(s: Settings) {
       hidden.delete(el as HTMLElement);
     } else if (el instanceof HTMLElement) {
       if (s[SETTING_FOR[kind]]) {
-        const fresh = !hidden.has(el);
         hide(el, stylesFor(kind));
-        if (fresh && stylesFor(kind) === COLLAPSE && el.matches(SEL.article) && !el.closest(SEL.dialog)) {
-          const code = shortcodeInRoot(el);
-          if (code) collapsedPosts.set(code, kind);
-        }
+        if (COLLAPSE_KINDS.includes(kind) && el.matches(SEL.article)) remember(el, kind);
       } else show(el);
     }
   }
@@ -286,6 +310,7 @@ export const declutter: Feature = {
       off();
       mounts.disconnect();
       collapsedPosts.clear();
+      remembered = new WeakSet();
       for (const el of [...hidden.keys()]) show(el);
       kinds.clear();
       checks = new WeakMap();
