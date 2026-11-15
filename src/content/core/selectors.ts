@@ -57,6 +57,24 @@ export function shortcodeInRoot(root: Element): string | undefined {
 }
 
 /**
+ * The shortcode of the post `root` is, only when it is unambiguous: the timestamp link, or else the one
+ * shortcode all its post links share. Undefined when they point at different posts (a caption linking
+ * another post), so a post is never filed under someone else's shortcode.
+ */
+export function ownShortcode(root: Element): string | undefined {
+  const fromTime = shortcodeFromHref(root.querySelector('a time')?.closest('a')?.getAttribute('href'));
+  if (fromTime) return fromTime;
+  let found: string | undefined;
+  for (const a of root.querySelectorAll<HTMLAnchorElement>(SEL.postLink)) {
+    const sc = shortcodeFromHref(a.getAttribute('href'));
+    if (!sc) continue;
+    if (found && sc !== found) return undefined;
+    found = sc;
+  }
+  return found;
+}
+
+/**
  * False for elements hidden behind an open popup (post modal, menus). elementsFromPoint lists
  * everything under the cursor, including the page behind a modal, so callers must filter with this.
  */

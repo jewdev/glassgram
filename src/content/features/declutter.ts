@@ -2,7 +2,7 @@ import type { Settings } from '../../shared/settings-schema';
 import { isEmpty, isMuted, parseMuteList, postAuthor, type MuteList } from '../core/mute';
 import { onDomChange } from '../core/observer';
 import { currentRoute } from '../core/router';
-import { SEL, shortcodeInRoot, SPONSORED_WORDS, SUGGESTED_WORDS } from '../core/selectors';
+import { ownShortcode, SEL, SPONSORED_WORDS, SUGGESTED_WORDS } from '../core/selectors';
 import { getSettings } from '../core/state';
 import type { Feature } from './types';
 
@@ -41,13 +41,16 @@ const COLLAPSE: Record<string, string> = { height: '1px', 'min-height': '0', ove
  * Scroll anchoring pulls the feed back while posts in it are collapsed, in Chrome and Firefox alike.
  * Measured in Chrome: Instagram swaps the posts you scrolled past for a spacer of exactly their height,
  * yet the browser still scrolled the page back by about one post. With anchoring off every scroll moved
- * exactly as far as the wheel did. So Home turns anchoring off while ads, suggested or muted posts may collapse.
+ * exactly as far as the wheel did. So Home turns anchoring off, but only once a post there has actually
+ * been collapsed: until then the browser keeps the feed steady while things above it load or grow.
  */
 const COLLAPSE_KINDS: Kind[] = ['ad', 'suggested', 'muted'];
 let anchorOff: { el: HTMLElement; value: string; priority: string }[] | undefined;
+/** A feed post on Home has been collapsed since the feature started. */
+let collapsedOnHome = false;
 
 function syncAnchoring(s: Settings, on = true) {
-  const want = on && currentRoute().kind === 'home' && COLLAPSE_KINDS.some((k) => !!s[SETTING_FOR[k]]);
+  const want = on && collapsedOnHome && currentRoute().kind === 'home' && COLLAPSE_KINDS.some((k) => !!s[SETTING_FOR[k]]);
   if (want && !anchorOff) {
     anchorOff = [document.documentElement, document.body].filter(Boolean).map((el) => {
       const prev = { el, value: el.style.getPropertyValue('overflow-anchor'), priority: el.style.getPropertyPriority('overflow-anchor') };
@@ -81,13 +84,16 @@ let remembered = new WeakSet<Element>();
 /** Save a collapsed feed post's shortcode once it has one (the time link can render after the label). */
 function remember(el: HTMLElement, kind: Kind) {
   if (remembered.has(el) || el.closest(SEL.dialog) || currentRoute().kind !== 'home') return;
-  const code = shortcodeInRoot(el);
+  const code = ownShortcode(el);
   if (!code) return;
   remembered.add(el);
   collapsedPosts.delete(code);
   collapsedPosts.set(code, kind);
   if (collapsedPosts.size > MAX_REMEMBERED) collapsedPosts.delete(collapsedPosts.keys().next().value!);
 }
+
+/** Remounted posts collapsed from memory whose label has not been seen again yet. */
+let unverified = new WeakSet<Element>();
 
 /** Articles looked at, and how often (labels may render late). */
 let checks = new WeakMap<Element, number>();
@@ -118,8 +124,45 @@ function soleWrapper(el: Element): Element {
   return cur;
 }
 
+/** What a feed post is from its own content, or undefined for a normal post. */
+function classify(art: HTMLElement): Kind | undefined {
+  if (hasExactLabel(art, SPONSORED_WORDS)) return 'ad';
+  if (hasExactLabel(art, SUGGESTED_WORDS)) return 'suggested';
+  // Mute is for the Home feed only: a post you open yourself (popup, post page, profile) stays visible.
+  if (!isEmpty(mute) && currentRoute().kind === 'home' && !art.closest(SEL.dialog) && isMuted(mute, postAuthor(art), art.textContent ?? '')) return 'muted';
+  return undefined;
+}
+
+/**
+ * Check a post collapsed from memory against its own content. One that no longer reads as an ad,
+ * suggestion or muted post (you followed the account, say) is forgotten and shown again.
+ */
+function verify(art: HTMLElement) {
+  if (!kinds.has(art)) return void unverified.delete(art);
+  const kind = classify(art);
+  if (kind) {
+    unverified.delete(art);
+    kinds.set(art, kind);
+    return;
+  }
+  const n = (checks.get(art) ?? 0) + 1;
+  checks.set(art, n);
+  if (n < MAX_CHECKS) return;
+  unverified.delete(art);
+  const code = ownShortcode(art);
+  if (code) collapsedPosts.delete(code);
+  // Opening a post above the screen would shift the page; it shows normally the next time it mounts.
+  if (art.getBoundingClientRect().top < 0) return;
+  kinds.delete(art);
+  show(art);
+}
+
 function tagFeed() {
   for (const art of document.querySelectorAll<HTMLElement>(SEL.article)) {
+    if (unverified.has(art)) {
+      verify(art);
+      continue;
+    }
     if (kinds.has(art) || restore(art)) continue;
     // Never collapse a post that starts above the screen: the page would shift up under you. Instagram's
     // feed also unmounts posts you scrolled past and mounts them again as new elements, so in a run
@@ -129,10 +172,8 @@ function tagFeed() {
     const n = checks.get(art) ?? 0;
     if (n >= MAX_CHECKS) continue;
     checks.set(art, n + 1);
-    if (hasExactLabel(art, SPONSORED_WORDS)) kinds.set(art, 'ad');
-    else if (hasExactLabel(art, SUGGESTED_WORDS)) kinds.set(art, 'suggested');
-    // Mute is for the Home feed only: a post you open yourself (popup, post page, profile) stays visible.
-    else if (!isEmpty(mute) && currentRoute().kind === 'home' && !art.closest(SEL.dialog) && isMuted(mute, postAuthor(art), art.textContent ?? '')) kinds.set(art, 'muted');
+    const kind = classify(art);
+    if (kind) kinds.set(art, kind);
   }
 }
 
@@ -142,11 +183,12 @@ function tagFeed() {
  */
 function restore(art: HTMLElement): boolean {
   if (!collapsedPosts.size || art.closest(SEL.dialog) || currentRoute().kind !== 'home') return false;
-  const code = shortcodeInRoot(art);
+  const code = ownShortcode(art);
   const kind = code && collapsedPosts.get(code);
   if (!kind) return false;
   kinds.set(art, kind);
   remembered.add(art);
+  unverified.add(art);
   return true;
 }
 
@@ -285,7 +327,10 @@ function apply(s: Settings) {
     } else if (el instanceof HTMLElement) {
       if (s[SETTING_FOR[kind]]) {
         hide(el, stylesFor(kind));
-        if (COLLAPSE_KINDS.includes(kind) && el.matches(SEL.article)) remember(el, kind);
+        if (COLLAPSE_KINDS.includes(kind) && el.matches(SEL.article)) {
+          if (currentRoute().kind === 'home' && !el.closest(SEL.dialog)) collapsedOnHome = true;
+          remember(el, kind);
+        }
       } else show(el);
     }
   }
@@ -297,12 +342,12 @@ export const declutter: Feature = {
   start() {
     const off = onDomChange(() => {
       syncMute(getSettings());
-      syncAnchoring(getSettings());
       tagFeed();
       tagNav();
       tagHome();
       tagProfile();
       apply(getSettings());
+      syncAnchoring(getSettings());
     });
     const mounts = new MutationObserver(restoreMounted);
     mounts.observe(document.documentElement, { childList: true, subtree: true });
@@ -311,6 +356,8 @@ export const declutter: Feature = {
       mounts.disconnect();
       collapsedPosts.clear();
       remembered = new WeakSet();
+      unverified = new WeakSet();
+      collapsedOnHome = false;
       for (const el of [...hidden.keys()]) show(el);
       kinds.clear();
       checks = new WeakMap();
@@ -322,8 +369,8 @@ export const declutter: Feature = {
   },
   onSettings(s) {
     syncMute(s);
-    syncAnchoring(s);
     tagFeed();
     apply(s);
+    syncAnchoring(s);
   },
 };
