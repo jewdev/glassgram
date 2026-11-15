@@ -1,0 +1,28 @@
+# Version updates go to dev so they ship with the next release. Security updates always target the
+# default branch (main); merge main back into dev after one lands.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      npm:
+        patterns: ["*"]
+
+  # Actions stay pinned to a commit SHA; Dependabot updates the SHA and its version comment.
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]
