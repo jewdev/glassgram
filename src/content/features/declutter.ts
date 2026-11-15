@@ -1,6 +1,6 @@
 import type { Settings } from '../../shared/settings-schema';
 import { isEmpty, isMuted, parseMuteList, postAuthor, type MuteList } from '../core/mute';
-import { onDomChange } from '../core/observer';
+import { onDomChange, onMutations } from '../core/observer';
 import { currentRoute } from '../core/router';
 import { ownShortcode, SEL, SPONSORED_WORDS, SUGGESTED_WORDS } from '../core/selectors';
 import { getSettings } from '../core/state';
@@ -80,11 +80,22 @@ const collapsedPosts = new Map<string, Kind>();
 const MAX_REMEMBERED = 500;
 /** Collapsed articles whose shortcode is already in collapsedPosts. */
 let remembered = new WeakSet<Element>();
+/** Shortcodes found per article. Only hits are kept: the time link can render after the article. */
+let codes = new WeakMap<Element, string>();
+
+function codeOf(art: Element): string | undefined {
+  let code = codes.get(art);
+  if (code === undefined) {
+    code = ownShortcode(art);
+    if (code) codes.set(art, code);
+  }
+  return code;
+}
 
 /** Save a collapsed feed post's shortcode once it has one (the time link can render after the label). */
 function remember(el: HTMLElement, kind: Kind) {
   if (remembered.has(el) || el.closest(SEL.dialog) || currentRoute().kind !== 'home') return;
-  const code = ownShortcode(el);
+  const code = codeOf(el);
   if (!code) return;
   remembered.add(el);
   collapsedPosts.delete(code);
@@ -149,7 +160,7 @@ function verify(art: HTMLElement) {
   checks.set(art, n);
   if (n < MAX_CHECKS) return;
   unverified.delete(art);
-  const code = ownShortcode(art);
+  const code = codeOf(art);
   if (code) collapsedPosts.delete(code);
   // Opening a post above the screen would shift the page; it shows normally the next time it mounts.
   if (art.getBoundingClientRect().top < 0) return;
@@ -183,9 +194,12 @@ function tagFeed() {
  */
 function restore(art: HTMLElement): boolean {
   if (!collapsedPosts.size || art.closest(SEL.dialog) || currentRoute().kind !== 'home') return false;
-  const code = ownShortcode(art);
+  const code = codeOf(art);
   const kind = code && collapsedPosts.get(code);
   if (!kind) return false;
+  // Move it to the newest end, so posts the feed keeps remounting are the last to be forgotten.
+  collapsedPosts.delete(code);
+  collapsedPosts.set(code, kind);
   kinds.set(art, kind);
   remembered.add(art);
   unverified.add(art);
@@ -197,11 +211,18 @@ function restoreMounted(records: MutationRecord[]) {
   if (!collapsedPosts.size || currentRoute().kind !== 'home') return;
   const s = getSettings();
   const arts = new Set<HTMLElement>();
+  /** closest() once per parent in a batch: React adds many children to the same one. */
+  const hosts = new Map<Node, HTMLElement | null>();
   for (const r of records) {
+    if (!r.addedNodes.length) continue;
     // The post itself, or content (such as the time link with the shortcode) added inside one already mounted.
-    const host = r.target instanceof Element ? r.target.closest<HTMLElement>(SEL.article) : null;
+    let host = hosts.get(r.target);
+    if (host === undefined) {
+      host = r.target instanceof Element ? r.target.closest<HTMLElement>(SEL.article) : null;
+      hosts.set(r.target, host);
+    }
     if (host) {
-      if (r.addedNodes.length) arts.add(host);
+      arts.add(host);
       continue;
     }
     for (const node of r.addedNodes) {
@@ -349,13 +370,13 @@ export const declutter: Feature = {
       apply(getSettings());
       syncAnchoring(getSettings());
     });
-    const mounts = new MutationObserver(restoreMounted);
-    mounts.observe(document.documentElement, { childList: true, subtree: true });
+    const offMounts = onMutations(restoreMounted);
     return () => {
       off();
-      mounts.disconnect();
+      offMounts();
       collapsedPosts.clear();
       remembered = new WeakSet();
+      codes = new WeakMap();
       unverified = new WeakSet();
       collapsedOnHome = false;
       for (const el of [...hidden.keys()]) show(el);
