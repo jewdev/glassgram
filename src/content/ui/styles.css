@@ -383,6 +383,7 @@ a.ige-sd__row:hover { background: var(--ige-soft); }
 .ige-summary__chip:disabled { opacity: 0.55; cursor: default; }
 .ige-summary__chip--lost:not(:disabled) { border-color: var(--ige-danger); color: var(--ige-danger); }
 .ige-summary__own { margin: 0; font-size: 12px; }
+.ige-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ige-dot { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: var(--ige-accent); vertical-align: middle; }
 /* picking accounts to unfollow */
 .ige-btn--danger { padding: 0 16px; border-radius: 999px; background: var(--ige-danger); color: #fff; }

@@ -5,6 +5,7 @@ import { openModal } from '../ui/modal';
 import { toast } from '../ui/toast';
 import {
   BLOCKED_COOLDOWN_MS,
+  CHANGE_FILE_NAMES,
   CHANGE_KINDS,
   CHANGE_LABELS,
   MAX_RETRIES,
@@ -26,6 +27,7 @@ import {
   type HistoryEntry,
   type MiniUser,
   type Snapshot,
+  unfollowedYouText,
 } from './unfollowers-history';
 import { UNFOLLOWS_BEFORE_PAUSE, clock, formatDuration, unfollowDelayMs, unfollowEtaMs } from './unfollow-pacing';
 
@@ -47,6 +49,9 @@ interface Progress {
 }
 
 type Tab = 'notBack' | 'fans' | 'followers' | 'following' | 'changes';
+
+/** A scan's date as the user's locale writes it. */
+const scanDate = (at: number) => new Date(at).toLocaleDateString();
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'notBack', label: "Don't follow back" },
@@ -171,7 +176,7 @@ export async function openUnfollowers() {
     // A summary chip counts the newest scan only, so its list shows that scan and nothing older.
     const entries = kindFilter ? history.slice(0, 1) : history;
     if (kindFilter) {
-      const since = history[0].prevAt !== undefined ? new Date(history[0].prevAt).toLocaleDateString() : '';
+      const since = history[0].prevAt !== undefined ? scanDate(history[0].prevAt) : '';
       out.push(
         h('div', { class: 'ige-pickbar ige-hist__filter' },
           h('strong', {}, since ? `${CHANGE_LABELS[kindFilter]} since your scan on ${since}` : CHANGE_LABELS[kindFilter]),
@@ -231,7 +236,7 @@ export async function openUnfollowers() {
     if (!latest || latest.prevAt === undefined) return;
     const fresh = isUnseen(history, seenAt);
     summary.classList.toggle('is-new', fresh);
-    const since = new Date(latest.prevAt).toLocaleDateString();
+    const since = scanDate(latest.prevAt);
     const chip = (kind: ChangeKind, text: (n: number) => string) => {
       const n = latest[kind].length;
       return h('button', {
@@ -257,7 +262,7 @@ export async function openUnfollowers() {
       ...(hasChanges(latest)
         ? [
             h('div', { class: 'ige-summary__chips' },
-              chip('lost', (n) => `${n} unfollowed you`),
+              chip('lost', unfollowedYouText),
               chip('gained', newFollowersText),
             ),
           ]
@@ -290,7 +295,10 @@ export async function openUnfollowers() {
         },
         `${t.label} `,
         h('span', { class: 'ige-badge' }, String(count(t.id))),
-        ...(t.id === 'changes' && unseen ? [h('span', { class: 'ige-dot', title: 'New changes' })] : [])),
+        // The dot is for the eye; screen readers get the words.
+        ...(t.id === 'changes' && unseen
+          ? [h('span', { class: 'ige-dot', title: 'New changes', 'aria-hidden': 'true' }), h('span', { class: 'ige-sr-only' }, ', new changes')]
+          : [])),
       ),
     );
     const q = query.toLowerCase();
@@ -410,7 +418,7 @@ export async function openUnfollowers() {
     await chrome.storage.local.remove(baseKey(uid));
     if (entry.prevAt === undefined) return toast('Scan complete. The next scan will show who unfollowed you.', 'success', 5000);
     const parts = [
-      entry.lost.length && `${entry.lost.length} unfollowed you`,
+      entry.lost.length && unfollowedYouText(entry.lost.length),
       entry.gained.length && newFollowersText(entry.gained.length),
     ].filter(Boolean);
     toast(parts.length ? `Scan complete: ${parts.join(', ')}.` : hasChanges(entry) ? 'Scan complete. See Changes.' : 'Scan complete. No changes since last time.', 'success', 6000);
@@ -605,7 +613,7 @@ export async function openUnfollowers() {
   });
   exportBtn.addEventListener('click', () => {
     const day = new Date().toISOString().slice(0, 10);
-    if (tab === 'changes') saveCsv(`instagram_${kindFilter ?? 'changes'}_${day}.csv`, kindFilter ? historyCsv(history.slice(0, 1), [kindFilter]) : historyCsv(history));
+    if (tab === 'changes') saveCsv(`instagram_${kindFilter ? CHANGE_FILE_NAMES[kindFilter] : 'changes'}_${day}.csv`, kindFilter ? historyCsv(history.slice(0, 1), [kindFilter]) : historyCsv(history));
     else saveCsv(`instagram_${tab}_${day}.csv`, csv(sets()[tab]));
   });
   render();

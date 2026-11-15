@@ -126,6 +126,16 @@ export type ChangeKind = keyof typeof CHANGE_LABELS;
 
 /** "1 new follower", "3 new followers". */
 export const newFollowersText = (n: number) => `${n} new follower${n === 1 ? '' : 's'}`;
+/** "3 unfollowed you". */
+export const unfollowedYouText = (n: number) => `${n} unfollowed you`;
+
+/** File name part for an export of one kind of change, in the style of the other exports (instagram_notBack). */
+export const CHANGE_FILE_NAMES = {
+  lost: 'unfollowedYou',
+  gained: 'newFollowers',
+  unfollowed: 'youUnfollowed',
+  followed: 'youFollowed',
+} as const satisfies Record<keyof typeof CHANGE_LABELS, string>;
 export const CHANGE_KINDS = Object.keys(CHANGE_LABELS) as ChangeKind[];
 
 /** Spreadsheet cell, with names other people chose kept from running as formulas. */
