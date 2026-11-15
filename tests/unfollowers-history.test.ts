@@ -113,6 +113,11 @@ describe('isUnseen', () => {
     expect(isUnseen([changed], 1)).toBe(true);
     expect(isUnseen([changed], 2)).toBe(false);
   });
+
+  it('ignores changes the user made themselves', () => {
+    const ownOnly = diffScans(snapshot(1, [u('1')], [u('2')]), snapshot(2, [u('1')], [u('3')]));
+    expect(isUnseen([ownOnly], undefined)).toBe(false);
+  });
 });
 
 describe('newFollowersText', () => {

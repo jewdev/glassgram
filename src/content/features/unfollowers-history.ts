@@ -131,10 +131,13 @@ export const CHANGE_KINDS = Object.keys(CHANGE_LABELS) as ChangeKind[];
 /** Spreadsheet cell, with names other people chose kept from running as formulas. */
 export const csvCell = (v: string) => `"${(/^[=+\-@\t\r]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`;
 
-/** True when the newest scan has changes the user has not looked at yet. */
+/**
+ * True when the newest scan has follower changes the user has not looked at yet. Their own follows
+ * and unfollows are not news to them, so those alone never count.
+ */
 export function isUnseen(history: HistoryEntry[], seenAt: number | undefined): boolean {
   const latest = history[0];
-  return !!latest && latest.prevAt !== undefined && hasChanges(latest) && latest.at > (seenAt ?? 0);
+  return !!latest && latest.prevAt !== undefined && !!(latest.lost.length || latest.gained.length) && latest.at > (seenAt ?? 0);
 }
 
 export function historyCsv(history: HistoryEntry[], kinds: readonly ChangeKind[] = CHANGE_KINDS): string {
