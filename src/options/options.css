@@ -299,7 +299,7 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 .count { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
 .panel__intro { margin: 0 12px 10px; color: var(--ink-2); font-size: 14px; max-width: 62ch; }
 
-.panel__list { display: flex; flex-direction: column; }
+.panel__list { display: flex; flex-direction: column; gap: 8px; }
 
 /* features: separated by inset hairlines, not boxes */
 .feature { border-radius: var(--r-row); transition: background 0.2s var(--ease); }
