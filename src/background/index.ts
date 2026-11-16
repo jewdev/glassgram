@@ -1,3 +1,4 @@
+import { HEALTH_TAB_KEY } from '../shared/health';
 import type { DownloadResult, Message } from '../shared/messages';
 import { loadSettings, onSettingsChanged } from '../shared/settings';
 import type { Settings } from '../shared/settings-schema';
@@ -304,6 +305,14 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, reply) => {
   if (msg.type === 'ping') {
     reply({ ok: true });
     return false;
+  }
+  if (msg.type === 'isHealthTab') {
+    // The settings page stores the tab it opened for the health check (src/options/health.ts).
+    chrome.storage.session
+      .get(HEALTH_TAB_KEY)
+      .then((r) => reply(sender.tab?.id !== undefined && r[HEALTH_TAB_KEY] === sender.tab.id))
+      .catch(() => reply(false));
+    return true;
   }
   if (msg.type === 'checkUpdates') {
     checkForUpdates().then(reply);

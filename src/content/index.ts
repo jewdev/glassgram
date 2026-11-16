@@ -58,6 +58,19 @@ const FEATURES: Feature[] = [
 ];
 const running = new Map<string, () => void>();
 
+/**
+ * In the tab the health check opens, features that keep a daily tally stay off: the check's visit to
+ * Reels and Explore isn't the user's time or reels.
+ */
+const OFF_IN_HEALTH_TAB = new Set([focusMode.id, reelCounter.id]);
+let healthTab = false;
+
+/** Asked once at start, before any feature runs. A worker that doesn't answer means no. */
+function askHealthTab(): Promise<boolean> {
+  const answer = chrome.runtime.sendMessage({ type: 'isHealthTab' } satisfies Message).then((r) => r === true, () => false);
+  return Promise.race([answer, new Promise<boolean>((r) => setTimeout(() => r(false), 2000))]);
+}
+
 function sync(s: Settings) {
   setSettings(s);
   // Anonymous stories, DM privacy and link cleaning run in the page script.
@@ -65,7 +78,7 @@ function sync(s: Settings) {
   setTheme(s['ui.theme']);
   setMotion(s['ui.animations']);
   for (const f of FEATURES) {
-    const on = f.isEnabled(s);
+    const on = f.isEnabled(s) && !(healthTab && OFF_IN_HEALTH_TAB.has(f.id));
     const stop = running.get(f.id);
     try {
       if (on && !stop) running.set(f.id, f.start());
@@ -85,7 +98,8 @@ function whenBody(): Promise<void> {
 }
 
 async function boot() {
-  const settings = await loadSettings();
+  const [settings, inHealthTab] = await Promise.all([loadSettings(), askHealthTab()]);
+  healthTab = inHealthTab;
   // The page script patches what these settings need right away: anonymous stories must be armed
   // before Instagram's first request, the DM archive before the chat socket's first messages.
   sendPageSettings(settings);
@@ -95,7 +109,7 @@ async function boot() {
 
   chrome.runtime.onMessage.addListener((msg: Message, _sender, reply) => {
     if (msg.type === 'healthCheck') {
-      runHealthCheck().then(reply, (e) => reply({ error: String(e?.message ?? e) }));
+      runHealthCheck(msg.step).then(reply, (e) => reply({ error: String(e?.message ?? e) }));
       return true; // async reply
     }
     // Answered, so the background knows the panel opened and stops retrying.

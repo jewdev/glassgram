@@ -1,3 +1,4 @@
+import type { HealthStep } from './health';
 import type { DownloadJob } from './types';
 
 export type Message =
@@ -12,8 +13,10 @@ export type Message =
   | { type: 'checkUpdates' }
   /** Popup → background: bring up an Instagram tab (opening one if needed) and show this panel in it. */
   | { type: 'openOnInstagram'; panel: 'openUnfollowers' | 'openUnsent' }
-  /** Settings page → content script: run the health check in this tab (replies with a HealthReport). */
-  | { type: 'healthCheck' }
+  /** Settings page → content script: run one step of the health check here (replies with a HealthReport). */
+  | { type: 'healthCheck'; step: HealthStep }
+  /** Content script → background: was this tab opened by the health check? (replies with a boolean) */
+  | { type: 'isHealthTab' }
   /** Settings page → background: is the service worker answering? */
   | { type: 'ping' }
   /** Stop the ZIPs this tab started. */

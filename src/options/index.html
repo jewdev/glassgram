@@ -199,6 +199,17 @@
       </form>
     </dialog>
 
+    <dialog id="health-confirm" class="confirm glass" aria-labelledby="health-confirm-title">
+      <form method="dialog">
+        <h2 id="health-confirm-title">Run the health check?</h2>
+        <p>Opens Instagram in a new tab and checks 6 pages, about 30 seconds. Stories and chats stay unopened. Close the tab to stop.</p>
+        <div class="confirm__actions">
+          <button class="pill-btn pill-btn--quiet" value="cancel">Cancel</button>
+          <button class="pill-btn pill-btn--accent" value="run">Start check</button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="./options.ts"></script>
   </body>
 </html>

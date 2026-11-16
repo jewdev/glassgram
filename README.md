@@ -139,8 +139,9 @@ closes.
 
 Exact timestamps, copy comment, save GIFs from comments, a searchable settings page with
 export/import, a popup with quick toggles, and a **health check** in the settings sidebar that tells
-you which features an Instagram change broke (it sends Instagram nothing, and **Copy report** gives
-you a bug report without usernames or links). Every feature can be switched off;
+you which features an Instagram change broke. It opens Home, a post, a profile, Reels, Explore and
+your inbox in a tab of its own, never a story or a chat, and sends Instagram nothing of its own.
+**Copy report** gives you a bug report without usernames or links. Every feature can be switched off;
 see the [settings reference](docs/SETTINGS.md) for all options and defaults.
 
 ## Keyboard shortcuts

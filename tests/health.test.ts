@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { overall, pickTab, reportText, summary, type HealthCheck } from '../src/shared/health';
+import { overall, pickTab, reportText, stepUrl, STEPS, summary, type HealthCheck } from '../src/shared/health';
 
 const c = (status: HealthCheck['status'], label: string = status): HealthCheck => ({ id: label, label, status, detail: `${label} detail` });
 
@@ -31,6 +31,43 @@ describe('reportText', () => {
     expect(text).toContain('2026-11-03T00:00:00.000Z');
     expect(text).toContain('[OK  ] Logged in: Logged in detail');
     expect(text).toContain('[FAIL] Post layout: Post layout detail');
+  });
+
+  it('puts each page under its own heading, Glassgram first', () => {
+    const checks = [c('ok', 'Logged in'), { ...c('ok', 'Post layout'), group: 'Home feed' }, { ...c('warn', 'Reels player'), group: 'Reels' }];
+    const text = reportText({ version: '1.9.0', page: 'full check', at: 0, checks }, 'B');
+    const body = text.slice(text.indexOf('Glassgram:'));
+    expect(body).toBe(['Glassgram:', '[OK  ] Logged in: Logged in detail', '', 'Home feed:', '[OK  ] Post layout: Post layout detail', '', 'Reels:', '[WARN] Reels player: Reels player detail'].join('\n'));
+  });
+
+  it('leaves out where the check went next', () => {
+    const text = reportText({ version: '1.9.0', page: 'full check', at: 0, checks: [c('ok')], next: { post: 'SECRETCODE', profile: 'someone' } }, 'B');
+    expect(text).not.toContain('SECRETCODE');
+    expect(text).not.toContain('someone');
+  });
+});
+
+describe('stepUrl', () => {
+  it('opens fixed pages, and the post and profile Home found', () => {
+    const next = { post: 'C0de123', profile: 'some.one' };
+    expect(STEPS.map((s) => stepUrl(s, next))).toEqual([
+      'https://www.instagram.com/',
+      'https://www.instagram.com/p/C0de123/',
+      'https://www.instagram.com/some.one/',
+      'https://www.instagram.com/reels/',
+      'https://www.instagram.com/explore/',
+      'https://www.instagram.com/direct/inbox/',
+    ]);
+  });
+
+  it('has nowhere to go without them', () => {
+    expect(stepUrl('post', {})).toBeUndefined();
+    expect(stepUrl('profile', {})).toBeUndefined();
+  });
+
+  it('never opens a story or a chat', () => {
+    const urls = STEPS.map((s) => stepUrl(s, { post: 'C0de123', profile: 'x' }) ?? '');
+    expect(urls.some((u) => /\/stories\/|\/direct\/t\//.test(u))).toBe(false);
   });
 });
 

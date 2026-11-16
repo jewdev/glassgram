@@ -1,6 +1,8 @@
 /* Glassgram — settings page. Tokens, glass, switch and pill buttons live in ../shared/glass.css. */
 
-html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; scrollbar-gutter: stable; }
+/* The page behind an open dialog stays put (the gutter keeps it from shifting when its scrollbar goes). */
+html:has(dialog[open]) { overflow: hidden; }
 body { min-height: 100vh; }
 
 /* ---------------- layout ---------------- */
@@ -78,7 +80,7 @@ body { min-height: 100vh; }
 .side-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; }
 .side-toggle__label { color: var(--ink-2); font-size: 13px; line-height: 1.35; cursor: pointer; }
 
-.updates { display: flex; flex-direction: column; gap: 4px; padding: 0 10px; }
+.updates { display: flex; flex-direction: column; gap: 4px; padding: 14px 10px 0; border-top: 1px solid var(--hairline); }
 .updates__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
 .updates__title { margin: 0; font-size: 12px; font-weight: 600; color: var(--ink-3); }
 .updates__btn { flex: none; height: 28px; margin-right: -10px; font-size: 12px; }
@@ -254,6 +256,8 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 }
 .health__row { display: flex; gap: 12px; padding: 10px 0; }
 .health__row + .health__row { box-shadow: 0 -1px 0 var(--hairline); }
+.health__group { margin: 14px 0 2px; font-size: 12px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.health__group:first-child { margin-top: 0; }
 .health__mark {
   display: grid;
   place-items: center;
@@ -469,8 +473,7 @@ select.control option { background: var(--base); color: var(--ink); }
 .confirm::backdrop { background: rgb(8 10 18 / 0.35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .confirm[open] { animation: rise 0.24s var(--ease); }
 .confirm h2 { margin: 0 0 6px; font-size: 17px; font-weight: 680; letter-spacing: -0.01em; }
-.confirm p { margin: 0 0 18px; color: var(--ink-2); font-size: 14px; }
-.confirm__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.confirm p { margin: 0 0 18px; color: var(--ink-2); font-size: 14px; }.confirm__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .confirm__actions .pill-btn { flex: none; min-width: 90px; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
 
