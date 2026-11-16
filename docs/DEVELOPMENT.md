@@ -13,6 +13,8 @@ npm run build:firefox  # the same for Firefox, into dist-firefox/
 npm test               # unit tests
 ```
 
+Tests run in Node. A `*.dom.test.ts` file starts with `// @vitest-environment happy-dom` and gets a fake page (`document`, `MutationObserver`, `history`) to test content-script code against small hand-written copies of Instagram's markup. There's no layout in happy-dom: every element measures 0, so mock `getBoundingClientRect` for anything that depends on position. Drive throttled DOM scans with fake timers (`setTimeout`, `requestAnimationFrame`, `performance`), as `tests/declutter.dom.test.ts` does.
+
 ## Firefox
 
 One codebase, two builds: `vite build --mode firefox` changes only the manifest (`manifest.config.ts`) and the build target. The differences in code:
